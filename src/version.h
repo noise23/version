@@ -12,10 +12,10 @@
 //
 
 // These need to be macro's, as version.cpp's voodoo requires it
-#define CLIENT_VERSION_MAJOR       0
-#define CLIENT_VERSION_MINOR       8
-#define CLIENT_VERSION_REVISION    9
-#define CLIENT_VERSION_BUILD       9
+#define CLIENT_VERSION_MAJOR       1
+#define CLIENT_VERSION_MINOR       0
+#define CLIENT_VERSION_REVISION    0
+#define CLIENT_VERSION_BUILD       0
 
 static const int CLIENT_VERSION =
                            1000000 * CLIENT_VERSION_MAJOR
@@ -28,10 +28,10 @@ extern const std::string CLIENT_BUILD;
 extern const std::string CLIENT_DATE;
 
 // version version - intended for display purpose ONLY
-#define VOIN_VERSION_MAJOR       0
-#define VOIN_VERSION_MINOR       8
-#define VOIN_VERSION_REVISION    9
-#define VOIN_VERSION_BUILD       9
+#define VOIN_VERSION_MAJOR       1
+#define VOIN_VERSION_MINOR       0
+#define VOIN_VERSION_REVISION    0
+#define VOIN_VERSION_BUILD       0
 
 static const int VOIN_VERSION =
                            1000000 * VOIN_VERSION_MAJOR
@@ -43,21 +43,21 @@ static const int VOIN_VERSION =
 // network protocol versioning
 //
 
-static const int PROTOCOL_VERSION = 70006; //increment from 60003
+static const int PROTOCOL_VERSION = 73000; 
 
 // intial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
 
 // disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 70006; 
+static const int MIN_PEER_PROTO_VERSION = 73000; 
 
 // nTime field added to CAddress, starting with this version;
 // if possible, avoid requesting addresses nodes older than this
-static const int CADDR_TIME_VERSION = 31402;
+static const int CADDR_TIME_VERSION = 73000;
 
 // only request blocks from nodes outside this range of versions
 static const int NOBLKS_VERSION_START = 32000;
-static const int NOBLKS_VERSION_END = 70005;
+static const int NOBLKS_VERSION_END = 72005;
 
 // BIP 0031, pong message, is enabled for all versions AFTER this one
 static const int BIP0031_VERSION = 60000;
