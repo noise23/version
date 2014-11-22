@@ -11,19 +11,16 @@ else
     exit 1
 fi
 
-#if [ -e "$(which git)" ]; then
+if [ -e "$(which git)" ]; then
     # clean 'dirty' status of touched files that haven't been modified
- #   git diff >/dev/null 2>/dev/null 
+    git diff >/dev/null 2>/dev/null 
 
     # get a string like "v0.6.0-66-g59887e8-dirty"
-  #  DESC="$(git describe --dirty 2>/dev/null)"
+    DESC="$(git describe --dirty 2>/dev/null)"
 
     # get a string like "2012-04-10 16:27:19 +0200"
-   # TIME="$(git log -n 1 --format="%ci")"
-#fi
-
-DESC="v0.8.9.9-vcoin"
-TIME="2014-03-15 22:05:00 +0500"
+    TIME="$(git log -n 1 --format="%ci")"
+fi
 
 if [ -n "$DESC" ]; then
     NEWINFO="#define BUILD_DESC \"$DESC\""
