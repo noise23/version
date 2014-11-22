@@ -50,6 +50,7 @@ static const int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 static const int STAKE_TARGET_SPACING = 20; // 20-second block spacing 
 static const int STAKE_MIN_AGE = 60 * 60 * 24 * 5; // minimum age for coin age
 static const int STAKE_MAX_AGE = 60 * 60 * 24 * 30; // stake age of full weight
+static const int64 MAX_MINT_PROOF_OF_STAKE = 120 * CENT;	// 120% annual interest
 
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
@@ -121,7 +122,9 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 int64 GetProofOfWorkReward(int nHeight, unsigned int nBits);
-int64 GetProofOfStakeReward(int64 nCoinAge);
+int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly);
+int64 GetProofOfStakeRewardV1(int64 nCoinAge);
+int64 GetProofOfStakeRewardV2(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly);
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime);
 int GetNumBlocksOfPeers();
 bool IsInitialBlockDownload();
