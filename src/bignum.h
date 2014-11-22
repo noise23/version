@@ -184,7 +184,7 @@ public:
         BN_mpi2bn(pch, p - pch, this);
     }
 
-    uint64 getuint64()
+	    uint64 getuint64()
     {
         unsigned int nSize = BN_bn2mpi(this, NULL);
         if (nSize < 4)
@@ -194,7 +194,7 @@ public:
         if (vch.size() > 4)
             vch[4] &= 0x7f;
         uint64 n = 0;
-        for (int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
+        for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
             ((unsigned char*)&n)[i] = vch[j];
         return n;
     }

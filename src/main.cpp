@@ -2105,7 +2105,7 @@ bool CBlock::CheckBlock(int nHeight) const
             return DoS(100, error("CheckBlock() : more than one coinbase"));
 
     // version: only the second transaction can be the optional coinstake
-    for (int i = 2; i < vtx.size(); i++)
+    for (unsigned int i = 2; i < vtx.size(); i++)
         if (vtx[i].IsCoinStake())
             return DoS(100, error("CheckBlock() : coinstake in wrong position"));
 
@@ -2453,7 +2453,7 @@ bool CheckDiskSpace(uint64 nAdditionalBytes)
 
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
 {
-    if (nFile == -1)
+    if ((nFile < 1) || (nFile == (unsigned int) -1))
         return NULL;
     FILE* file = fopen((GetDataDir() / strprintf("blk%04d.dat", nFile)).string().c_str(), pszMode);
     if (!file)
