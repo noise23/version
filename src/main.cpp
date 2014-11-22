@@ -858,29 +858,13 @@ int64 GetProofOfWorkReward(int nHeight, unsigned int nBits)
     {
 	nSubsidy = 25 * COIN;
     }
-    else if(nHeight > 10000 && nHeight <= 260000)
+    else if(nHeight > 10000 && nHeight <= 210216)
     {
 	nSubsidy = 4 * COIN;
     }
-    else if(nHeight > 260000 && nHeight <= 510000)
-    {
-	nSubsidy = 2 * COIN;
-    }
-    else if(nHeight > 510000 && nHeight <= 760000)
-    {
-	nSubsidy = 1 * COIN;
-    }    
-    else if(nHeight > 760000 && nHeight <= 1010000)
-    {
-	nSubsidy = 0.5 * COIN;
-    }
-    else if(nHeight > 1010000 && nHeight <= 2510000) // Bugfix: Enforce the cap of 2.5M maximum PoW mined coins
-    {
-	nSubsidy = 0.25 * COIN;
-    }
     else
     {
-        nSubsidy = 0 * COIN; // after 2.5M total coins have been mined via PoW, there is no more block reward
+        nSubsidy = 1 * COIN; // 1 V  pow reward forever
     }
 
     if (fDebug && GetBoolArg("-printcreation"))
