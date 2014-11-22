@@ -32,10 +32,13 @@ unsigned int nTransactionsUpdated = 0;
 map<uint256, CBlockIndex*> mapBlockIndex;
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 uint256 hashGenesisBlock = hashGenesisBlockOfficial;
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8);
-static CBigNum bnInitialHashTarget(~uint256(0) >> 10);
+// static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8);
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20);
+// static CBigNum bnInitialHashTarget(~uint256(0) >> 10);
+static CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 unsigned int nStakeMinAge = STAKE_MIN_AGE;
 int nCoinbaseMaturity = COINBASE_MATURITY_V;
+unsigned int nStakeTargetSpacing = 90;			// 90 sec block spacing
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 CBigNum bnBestChainTrust = 0;
@@ -455,7 +458,7 @@ bool CTransaction::CheckTransaction() const
 
     // Check for negative or overflow output values
     int64 nValueOut = 0;
-    for (int i = 0; i < vout.size(); i++)
+    for (unsigned int i = 0; i < vout.size(); i++)
     {
         const CTxOut& txout = vout[i];
         if (txout.IsEmpty() && (!IsCoinBase()) && (!IsCoinStake()))
@@ -627,7 +630,7 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
             printf("CTxMemPool::accept() : replacing tx %s with new version\n", ptxOld->GetHash().ToString().c_str());
             remove(*ptxOld);
         }
-        addUnchecked(tx);
+        addUnchecked(hash, tx);
     }
 
     ///// are we sure this is ok when loading transactions or restoring block txes
@@ -644,7 +647,7 @@ bool CTransaction::AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs, bool* pfMi
     return mempool.accept(txdb, *this, fCheckInputs, pfMissingInputs);
 }
 
-bool CTxMemPool::addUnchecked(CTransaction &tx)
+bool CTxMemPool::addUnchecked(const uint256& hash, CTransaction &tx)
 {
     printf("addUnchecked(): size %lu\n",  mapTx.size());
     // Add to memory pool without checking anything.  Don't call this directly,
@@ -828,71 +831,41 @@ uint256 WantedByOrphan(const CBlock* pblockOrphan)
 
 int64 GetProofOfWorkReward(int nHeight, unsigned int nBits)
 {
-    //CBigNum bnSubsidyLimit = MAX_MINT_PROOF_OF_WORK;
-    //CBigNum bnTarget;
-    //bnTarget.SetCompact(nBits);
-    //CBigNum bnTargetLimit = bnProofOfWorkLimit;
-    //bnTargetLimit.SetCompact(bnTargetLimit.GetCompact());
-
-    // version: subsidy is cut in half every 16x multiply of difficulty
-    // A reasonably continuous curve is used to avoid shock to market
-    // (nSubsidyLimit / nSubsidy) ** 4 == bnProofOfWorkLimit / bnTarget
-    //CBigNum bnLowerBound = CENT;
-    //CBigNum bnUpperBound = bnSubsidyLimit;
-    //while (bnLowerBound + CENT <= bnUpperBound)
-    //{
-      //  CBigNum bnMidValue = (bnLowerBound + bnUpperBound) / 2;
-       // if (fDebug && GetBoolArg("-printcreation"))
-       //     printf("GetProofOfWorkReward() : lower=%"PRI64d" upper=%"PRI64d" mid=%"PRI64d"\n", bnLowerBound.getuint64(), bnUpperBound.getuint64(), bnMidValue.getuint64());
-       // if (bnMidValue * bnMidValue * bnMidValue * bnMidValue * bnTargetLimit > bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit * bnSubsidyLimit * bnTarget)
-         //   bnUpperBound = bnMidValue;
-       // else
-       //     bnLowerBound = bnMidValue;
-    //}
-
-    //int64 nSubsidy = bnUpperBound.getuint64();
-    //nSubsidy = (nSubsidy / CENT) * CENT;
-
     int64 nSubsidy = MAX_MINT_PROOF_OF_WORK;
     if(nHeight <= 10000)
     {
 	nSubsidy = 25 * COIN;
     }
-    else if(nHeight > 10000 && nHeight <= 260000)
+    else if(nHeight > 10000 && nHeight <= 210216)
     {
 	nSubsidy = 4 * COIN;
     }
-    else if(nHeight > 260000 && nHeight <= 510000)
+     else
     {
-	nSubsidy = 2 * COIN;
-    }
-    else if(nHeight > 510000 && nHeight <= 760000)
-    {
-	nSubsidy = 1 * COIN;
-    }    
-    else if(nHeight > 760000 && nHeight <= 1010000)
-    {
-	nSubsidy = 0.5 * COIN;
-    }
-    else if(nHeight > 1010000 && nHeight <= 2510000) // Bugfix: Enforce the cap of 2.5M maximum PoW mined coins
-    {
-	nSubsidy = 0.25 * COIN;
-    }
-    else
-    {
-        nSubsidy = 0 * COIN; // after 2.5M total coins have been mined via PoW, there is no more block reward
+        nSubsidy = 1 * COIN; 
     }
 
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfWorkReward() : create=%s nBits=0x%08x nSubsidy=%"PRI64d"\n", FormatMoney(nSubsidy).c_str(), nBits, nSubsidy);
 
     return nSubsidy;
+}
 
-    //return min(nSubsidy, MAX_MINT_PROOF_OF_WORK);
+int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly)
+
+ {
+ int64 nSubsidy = 0;
+
+ if ( nHeight <= 210216 )
+ nSubsidy = GetProofOfStakeRewardV1(nCoinAge);
+ else
+ nSubsidy = GetProofOfStakeRewardV2(nCoinAge, nBits, nTime, nHeight, bCoinYearOnly);
+
+ return nSubsidy;
 }
 
 // version: miner's coin stake is rewarded based on coin age spent (coin-days)
-int64 GetProofOfStakeReward(int64 nCoinAge)
+int64 GetProofOfStakeRewardV1(int64 nCoinAge)
 {
     static int64 nRewardCoinYear = CENT;  // creation amount per coin-year
     int64 nSubsidy = nCoinAge * 10 * nRewardCoinYear; //10% per annum //33 / (365 * 33 + 8) * nRewardCoinYear;
@@ -901,30 +874,98 @@ int64 GetProofOfStakeReward(int64 nCoinAge)
     return nSubsidy;
 }
 
+int64 GetProofOfStakeRewardV2(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly)
+{
+ int64 nRewardCoinYear;
+
+ CBigNum bnRewardCoinYearLimit = MAX_MINT_PROOF_OF_STAKE; // Base stake mint rate, 120% year interest
+ CBigNum bnTarget;
+ bnTarget.SetCompact(nBits);
+ CBigNum bnTargetLimit = bnProofOfStakeLimit;
+ bnTargetLimit.SetCompact(bnTargetLimit.GetCompact());
+ int64 nSubsidyLimit = 200 * COIN;
+
+ // Reward for coin-year is cut in half every 64x multiply of PoS difficulty
+ // A reasonably continuous curve is used to avoid shock to market
+ // (nRewardCoinYearLimit / nRewardCoinYear) ** 4 == bnProofOfStakeLimit / bnTarget
+ //
+ // Human readable form:
+ //
+ // nRewardCoinYear = 1 / (posdiff ^ 1/4)
+
+ CBigNum bnLowerBound = 30 * CENT; // Lower interest bound is 30% per year
+ CBigNum bnUpperBound = bnRewardCoinYearLimit;
+ while (bnLowerBound + CENT <= bnUpperBound)
+ {
+ CBigNum bnMidValue = (bnLowerBound + bnUpperBound) / 2;
+ if (fDebug && GetBoolArg("-printcreation"))
+ printf("GetProofOfStakeReward() : lower=%"PRI64d" upper=%"PRI64d" mid=%"PRI64d"\n", bnLowerBound.getuint64(), bnUpperBound.getuint64(), bnMidValue.getuint64());
+ if (bnMidValue * bnMidValue * bnMidValue * bnMidValue * bnTargetLimit > bnRewardCoinYearLimit * bnRewardCoinYearLimit * bnRewardCoinYearLimit * bnRewardCoinYearLimit * bnTarget)
+ bnUpperBound = bnMidValue;
+ else
+ bnLowerBound = bnMidValue;
+ }
+
+ nRewardCoinYear = bnUpperBound.getuint64();
+ nRewardCoinYear = min((nRewardCoinYear / CENT) * CENT, MAX_MINT_PROOF_OF_STAKE);
+
+ if(bCoinYearOnly)
+ return nRewardCoinYear / CENT;
+
+  int64 nSubsidy = (nCoinAge * 33 * nRewardCoinYear) / (365 * 33 + 8);
+
+  if (fDebug && GetBoolArg("-printcreation"))
+ printf("GetProofOfStakeReward(): create=%s nCoinAge=%"PRI64d" nBits=%d\n", FormatMoney(nSubsidy).c_str(), nCoinAge, nBits);
+ 
+ nSubsidy = min(nSubsidy, nSubsidyLimit);
+ 
+ return nSubsidy;
+}
+
 static const int64 nTargetTimespan = 7 * 24 * 60 * 60;  // one week
 static const int64 nTargetSpacingWorkMax = 2 * STAKE_TARGET_SPACING; // 20min 
 
 //
-// minimum amount of work that could possibly be required nTime after
-// minimum work required was nBase
+// maximum nBits value could possible be required nTime after
+// minimum proof-of-work required was nBase
 //
-unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
+unsigned int ComputeMaxBits(CBigNum bnTargetLimit, unsigned int nBase, int64 nTime)
 {
     CBigNum bnResult;
     bnResult.SetCompact(nBase);
     bnResult *= 2;
-    while (nTime > 0 && bnResult < bnProofOfWorkLimit)
+    while (nTime > 0 && bnResult < bnTargetLimit)
     {
         // Maximum 200% adjustment per day...
         bnResult *= 2;
         nTime -= 24 * 60 * 60;
     }
-    if (bnResult > bnProofOfWorkLimit)
-        bnResult = bnProofOfWorkLimit;
+    if (bnResult > bnTargetLimit)
+        bnResult = bnTargetLimit;
     return bnResult.GetCompact();
 }
 
+//
+// minimum amount of work that could possibly be required nTime after
+// minimum proof-of-work required was nBase
+//
+unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
+{
+    return ComputeMaxBits(bnProofOfWorkLimit, nBase, nTime);
+}
+
+//
+// minimum amount of stake that could possibly be required nTime after
+// minimum proof-of-stake required was nBase
+//
+unsigned int ComputeMinStake(unsigned int nBase, int64 nTime, unsigned int nBlockTime)
+{
+    return ComputeMaxBits(bnProofOfStakeLimit, nBase, nTime);
+}
+
+
 // version: find last block index up to pindex
+// find last block index up to pindex
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
 {
     while (pindex && pindex->pprev && (pindex->IsProofOfStake() != fProofOfStake))
@@ -932,212 +973,53 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
     return pindex;
 }
 
-unsigned int static GetNextTargetRequiredPow(const CBlockIndex* pindexLast)
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake) 
 {
-	if(fDebug)
-		printf("Retarget for Proof of Work");
+    CBigNum bnTargetLimit = bnProofOfWorkLimit;
+
+    if(fProofOfStake)
+    {
+        // Proof-of-Stake blocks has own target limit since nVersion=3 supermajority on mainNet and always on testNet
+        bnTargetLimit = bnProofOfStakeLimit;
+    }
 
     if (pindexLast == NULL)
-    {
-        if(fDebug)
-           printf("GetNextTargetRequiredPow: pindexLast==NULL");
-        return bnProofOfWorkLimit.GetCompact(); // genesis block
-    }
-
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, false);
-    if (pindexPrev->pprev == NULL)
-    {
-        if(fDebug)
-           printf("GetNextTargetRequiredPow: pindexPrev->pprev==NULL");
-        return bnInitialHashTarget.GetCompact(); // first block
-    }
-
-    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, false);
-    if (pindexPrevPrev->pprev == NULL)
-    {
-        if(fDebug)
-           printf("GetNextTargetRequiredPow: pindexPrevPrev->pprev==NULL");
-        return bnInitialHashTarget.GetCompact(); // second block
-    }
-
-	static const int64	BlocksTargetSpacing	= pindexLast->nHeight >= 75000 ? 60 : 20; // 20 seconds
-        //switch to 60 second block spacing at block 75000
-
-	unsigned int	TimeDaySeconds	= 60 * 60 * 24;
-	int64	PastSecondsMin	= TimeDaySeconds * 0.125;
-	int64	PastSecondsMax	= TimeDaySeconds * 7;
-	uint64	PastBlocksMin	= PastSecondsMin / BlocksTargetSpacing; 
-	uint64	PastBlocksMax	= PastSecondsMax / BlocksTargetSpacing;	//7 days of blocks
-
- 	return KimotoGravityWell(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax); 
-}
-
-unsigned int static GetNextTargetRequiredPos(const CBlockIndex* pindexLast)
-{
-    if (pindexLast == NULL)
-    {
-        if(fDebug)
-           printf("GetNextTargetRequiredPos: pindexLast==NULL");
-        return bnProofOfWorkLimit.GetCompact(); // genesis block
-    }
-
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, true);
-    if (pindexPrev->pprev == NULL)
-    {
-        if(fDebug)
-           printf("GetNextTargetRequiredPos: pindexPrev->pprev==NULL");
-        return bnInitialHashTarget.GetCompact(); // first block
-    }
-
-    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, true);
-    if (pindexPrevPrev->pprev == NULL)
-    {
-        if(fDebug)
-           printf("GetNextTargetRequiredPos: pindexPrevPrev->pprev==NULL");
-        return bnInitialHashTarget.GetCompact(); // second block
-    }
-
-	bool fProofOfStake = true;	
-	int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-
-	CBigNum bnNew;
-	bnNew.SetCompact(pindexPrev->nBits);
-    
-        if (fDebug)
-    	    printf("Retarget for Proof of Stake");
-	
-        // version: target change every block
-	// version: retarget with exponential moving toward target spacing    
-	int64 nTargetSpacing = fProofOfStake? STAKE_TARGET_SPACING : min(nTargetSpacingWorkMax, (int64) STAKE_TARGET_SPACING * (1 + pindexLast->nHeight - pindexPrev->nHeight));
-	int64 nInterval = nTargetTimespan / nTargetSpacing;
-	bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-	bnNew /= ((nInterval + 1) * nTargetSpacing);
-	
-	if (bnNew > bnProofOfWorkLimit)
-        	bnNew = bnProofOfWorkLimit;
-
-	return bnNew.GetCompact();
-
-}
-
-unsigned int static GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
-{        
-if (pindexLast == NULL)
-        return bnProofOfWorkLimit.GetCompact(); // genesis block
+        return bnTargetLimit.GetCompact(); // genesis block
 
     const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
     if (pindexPrev->pprev == NULL)
-        return bnInitialHashTarget.GetCompact(); // first block
+       return bnTargetLimit.GetCompact(); // first block
     const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
     if (pindexPrevPrev->pprev == NULL)
-        return bnInitialHashTarget.GetCompact(); // second block
+        return bnTargetLimit.GetCompact(); // second block
+	int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+	if(nActualSpacing < 0)
+	{
+		// printf(">> nActualSpacing = %"PRI64d" corrected to 1.\n", nActualSpacing);
+		nActualSpacing = 1;
+	}
+	else if(nActualSpacing > nTargetTimespan)
+	{
+		// printf(">> nActualSpacing = %"PRI64d" corrected to nTargetTimespan (900).\n", nActualSpacing);
+		nActualSpacing = nTargetTimespan;
+	}
 
-    if(pindexLast->nHeight <= 56457)
-    {
-	    if(!fProofOfStake)
-	    {
-		return GetNextTargetRequiredPow(pindexLast);
-	    }
-	    else
-	    {
-		return GetNextTargetRequiredPos(pindexLast);
-	    }
-    } 
-    else // back out KGW after block 56457
-    {
-        int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-
-	// version: target change every block
-	// version: retarget with exponential moving toward target spacing
+    // target change every block
+    // retarget with exponential moving toward target spacing
 	CBigNum bnNew;
 	bnNew.SetCompact(pindexPrev->nBits);
-	int64 nTargetSpacing = fProofOfStake? STAKE_TARGET_SPACING : min(nTargetSpacingWorkMax, (int64) STAKE_TARGET_SPACING * (1 + pindexLast->nHeight - pindexPrev->nHeight));
-	if(pindexLast->nHeight > 56458 && !fProofOfStake)
-	    nTargetSpacing = 60; // 60 second PoW block target after block 56458
-
+    
+    int64 nTargetSpacing = fProofOfStake? nStakeTargetSpacing : min(nTargetSpacingWorkMax, (int64) nStakeTargetSpacing * (1 + pindexLast->nHeight - pindexPrev->nHeight));
 	int64 nInterval = nTargetTimespan / nTargetSpacing;
 	bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
 	bnNew /= ((nInterval + 1) * nTargetSpacing);
 
-	if (bnNew > bnProofOfWorkLimit)
-	    bnNew = bnProofOfWorkLimit;
+
+    if (bnNew > bnTargetLimit)
+        bnNew = bnTargetLimit;
 
 	return bnNew.GetCompact();
-    }
-}
 
-unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, uint64 TargetBlocksSpacingSeconds, uint64 PastBlocksMin, uint64 PastBlocksMax) {
-	/* kimoto gravity well */
-	const CBlockIndex *BlockLastSolved	= pindexLast;
-	const CBlockIndex *BlockReading	= pindexLast;
-	//const CBlockHeader *BlockCreating	= pblock;
-	//BlockCreating	= BlockCreating;
-	uint64	PastBlocksMass	= 0;
-	int64	PastRateActualSeconds	= 0;
-	int64	PastRateTargetSeconds	= 0;
-	double	PastRateAdjustmentRatio	= double(1);
-	CBigNum	PastDifficultyAverage;
-	CBigNum	PastDifficultyAveragePrev;
-	double	EventHorizonDeviation;
-	double	EventHorizonDeviationFast;
-	double	EventHorizonDeviationSlow;
-
-	    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || (uint64)BlockLastSolved->nHeight < PastBlocksMin) { return bnProofOfWorkLimit.GetCompact(); }
-
-	for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
-	if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
-	PastBlocksMass++;
-
-	if (i == 1)	{ PastDifficultyAverage.SetCompact(BlockReading->nBits); }
-	else	{ PastDifficultyAverage = ((CBigNum().SetCompact(BlockReading->nBits) - PastDifficultyAveragePrev) / i) + PastDifficultyAveragePrev; }
-	PastDifficultyAveragePrev = PastDifficultyAverage;
-
-	PastRateActualSeconds	= BlockLastSolved->GetBlockTime() - BlockReading->GetBlockTime();
-	PastRateTargetSeconds	= TargetBlocksSpacingSeconds * PastBlocksMass;
-	PastRateAdjustmentRatio	= double(1);
-	if (PastRateActualSeconds < 0) { PastRateActualSeconds = 0; }
-	if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
-	PastRateAdjustmentRatio	= double(PastRateTargetSeconds) / double(PastRateActualSeconds);
-	}
-	EventHorizonDeviation	= 1 + (0.7084 * pow((double(PastBlocksMass)/double(144)), -1.228));
-	EventHorizonDeviationFast	= EventHorizonDeviation;
-	EventHorizonDeviationSlow	= 1 / EventHorizonDeviation;
-
-	if (PastBlocksMass >= PastBlocksMin) 
-	{
-		if ((PastRateAdjustmentRatio <= EventHorizonDeviationSlow) || (PastRateAdjustmentRatio >= EventHorizonDeviationFast)) 
-		{ 
-			assert(BlockReading); break; 
-		}
-	}
-		if(BlockReading->nHeight > 55000)
-		{
-			const CBlockIndex* pPrev = GetLastBlockIndex(BlockReading->pprev, false);
-			if (pPrev == NULL) { assert(BlockReading); break; }
-			    BlockReading = pPrev;//BlockReading->pprev;		
-		}
-		else
-		{
-			BlockReading = BlockReading->pprev;
-		}
-	}
-	CBigNum bnNew(PastDifficultyAverage);
-	if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
-	bnNew *= PastRateActualSeconds;
-	bnNew /= PastRateTargetSeconds;
-	}
-	    if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; }
-
-	    /// debug print
-	    if (fDebug)
-	    {
-		    printf("Difficulty Retarget - Kimoto Gravity Well\n");
-		    printf("BlockLastSolved height: %d  pindexLast height: %d\n", BlockLastSolved->nHeight, pindexLast->nHeight);
-		    printf("PastRateAdjustmentRatio = %g\n", PastRateAdjustmentRatio);
-		    printf("Before: %08x %s\n", BlockLastSolved->nBits, CBigNum().SetCompact(BlockLastSolved->nBits).getuint256().ToString().c_str());
-		    printf("After: %08x %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
-	    }
-	return bnNew.GetCompact();
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
@@ -1185,9 +1067,13 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
         CTxDB().WriteBestInvalidTrust(bnBestInvalidTrust);
         MainFrameRepaint();
     }
-    printf("InvalidChainFound: invalid block=%s  height=%d  trust=%s\n", pindexNew->GetBlockHash().ToString().substr(0,20).c_str(), pindexNew->nHeight, CBigNum(pindexNew->bnChainTrust).ToString().c_str());
-    printf("InvalidChainFound:  current best=%s  height=%d  trust=%s\n", hashBestChain.ToString().substr(0,20).c_str(), nBestHeight, CBigNum(bnBestChainTrust).ToString().c_str());
-    // version: should not enter safe mode for longer invalid chain
+    printf("InvalidChainFound: invalid block=%s  height=%d  trust=%s  date=%s\n",
+      pindexNew->GetBlockHash().ToString().substr(0,20).c_str(), pindexNew->nHeight,
+      pindexNew->bnChainTrust.ToString().c_str(), DateTimeStrFormat("%x %H:%M:%S",
+      pindexNew->GetBlockTime()).c_str());
+    printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  date=%s\n",
+      hashBestChain.ToString().substr(0,20).c_str(), nBestHeight, bnBestChainTrust.ToString().c_str(),
+      DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 }
 
 void CBlock::UpdateTime(const CBlockIndex* pindexPrev)
@@ -1446,7 +1332,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs,
             if (!GetCoinAge(txdb, nCoinAge))
                 return error("ConnectInputs() : %s unable to get coin age for coinstake", GetHash().ToString().substr(0,10).c_str());
             int64 nStakeReward = GetValueOut() - nValueIn;
-            if (nStakeReward > GetProofOfStakeReward(nCoinAge) - GetMinFee() + MIN_TX_FEE)
+            if (nStakeReward > GetProofOfStakeReward(nCoinAge, pindexBlock->nBits, nTime, pindexBlock->nHeight, false) - GetMinFee() + MIN_TX_FEE)
                 return DoS(100, error("ConnectInputs() : %s stake reward exceeded", GetHash().ToString().substr(0,10).c_str()));
         }
         else
@@ -1557,26 +1443,13 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     // being sent to another address.
     // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
     // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
-    // already refuses previously-known transaction id's entirely.
-    // This rule applies to all blocks whose timestamp is after March 15, 2012, 0:00 UTC.
-    // On testnet it is enabled as of februari 20, 2012, 0:00 UTC.
-    if (pindex->nTime > 1331769600 || (fTestNet && pindex->nTime > 1329696000))
-    {
-        BOOST_FOREACH(CTransaction& tx, vtx)
-        {
-            CTxIndex txindexOld;
-            if (txdb.ReadTxIndex(tx.GetHash(), txindexOld))
-            {
-                BOOST_FOREACH(CDiskTxPos &pos, txindexOld.vSpent)
-                    if (pos.IsNull())
-                        return false;
-            }
-        }
-    }
-
-    // BIP16 didn't become active until Apr 1 2012 (Feb 15 on testnet)
-    int64 nBIP16SwitchTime = fTestNet ? 1329264000 : 1333238400;
-    bool fStrictPayToScriptHash = (pindex->nTime >= nBIP16SwitchTime);
+    // already refuses previously-known transaction ids entirely.
+    // This rule was originally applied all blocks whose timestamp was after March 15, 2012, 0:00 UTC.
+    // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
+    // two in the chain that violate it. This prevents exploiting the issue against nodes in their
+    // initial block download.
+    bool fEnforceBIP30 = true; // Always active in Version
+    bool fStrictPayToScriptHash = true; // Always active in Version
 
     //// issue here: it doesn't know the version
     unsigned int nTxPos = pindex->nBlockPos + ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) - (2 * GetSizeOfCompactSize(0)) + GetSizeOfCompactSize(vtx.size());
@@ -1588,6 +1461,17 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     unsigned int nSigOps = 0;
     BOOST_FOREACH(CTransaction& tx, vtx)
     {
+        uint256 hashTx = tx.GetHash();
+
+        if (fEnforceBIP30) {
+            CTxIndex txindexOld;
+            if (txdb.ReadTxIndex(hashTx, txindexOld)) {
+                BOOST_FOREACH(CDiskTxPos &pos, txindexOld.vSpent)
+                    if (pos.IsNull())
+                        return false;
+            }
+        }
+
         nSigOps += tx.GetLegacySigOpCount();
         if (nSigOps > MAX_BLOCK_SIGOPS)
             return DoS(100, error("ConnectBlock() : too many sigops"));
@@ -2071,7 +1955,7 @@ bool CBlock::CheckBlock(int nHeight) const
             return DoS(100, error("CheckBlock() : more than one coinbase"));
 
     // version: only the second transaction can be the optional coinstake
-    for (int i = 2; i < vtx.size(); i++)
+    for (unsigned int i = 2; i < vtx.size(); i++)
         if (vtx[i].IsCoinStake())
             return DoS(100, error("CheckBlock() : coinstake in wrong position"));
 
@@ -2156,7 +2040,7 @@ bool CBlock::AcceptBlock()
     
     // Check proof-of-work or proof-of-stake
     if (nBits != GetNextTargetRequired(pindexPrev, IsProofOfStake()))
-	return error("AcceptBlock() : incorrect proof-of-work/proof-of-stake height: %d",nHeight);
+        return DoS(100, error("AcceptBlock() : incorrect %s", IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
 
     // Check timestamp against prev
     if (GetBlockTime() <= pindexPrev->GetMedianTimePast() || GetBlockTime() + nMaxClockDrift < pindexPrev->GetBlockTime())
@@ -2419,7 +2303,7 @@ bool CheckDiskSpace(uint64 nAdditionalBytes)
 
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
 {
-    if (nFile == -1)
+    if ((nFile < 1) || (nFile == (unsigned int) -1))
         return NULL;
     FILE* file = fopen((GetDataDir() / strprintf("blk%04d.dat", nFile)).string().c_str(), pszMode);
     if (!file)
@@ -2463,15 +2347,14 @@ bool LoadBlockIndex(bool fAllowNew)
     if (fTestNet)
     {
         hashGenesisBlock = hashGenesisBlockTestNet;
-        //bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
+
         nStakeMinAge = 60; //60 * 60 * 24; // test net min age is 1 minute
-        //nCoinbaseMaturity = 10;
-        //bnInitialHashTarget = CBigNum(~uint256(0) >> 40);
+
         nModifierInterval = 60 * 2; // test net modifier interval is 2 minutes
     }
 
     printf("%s Network: genesis=0x%s nBitsLimit=0x%08x nBitsInitial=0x%08x nStakeMinAge=%d nCoinbaseMaturity=%d nModifierInterval=%d\n",
-           fTestNet? "Test" : "Version", hashGenesisBlock.ToString().substr(0, 20).c_str(), bnProofOfWorkLimit.GetCompact(), bnInitialHashTarget.GetCompact(), nStakeMinAge, nCoinbaseMaturity, nModifierInterval);
+           fTestNet? "Test" : "Version", hashGenesisBlock.ToString().substr(0, 20).c_str(), bnProofOfWorkLimit.GetCompact(), bnProofOfStakeLimit.GetCompact(), nStakeMinAge, nCoinbaseMaturity, nModifierInterval);
 
     //
     // Load block index
@@ -3836,16 +3719,18 @@ public:
     CTransaction* ptx;
     set<uint256> setDependsOn;
     double dPriority;
+    double dFeePerKb;
 
     COrphan(CTransaction* ptxIn)
     {
         ptx = ptxIn;
-        dPriority = 0;
+        dPriority = dFeePerKb = 0;
     }
 
     void print() const
     {
-        printf("COrphan(hash=%s, dPriority=%.1f)\n", ptx->GetHash().ToString().substr(0,10).c_str(), dPriority);
+        printf("COrphan(hash=%s, dPriority=%.1f, dFeePerKb=%.1f)\n",
+               ptx->GetHash().ToString().substr(0,10).c_str(), dPriority, dFeePerKb);
         BOOST_FOREACH(uint256 hash, setDependsOn)
             printf("   setDependsOn %s\n", hash.ToString().substr(0,10).c_str());
     }
@@ -3855,6 +3740,30 @@ public:
 uint64 nLastBlockTx = 0;
 uint64 nLastBlockSize = 0;
 int64 nLastCoinStakeSearchInterval = 0;
+
+// We want to sort transactions by priority and fee, so:
+typedef boost::tuple<double, double, CTransaction*> TxPriority;
+class TxPriorityCompare
+{
+    bool byFee;
+public:
+    TxPriorityCompare(bool _byFee) : byFee(_byFee) { }
+    bool operator()(const TxPriority& a, const TxPriority& b)
+    {
+        if (byFee)
+        {
+            if (a.get<1>() == b.get<1>())
+                return a.get<0>() < b.get<0>();
+            return a.get<1>() < b.get<1>();
+        }
+        else
+        {
+            if (a.get<0>() == b.get<0>())
+                return a.get<1>() < b.get<1>();
+            return a.get<0>() < b.get<0>();
+        }
+    }
+};
 
 // CreateNewBlock:
 //   fProofOfStake: try (best effort) to make a proof-of-stake block
@@ -3874,6 +3783,29 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
 
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
+
+    // Largest block you're willing to create:
+    unsigned int nBlockMaxSize = GetArg("-blockmaxsize", MAX_BLOCK_SIZE_GEN/2);
+    // Limit to betweeen 1K and MAX_BLOCK_SIZE-1K for sanity:
+    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(MAX_BLOCK_SIZE-1000), nBlockMaxSize));
+    // How much of the block should be dedicated to high-priority transactions,
+    // included regardless of the fees they pay
+    unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", 27000);
+    nBlockPrioritySize = std::min(nBlockMaxSize, nBlockPrioritySize);
+
+    // Minimum block size you want to create; block will be filled with free transactions
+    // until there are no more or the block reaches this size:
+    unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
+    nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
+
+    // Fee-per-kilobyte amount considered the same as "free"
+    // Be careful setting this: if you set it to zero then
+    // a transaction spammer can cheaply fill blocks using
+    // 1-satoshi-fee transactions. It should be set above the real
+    // cost to you of processing a transaction.
+    int64 nMinTxFee = MIN_TX_FEE;
+    if (mapArgs.count("-mintxfee"))
+        ParseMoney(mapArgs["-mintxfee"], nMinTxFee);
 
     // version: if coinstake available add coinstake tx
     static int64 nLastCoinStakeSearchTime = GetAdjustedTime();  // only initialized at startup
@@ -3912,12 +3844,16 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
     int64 nFees = 0;
     {
         LOCK2(cs_main, mempool.cs);
+        CBlockIndex* pindexPrev = pindexBest;
         CTxDB txdb("r");
 
         // Priority order to process transactions
         list<COrphan> vOrphan; // list memory doesn't move
         map<uint256, vector<COrphan*> > mapDependers;
-        multimap<double, CTransaction*> mapPriority;
+
+        // This vector will be sorted into a priority queue:
+        vector<TxPriority> vecPriority;
+        vecPriority.reserve(mempool.mapTx.size());
         for (map<uint256, CTransaction>::iterator mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
         {
             CTransaction& tx = (*mi).second;
@@ -3926,6 +3862,8 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
 
             COrphan* porphan = NULL;
             double dPriority = 0;
+            int64 nTotalIn = 0;
+            bool fMissingInputs = false;
             BOOST_FOREACH(const CTxIn& txin, tx.vin)
             {
                 // Read prev transaction
@@ -3933,6 +3871,18 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
                 CTxIndex txindex;
                 if (!txPrev.ReadFromDisk(txdb, txin.prevout, txindex))
                 {
+                    // This should never happen; all transactions in the memory
+                    // pool should connect to either transactions in the chain
+                    // or other transactions in the memory pool.
+                    if (!mempool.mapTx.count(txin.prevout.hash))
+                    {
+                        printf("ERROR: mempool transaction missing input\n");
+                        if (fDebug) assert("mempool transaction missing input" == 0);
+                        fMissingInputs = true;
+                        if (porphan)
+                            vOrphan.pop_back();
+                        break;
+                    }
                     // Has to wait for dependencies
                     if (!porphan)
                     {
@@ -3954,14 +3904,24 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
                 if (fDebug && GetBoolArg("-printpriority"))
                     printf("priority     nValueIn=%-12"PRI64d" nConf=%-5d dPriority=%-20.1f\n", nValueIn, nConf, dPriority);
             }
+            if (fMissingInputs) continue;
 
             // Priority is sum(valuein * age) / txsize
-            dPriority /= ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+            unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+            dPriority /= nTxSize;
+
+            // This is a more accurate fee-per-kilobyte than is used by the client code, because the
+            // client code rounds up the size to the nearest 1K. That's good, because it gives an
+            // incentive to create smaller transactions.
+            double dFeePerKb =  double(nTotalIn-tx.GetValueOut()) / (double(nTxSize)/1000.0);
 
             if (porphan)
+            {
                 porphan->dPriority = dPriority;
+                porphan->dFeePerKb = dFeePerKb;
+            }
             else
-                mapPriority.insert(make_pair(-dPriority, &(*mi).second));
+                vecPriority.push_back(TxPriority(dPriority, dFeePerKb, &(*mi).second));
 
             if (fDebug && GetBoolArg("-printpriority"))
             {
@@ -3977,11 +3937,20 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
         uint64 nBlockSize = 1000;
         uint64 nBlockTx = 0;
         int nBlockSigOps = 100;
-        while (!mapPriority.empty())
+        bool fSortedByFee = (nBlockPrioritySize <= 0);
+
+        TxPriorityCompare comparer(fSortedByFee);
+        std::make_heap(vecPriority.begin(), vecPriority.end(), comparer);
+
+        while (!vecPriority.empty())
         {
-            // Take highest priority transaction off priority queue
-            CTransaction& tx = *(*mapPriority.begin()).second;
-            mapPriority.erase(mapPriority.begin());
+            // Take highest priority transaction off the priority queue:
+            double dPriority = vecPriority.front().get<0>();
+            double dFeePerKb = vecPriority.front().get<1>();
+            CTransaction& tx = *(vecPriority.front().get<2>());
+
+            std::pop_heap(vecPriority.begin(), vecPriority.end(), comparer);
+            vecPriority.pop_back();
 
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -4000,6 +3969,19 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
             // version: simplify transaction fee - allow free = false
             int64 nMinFee = tx.GetMinFee(nBlockSize, false, GMF_BLOCK);
 
+            // Skip free transactions if we're past the minimum block size:
+            if (fSortedByFee && (dFeePerKb < nMinTxFee) && (nBlockSize + nTxSize >= nBlockMinSize))
+                continue;
+
+            // Prioritize by fee once past the priority size or we run out of high-priority
+            // transactions:
+            if (!fSortedByFee &&
+                ((nBlockSize + nTxSize >= nBlockPrioritySize) || (dPriority < COIN * 144 / 250)))
+            {
+                fSortedByFee = true;
+                comparer = TxPriorityCompare(fSortedByFee);
+                std::make_heap(vecPriority.begin(), vecPriority.end(), comparer);
+            }
             // Connecting shouldn't fail due to dependency on other memory pool transactions
             // because we're already processing them in order of dependency
             map<uint256, CTxIndex> mapTestPoolTmp(mapTestPool);
@@ -4028,6 +4010,11 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
             nBlockSigOps += nTxSigOps;
             nFees += nTxFees;
 
+            if (fDebug && GetBoolArg("-printpriority"))
+            {
+                printf("priority %.1f feeperkb %.1f txid %s\n",
+                       dPriority, dFeePerKb, tx.GetHash().ToString().c_str());
+            }
             // Add transactions that depend on this one to the priority queue
             uint256 hash = tx.GetHash();
             if (mapDependers.count(hash))
@@ -4038,7 +4025,10 @@ CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfS
                     {
                         porphan->setDependsOn.erase(hash);
                         if (porphan->setDependsOn.empty())
-                            mapPriority.insert(make_pair(-porphan->dPriority, porphan->ptx));
+                        {
+                            vecPriority.push_back(TxPriority(porphan->dPriority, porphan->dFeePerKb, porphan->ptx));
+                            std::push_heap(vecPriority.begin(), vecPriority.end(), comparer);
+                        }
                     }
                 }
             }
