@@ -20,13 +20,10 @@
 #include "protocol.h"
 #include "addrman.h"
 
-class CAddrDB;
 class CRequestTracker;
 class CNode;
 class CBlockIndex;
 extern int nBestHeight;
-
-
 
 inline unsigned int ReceiveBufferSize() { return 1000*GetArg("-maxreceivebuffer", 10*1000); }
 inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 10*1000); }
@@ -100,9 +97,6 @@ extern std::deque<std::pair<int64, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
 extern std::map<CInv, int64> mapAlreadyAskedFor;
 
-
-
-
 class CNodeStats
 {
 public:
@@ -118,10 +112,6 @@ public:
     int nStartingHeight;
     int nMisbehavior;
 };
-
-
-
-
 
 /** Information about a peer */
 class CNode
@@ -251,8 +241,6 @@ public:
         nRefCount--;
     }
 
-
-
     void AddAddressKnown(const CAddress& addr)
     {
         setAddrKnown.insert(addr);
@@ -266,7 +254,6 @@ public:
         if (addr.IsValid() && !setAddrKnown.count(addr))
             vAddrToSend.push_back(addr);
     }
-
 
     void AddInventoryKnown(const CInv& inv)
     {
@@ -304,8 +291,6 @@ public:
         nRequestTime = std::max(nRequestTime + 2 * 60 * 1000000, nNow);
         mapAskFor.insert(std::make_pair(nRequestTime, inv));
     }
-
-
 
     void BeginMessage(const char* pszCommand)
     {
@@ -377,10 +362,7 @@ public:
             AbortMessage();
     }
 
-
-
     void PushVersion();
-
 
     void PushMessage(const char* pszCommand)
     {
@@ -540,7 +522,6 @@ public:
         }
     }
 
-
     void PushRequest(const char* pszCommand,
                      void (*fn)(void*, CDataStream&), void* param1)
     {
@@ -585,15 +566,12 @@ public:
         PushMessage(pszCommand, hashReply, a1, a2);
     }
 
-
-
     void PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd);
     bool IsSubscribed(unsigned int nChannel);
     void Subscribe(unsigned int nChannel, unsigned int nHops=0);
     void CancelSubscribe(unsigned int nChannel);
     void CloseSocketDisconnect();
     void Cleanup();
-
 
     // Denial-of-service detection/prevention
     // The idea is to detect peers that are behaving
@@ -614,15 +592,6 @@ public:
     bool Misbehaving(int howmuch); // 1 == a little, 100 == a lot
     void copyStats(CNodeStats &stats);
 };
-
-
-
-
-
-
-
-
-
 
 inline void RelayInventory(const CInv& inv)
 {
@@ -662,6 +631,5 @@ inline void RelayMessage<>(const CInv& inv, const CDataStream& ss)
 
     RelayInventory(inv);
 }
-
 
 #endif

@@ -10,10 +10,6 @@
 #include "net.h"
 #include "script.h"
 
-#ifdef WIN32
-#include <io.h> /* for _commit */
-#endif
-
 #include <list>
 
 class CWallet;
@@ -65,11 +61,6 @@ static const int64 nMaxClockDrift = 2 * 60 * 60;        // two hours
 
 extern CScript COINBASE_FLAGS;
 
-
-
-
-
-
 extern CCriticalSection cs_main;
 extern std::map<uint256, CBlockIndex*> mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;
@@ -93,13 +84,10 @@ extern int64 nTimeBestReceived;
 extern CCriticalSection cs_setpwalletRegistered;
 extern std::set<CWallet*> setpwalletRegistered;
 extern std::map<uint256, CBlock*> mapOrphanBlocks;
+extern unsigned char pchMessageStart[4];
 
 // Settings
 extern int64 nTransactionFee;
-
-
-
-
 
 class CReserveKey;
 class CTxDB;
@@ -133,15 +121,6 @@ uint256 WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 void BitcoinMiner(CWallet *pwallet, bool fProofOfStake);
 unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, uint64 TargetBlocksSpacingSeconds, uint64 PastBlocksMin, uint64 PastBlocksMax);
-
-
-
-
-
-
-
-
-
 
 bool GetWalletFile(CWallet* pwallet, std::string &strWalletFileOut);
 
@@ -195,8 +174,6 @@ public:
     }
 };
 
-
-
 /** An inpoint - a combination of a transaction and an index n into its vin */
 class CInPoint
 {
@@ -209,8 +186,6 @@ public:
     void SetNull() { ptx = NULL; n = (unsigned int) -1; }
     bool IsNull() const { return (ptx == NULL && n == (unsigned int) -1); }
 };
-
-
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -250,9 +225,6 @@ public:
         printf("%s\n", ToString().c_str());
     }
 };
-
-
-
 
 /** An input of a transaction.  It contains the location of the previous
  * transaction's output that it claims and a signature that matches the
@@ -333,9 +305,6 @@ public:
         printf("%s\n", ToString().c_str());
     }
 };
-
-
-
 
 /** An output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
@@ -419,9 +388,6 @@ public:
         printf("%s\n", ToString().c_str());
     }
 };
-
-
-
 
 enum GetMinFee_mode
 {
@@ -687,7 +653,6 @@ public:
         return !(a == b);
     }
 
-
     std::string ToStringShort() const
     {
         std::string str;
@@ -717,7 +682,6 @@ public:
     {
         printf("%s", ToString().c_str());
     }
-
 
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
@@ -761,10 +725,6 @@ protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
 };
 
-
-
-
-
 /** A transaction with a merkle branch linking it to the block chain. */
 class CMerkleTx : public CTransaction
 {
@@ -804,7 +764,6 @@ public:
         READWRITE(nIndex);
     )
 
-
     int SetMerkleBranch(const CBlock* pblock=NULL);
     int GetDepthInMainChain(CBlockIndex* &pindexRet) const;
     int GetDepthInMainChain() const { CBlockIndex *pindexRet; return GetDepthInMainChain(pindexRet); }
@@ -813,9 +772,6 @@ public:
     bool AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs=true);
     bool AcceptToMemoryPool();
 };
-
-
-
 
 /**  A txdb record that contains the disk location of a transaction and the
  * locations of transactions that spend its outputs.  vSpent is really only
@@ -870,10 +826,6 @@ public:
     int GetDepthInMainChain() const;
  
 };
-
-
-
-
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -1079,13 +1031,8 @@ public:
         // Flush stdio buffers and commit to disk before returning
         fflush(fileout);
         if (!IsInitialBlockDownload() || (nBestHeight+1) % 500 == 0)
-        {
-#ifdef WIN32
-            _commit(_fileno(fileout));
-#else
-            fsync(fileno(fileout));
-#endif
-        }
+
+		 FileCommit(fileout);
 
         return true;
     }

@@ -1071,13 +1071,18 @@ void ThreadDNSAddressSeed2(void* parg)
 // Physical IP seeds: 32-bit IPv4 addresses: e.g. 178.33.22.32 = 0x201621b2
 unsigned int pnSeed[] =
 {
-    0xC0F1F094, 0xC0F1D6B0, 0x92B995C9, 0xC0F194E6, 0xA2F3EAD2,
+ //   0xC0F1F094, 0xC0F1D6B0, 0x92B995C9, 0xC0F194E6, 0xA2F3EAD2,
 };
 
 void DumpAddresses()
 {
+    int64 nStart = GetTimeMillis();
+
     CAddrDB adb;
-    adb.WriteAddrman(addrman);
+    adb.Write(addrman);
+  
+    printf("Flushed %d addresses to peers.dat %"PRI64d"ms\n",
+    addrman.size(), GetTimeMillis() - nStart);
 }
 
 void ThreadDumpAddress2(void* parg)
