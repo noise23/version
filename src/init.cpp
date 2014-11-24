@@ -241,7 +241,8 @@ bool AppInit2(int argc, char* argv[])
             "  -keypool=<n>     \t  "   + _("Set key pool size to <n> (default: 100)") + "\n" +
             "  -rescan          \t  "   + _("Rescan the block chain for missing wallet transactions") + "\n" +
             "  -checkblocks=<n> \t\t  " + _("How many blocks to check at startup (default: 2500, 0 = all)") + "\n" +
-            "  -checklevel=<n>  \t\t  " + _("How thorough the block verification is (0-6, default: 1)") + "\n";
+		    " -checklevel=<n> \t\t " + _("How thorough the block verification is (0-6, default: 1)") + "\n" +
+            " -loadblock=<file>\t " + _("Imports blocks from external blk000?.dat file") + "\n";
 
         strUsage += string() +
             _("\nSSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n" +
@@ -386,7 +387,30 @@ bool AppInit2(int argc, char* argv[])
         return false;
     }
     printf(" block index %15"PRI64d"ms\n", GetTimeMillis() - nStart);
+	
+ if (mapArgs.count("-loadblock"))
+ {
+ InitMessage(_("Importing blockchain data file."));
+ BOOST_FOREACH(string strFile, mapMultiArgs["-loadblock"])
+ {
+ FILE *file = fopen(strFile.c_str(), "rb");
+ if (file)
+ LoadExternalBlockFile(file);
+ }
+ }
 
+  filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
+ if (filesystem::exists(pathBootstrap)) {
+InitMessage(_("Importing bootstrap blockchain data file."));
+
+ FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
+ if (file) {
+ filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
+ LoadExternalBlockFile(file);
+ RenameOver(pathBootstrap, pathBootstrapOld);
+ }
+ }
+ 
     InitMessage(_("Loading wallet..."));
     printf("Loading wallet...\n");
     nStart = GetTimeMillis();

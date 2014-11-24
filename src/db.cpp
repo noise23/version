@@ -658,7 +658,7 @@ bool CTxDB::LoadBlockIndex()
     map<pair<unsigned int, unsigned int>, CBlockIndex*> mapBlockPos;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev)
     {
-        if (pindex->nHeight < nBestHeight-nCheckDepth)
+        if (fRequestShutdown || pindex->nHeight < nBestHeight-nCheckDepth)
             break;
         CBlock block;
         if (!block.ReadFromDisk(pindex))
@@ -760,7 +760,7 @@ bool CTxDB::LoadBlockIndex()
             }
         }
     }
-    if (pindexFork)
+    if (pindexFork && !fRequestShutdown)
     {
         // Reorg back to the fork
         printf("LoadBlockIndex() : *** moving best chain pointer back to block %d\n", pindexFork->nHeight);
@@ -792,6 +792,7 @@ bool CAddrDB::Write(const CAddrMan& addr)
 
  // serialize addresses, checksum data up to that point, then append csum
     unsigned char pchMessageStart[4];
+    GetMessageStart(pchMessageStart);
 
  
  CDataStream ssPeers(SER_DISK, CLIENT_VERSION);
@@ -861,7 +862,8 @@ bool CAddrDB::Read(CAddrMan& addr)
  
   // de-serialize address data
  unsigned char pchMsgTmp[4];
- unsigned char pchMessageStart[4];
+    unsigned char pchMessageStart[4];
+    GetMessageStart(pchMessageStart);
  try {
         // de-serialize file header (pchMessageStart magic number) and
  ssPeers >> FLATDATA(pchMsgTmp);
