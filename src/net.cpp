@@ -38,8 +38,6 @@ void ThreadMapPort2(void* parg);
 void ThreadDNSAddressSeed2(void* parg);
 bool OpenNetworkConnection(const CAddress& addrConnect, bool fUseGrant = true);
 
-
-
 //
 // Global state variables
 //
@@ -62,7 +60,6 @@ deque<pair<int64, CInv> > vRelayExpiration;
 CCriticalSection cs_mapRelay;
 map<CInv, int64> mapAlreadyAskedFor;
 
-
 set<CNetAddr> setservAddNodeAddresses;
 CCriticalSection cs_setservAddNodeAddresses;
 
@@ -83,8 +80,6 @@ void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
 
     PushMessage("getblocks", CBlockLocator(pindexBegin), hashEnd);
 }
-
-
 
 bool RecvLine(SOCKET hSocket, string& strLine)
 {
@@ -136,8 +131,6 @@ bool RecvLine(SOCKET hSocket, string& strLine)
         }
     }
 }
-
-
 
 bool GetMyExternalIP2(const CService& addrConnect, const char* pszGet, const char* pszKeyword, CNetAddr& ipRet)
 {
@@ -280,20 +273,10 @@ void ThreadGetMyExternalIP(void* parg)
     }
 }
 
-
-
-
-
 void AddressCurrentlyConnected(const CService& addr)
 {
     addrman.Connected(addr);
 }
-
-
-
-
-
-
 
 CNode* FindNode(const CNetAddr& ip)
 {
@@ -395,7 +378,6 @@ void CNode::Cleanup()
 {
 }
 
-
 void CNode::PushVersion()
 {
     /// when NTP implemented, change to just nTime = GetAdjustedTime()
@@ -406,10 +388,6 @@ void CNode::PushVersion()
     PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
                 nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight);
 }
-
-
-
-
 
 std::map<CNetAddr, int64> CNode::setBanned;
 CCriticalSection CNode::cs_setBanned;
@@ -476,15 +454,6 @@ void CNode::copyStats(CNodeStats &stats)
     X(nMisbehavior);
 }
 #undef X
-
-
-
-
-
-
-
-
-
 
 void ThreadSocketHandler(void* parg)
 {
@@ -828,14 +797,6 @@ void ThreadSocketHandler2(void* parg)
     }
 }
 
-
-
-
-
-
-
-
-
 #ifdef USE_UPNP
 void ThreadMapPort(void* parg)
 {
@@ -983,26 +944,13 @@ void MapPort(bool /* unused fMapPort */)
 }
 #endif
 
-
-
-
-
-
-
-
-
 // DNS seeds
 // Each pair gives a source name and a seed name.
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 // testnet dns seed begins with 't', all else are version dns seeds.
 static const char *strDNSSeed[][2] = {
-    {"seed",   "seed.versioncoin.com"},
-    {"seed2", "seed2.versioncoin.com"},
-    {"seed3", "seed3.versioncoin.com"},
-    {"seed4", "seed4.versioncoin.com"},
-    {"seed5", "seed5.versioncoin.com"},
-    {"testnetseed", "testnetseed.versioncoin.com"},
+    {" ",   " "},
 };
 
 void ThreadDNSAddressSeed(void* parg)
@@ -1056,17 +1004,6 @@ void ThreadDNSAddressSeed2(void* parg)
 
     printf("%d addresses found from DNS seeds\n", found);
 }
-
-
-
-
-
-
-
-
-
-
-
 
 // Physical IP seeds: 32-bit IPv4 addresses: e.g. 178.33.22.32 = 0x201621b2
 unsigned int pnSeed[] =
@@ -1354,13 +1291,6 @@ bool OpenNetworkConnection(const CAddress& addrConnect, bool fUseGrant)
     return true;
 }
 
-
-
-
-
-
-
-
 void ThreadMessageHandler(void* parg)
 {
     IMPLEMENT_RANDOMIZE_STACK(ThreadMessageHandler(parg));
@@ -1458,11 +1388,6 @@ void static ThreadStakeMinter(void* parg)
     }
     printf("ThreadStakeMinter exiting, %d threads remaining\n", vnThreadsRunning[THREAD_MINTER]);
 }
-
-
-
-
-
 
 bool BindListenPort(string& strError)
 {
