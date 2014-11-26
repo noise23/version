@@ -30,20 +30,13 @@ static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const int64 MIN_TX_FEE = CENT / 1000;
 static const int64 MIN_RELAY_TX_FEE = CENT / 1000;
-//static const int64 MAX_MONEY = 60000000 * COIN;
-// Bugfix:
-// Bump up MAX_MONEY so there is headroom for stake/interest payments
-// 2.5M maximum coins mined via proof of work
-// at 10% per year interest, a max_money of 5M is enough headroom for
-// over 5 years of interest payments
-static const int64 MAX_MONEY = 5000000 * COIN;
+static const int64 MAX_MONEY = 60000000 * COIN;
 static const int64 MAX_MINT_PROOF_OF_WORK = 100 * COIN;
 static const int64 MIN_TXOUT_AMOUNT = MIN_TX_FEE;
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 static const int COINBASE_MATURITY_V = 10;
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
-// static const int STAKE_TARGET_SPACING = 60; // 60-second block spacing 
 static const int STAKE_MIN_AGE = 60 * 60 * 24 * 5; // minimum age for coin age
 static const int STAKE_MAX_AGE = 60 * 60 * 24 * 30; // stake age of full weight
 static const int64 MAX_MINT_PROOF_OF_STAKE = 120 * CENT;	// 120% annual interest
@@ -114,6 +107,7 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
 int64 GetProofOfStakeRewardV1(int64 nCoinAge);
 int64 GetProofOfStakeRewardV2(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly);
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime);
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
 int GetNumBlocksOfPeers();
 bool IsInitialBlockDownload();
 std::string GetWarnings(std::string strFor);

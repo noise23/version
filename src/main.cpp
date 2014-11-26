@@ -36,11 +36,11 @@ static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8);
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 static CBigNum bnInitialHashTarget(~uint256(0) >> 10);
 
-unsigned int nTargetSpacing = 1 * 60; // 1 minute
 unsigned int nStakeMinAge = STAKE_MIN_AGE;
 unsigned int nStakeMaxAge = STAKE_MAX_AGE;
 
 int nCoinbaseMaturity = COINBASE_MATURITY_V;
+unsigned int nStakeTargetSpacing = 1 * 60; // 1-minute block spacing
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
@@ -917,8 +917,8 @@ int64 GetProofOfStakeRewardV2(int64 nCoinAge, unsigned int nBits, unsigned int n
 }
 
 
-
-static const int64 nTargetTimespan = 16 * 60;  // 1 min
+static const int64 nTargetTimespan = 0.16 * 24 * 60 * 60;  // 4-hour
+static const int64 nTargetSpacingWorkMax = 12 * nStakeTargetSpacing; // 2-hour
 
 //
 // maximum nBits value could possible be required nTime after
@@ -965,40 +965,38 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
     return pindex;
 }
 
-static unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
-{
-    CBigNum bnTargetLimit = fProofOfStake ? bnProofOfStakeLimit : bnProofOfWorkLimit;
-
-    if (pindexLast == NULL)
-        return bnTargetLimit.GetCompact(); // genesis block
-
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
-
-
-    if (pindexPrev->pprev == NULL)
-        return bnTargetLimit.GetCompact(); // first block
-    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
-    if (pindexPrevPrev->pprev == NULL)
-        return bnTargetLimit.GetCompact(); // second block
-
-    int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-    // target change every block
-
-    // retarget with exponential moving toward target spacing
-
-    CBigNum bnNew;
-    bnNew.SetCompact(pindexPrev->nBits);
-    int64 nInterval = nTargetTimespan / nTargetSpacing;
-	bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-	bnNew /= ((nInterval + 1) * nTargetSpacing);
-	
-    if (bnNew > bnTargetLimit)
-        bnNew = bnTargetLimit;
-
-	return bnNew.GetCompact();
-
-
-}
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake) 
+{ 
+    CBigNum bnTargetLimit = !fProofOfStake ? bnProofOfWorkLimit : bnProofOfStakeLimit; 
+ 
+    if (pindexLast == NULL) 
+        return bnTargetLimit.GetCompact(); // genesis block 
+ 
+    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake); 
+    if (pindexPrev->pprev == NULL) 
+        return bnTargetLimit.GetCompact(); // first block 
+    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake); 
+    if (pindexPrevPrev->pprev == NULL) 
+        return bnTargetLimit.GetCompact(); // second block 
+ 
+    int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime(); 
+    int64 nTargetSpacing = fProofOfStake? nStakeTargetSpacing : min(nTargetSpacingWorkMax, (int64) nStakeTargetSpacing * (1 + pindexLast->nHeight - pindexPrev->nHeight)); 
+ 
+    if (nActualSpacing < 0) 
+          nActualSpacing = nTargetSpacing; 
+ 
+    CBigNum bnNew; 
+    bnNew.SetCompact(pindexPrev->nBits); 
+ 
+    int64 nInterval = nTargetTimespan / nTargetSpacing; 
+    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing); 
+    bnNew /= ((nInterval + 1) * nTargetSpacing); 
+ 
+    if (bnNew > bnTargetLimit) 
+        bnNew = bnTargetLimit; 
+ 
+    return bnNew.GetCompact(); 
+} 
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {

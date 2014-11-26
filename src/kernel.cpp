@@ -9,7 +9,7 @@
 
 using namespace std;
 
-extern unsigned int nTargetSpacing;
+extern int nStakeTargetSpacing;
 
 // Protocol switch time of v0.3 kernel protocol
 unsigned int nProtocolV03SwitchTime     = 1363800000;
@@ -148,7 +148,7 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64& nStakeModif
 
     // Sort candidate blocks by timestamp
     vector<pair<int64, uint256> > vSortedByTimestamp;
-    vSortedByTimestamp.reserve(64 * nModifierInterval / nTargetSpacing);
+    vSortedByTimestamp.reserve(64 * nModifierInterval / nStakeTargetSpacing);
     int64 nSelectionInterval = GetStakeModifierSelectionInterval();
     int64 nSelectionIntervalStart = (pindexPrev->GetBlockTime() / nModifierInterval) * nModifierInterval - nSelectionInterval;
     const CBlockIndex* pindex = pindexPrev;
