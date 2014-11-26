@@ -27,18 +27,6 @@ extern const std::string CLIENT_NAME;
 extern const std::string CLIENT_BUILD;
 extern const std::string CLIENT_DATE;
 
-// version version - intended for display purpose ONLY
-#define VOIN_VERSION_MAJOR       1
-#define VOIN_VERSION_MINOR       0
-#define VOIN_VERSION_REVISION    1
-#define VOIN_VERSION_BUILD       0
-
-static const int VOIN_VERSION =
-                           1000000 * VOIN_VERSION_MAJOR
-                         +   10000 * VOIN_VERSION_MINOR
-                         +     100 * VOIN_VERSION_REVISION
-                         +       1 * VOIN_VERSION_BUILD;
-
 //
 // network protocol versioning
 //
