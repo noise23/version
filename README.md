@@ -1,4 +1,6 @@
-
+Important! Please don't build Version from this repo yet.
+V2 development is in progress, currently this repo will connect to a test chain which will be discarded and reset back several times as development goes.
+This is not a final chain yet.
 
  ██▒   █▓▓█████  ██▀███    ██████  ██▓ ▒█████   ███▄    █ 
 ▓██░   █▒▓█   ▀ ▓██ ▒ ██▒▒██    ▒ ▓██▒▒██▒  ██▒ ██ ▀█   █ 
@@ -13,7 +15,7 @@
 
 
 
-Version Official Development Repo
+Version2 Official Development Repo
 ==================================
 
 ### What is Version (V)?
