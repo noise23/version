@@ -858,9 +858,13 @@ int64 GetProofOfWorkReward(int nHeight, unsigned int nBits, int64 nFees)
     {
 	nSubsidy = 25 * COIN;
     }
-    else if(nHeight > 10000 && nHeight <= 210216)
+    else if(nHeight > 10000 && nHeight <= 260000)
     {
 	nSubsidy = 4 * COIN;
+    }
+    else if(nHeight > 260000 && nHeight <= 510000)
+    {
+	nSubsidy = 2 * COIN;
     }
     else
     {
@@ -880,7 +884,7 @@ int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTi
  {
  int64 nSubsidy = 0;
 
- if ( nHeight <= 210216 )
+ if ( nHeight <= 536698 )
  nSubsidy = GetProofOfStakeRewardV1(nCoinAge);
  else
  nSubsidy = GetProofOfStakeRewardV2(nCoinAge, nBits, nTime, nHeight, bCoinYearOnly);
@@ -2038,7 +2042,7 @@ bool CBlock::AcceptBlock()
 
     // Check proof-of-work or proof-of-stake
 //    if (nBits != GetNextTargetRequired(pindexPrev, IsProofOfStake()))
-	if (nBits != GetNextTargetRequired(pindexPrev, IsProofOfStake()) && nHeight > 210216)
+	if (nBits != GetNextTargetRequired(pindexPrev, IsProofOfStake()) && nHeight > 536698)
 	return error("AcceptBlock() : incorrect proof-of-work/proof-of-stake height: %d",nHeight);
 
     // Check timestamp against prev
