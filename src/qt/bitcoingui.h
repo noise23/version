@@ -67,6 +67,7 @@ private:
     MessagePage *messagePage;
 
     QLabel *labelEncryptionIcon;
+	QLabel *labelStakingIcon;
     QLabel *labelConnectionsIcon;
     QLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
@@ -171,6 +172,8 @@ private slots:
     void showNormalIfMinimized();
     /** Hide window if visible, show if hidden */
     void toggleHidden();
+	
+	void updateStakingIcon();
 };
 
 #endif

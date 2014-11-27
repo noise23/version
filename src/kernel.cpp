@@ -9,6 +9,7 @@
 
 using namespace std;
 
+extern int nStakeMaxAge;
 extern int nStakeTargetSpacing;
 
 // Protocol switch time of v0.3 kernel protocol
@@ -32,6 +33,22 @@ bool IsProtocolV03(unsigned int nTimeCoinStake)
 {
     return (nTimeCoinStake >= (fTestNet? nProtocolV03TestSwitchTime : nProtocolV03SwitchTime));
 }
+
+// Get time weight 
+int64 GetWeight(int64 nIntervalBeginning, int64 nIntervalEnd)
+{
+    // Kernel hash weight starts from 0 at the 10-day min age
+    // this change increases active coins participating the hash and helps
+    // to secure the network when proof-of-stake difficulty is low
+    //
+    // Maximum TimeWeight is 30 days.
+
+  //Tranz We are going to want to change this to fix the max weight. Requires a hard fork
+  //New Code:
+  //return min(nIntervalEnd - nIntervalBeginning - nStakeMinAge, (int64)nStakeMaxAge);
+  return min(nIntervalEnd - nIntervalBeginning, (int64)nStakeMaxAge) - nStakeMinAge;
+
+}	
 
 // Get the last stake modifier and its generation time from a given block
 static bool GetLastStakeModifier(const CBlockIndex* pindex, uint64& nStakeModifier, int64& nModifierTime)
@@ -285,7 +302,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     // v0.3 protocol kernel hash weight starts from 0 at the 30-day min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-    int64 nTimeWeight = min((int64)nTimeTx - txPrev.nTime, (int64)STAKE_MAX_AGE) - (IsProtocolV03(nTimeTx)? nStakeMinAge : 0);
+    int64 nTimeWeight = min((int64)nTimeTx - txPrev.nTime, (int64)nStakeMaxAge) - nStakeMinAge;
     CBigNum bnCoinDayWeight = CBigNum(nValueIn) * nTimeWeight / COIN / (24 * 60 * 60);
     // Calculate hash
     CDataStream ss(SER_GETHASH, 0);

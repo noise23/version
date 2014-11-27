@@ -10,6 +10,7 @@
 #include <map>
 
 class CReserveKey;
+class CBlockIndex;
 
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_writer_template.h"
@@ -55,5 +56,6 @@ public:
 
 extern const CRPCTable tableRPC;
 extern CReserveKey* pMiningKey;
+extern double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);
 
 #endif
