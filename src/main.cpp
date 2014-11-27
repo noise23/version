@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2011-2013 The Version developers
+// Copyright (c) 2011-2015 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -34,7 +34,7 @@ set<pair<COutPoint, unsigned int> > setStakeSeen;
 uint256 hashGenesisBlock = hashGenesisBlockOfficial;
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8);
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
-static CBigNum bnInitialHashTarget(~uint256(0) >> 10);
+
 
 unsigned int nStakeMinAge = STAKE_MIN_AGE;
 unsigned int nStakeMaxAge = STAKE_MAX_AGE;
@@ -1485,7 +1485,7 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
     }
     if (IsProofOfStake())
     {
-        // ppcoin: coin stake tx earns reward instead of paying fee
+        // coin stake tx earns reward instead of paying fee
         uint64 nCoinAge;
         if (!vtx[1].GetCoinAge(txdb, nCoinAge))
             return error("ConnectBlock() : %s unable to get coin age for coinstake", vtx[1].GetHash().ToString().substr(0,10).c_str());
@@ -2362,12 +2362,11 @@ bool LoadBlockIndex(bool fAllowNew)
         //bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
         nStakeMinAge = 60; //60 * 60 * 24; // test net min age is 1 minute
         //nCoinbaseMaturity = 10;
-        //bnInitialHashTarget = CBigNum(~uint256(0) >> 40);
         nModifierInterval = 60 * 2; // test net modifier interval is 2 minutes
     }
 
     printf("%s Network: genesis=0x%s nBitsLimit=0x%08x nBitsInitial=0x%08x nStakeMinAge=%d nCoinbaseMaturity=%d nModifierInterval=%d\n",
-           fTestNet? "Test" : "Version", hashGenesisBlock.ToString().substr(0, 20).c_str(), bnProofOfWorkLimit.GetCompact(), bnInitialHashTarget.GetCompact(), nStakeMinAge, nCoinbaseMaturity, nModifierInterval);
+           fTestNet? "Test" : "Version", hashGenesisBlock.ToString().substr(0, 20).c_str(), bnProofOfWorkLimit.GetCompact(), nStakeMinAge, nCoinbaseMaturity, nModifierInterval);
 
     //
     // Load block index

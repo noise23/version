@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2011-2013 The Version developers
+// Copyright (c) 2011-2015 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_MAIN_H
@@ -1016,7 +1016,6 @@ public:
         return hash;
     }
 
-
     bool WriteToDisk(unsigned int& nFileRet, unsigned int& nBlockPosRet)
     {
         // Open history file to append
@@ -1158,7 +1157,6 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-
 
     CBlockIndex()
     {
@@ -1447,13 +1445,6 @@ public:
     }
 };
 
-
-
-
-
-
-
-
 /** Describes a place in the block chain to another node such that if the
  * other node doesn't have the same branch, it can find a recent common trunk.
  * The further back it is, the further before the fork it may be.
@@ -1580,14 +1571,6 @@ public:
         return pindex->nHeight;
     }
 };
-
-
-
-
-
-
-
-
 
 /** Alerts are for notifying old versions if they become too obsolete and
  * need to upgrade.  The message is displayed in the status bar.

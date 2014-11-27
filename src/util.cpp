@@ -310,7 +310,7 @@ string real_strprintf(const std::string &format, int dummy, ...)
     char* p = buffer;
     int limit = sizeof(buffer);
     int ret;
-    loop
+    while (true)
     {
         va_list arg_ptr;
         va_start(arg_ptr, dummy);
@@ -354,7 +354,7 @@ void ParseString(const string& str, char c, vector<string>& v)
         return;
     string::size_type i1 = 0;
     string::size_type i2;
-    loop
+    while (true)
     {
         i2 = str.find(c, i1);
         if (i2 == str.npos)
@@ -470,7 +470,7 @@ vector<unsigned char> ParseHex(const char* psz)
 {
     // convert hex dump to vector
     vector<unsigned char> vch;
-    loop
+    while (true)
     {
         while (isspace(*psz))
             psz++;
@@ -737,7 +737,7 @@ string DecodeBase64(const string& str)
 
 bool WildcardMatch(const char* psz, const char* mask)
 {
-    loop
+    while (true)
     {
         switch (*mask)
         {
