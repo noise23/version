@@ -28,12 +28,13 @@ extern int nBestHeight;
 inline unsigned int ReceiveBufferSize() { return 1000*GetArg("-maxreceivebuffer", 10*1000); }
 inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 10*1000); }
 
+void AddOneShot(std::string strDest);
 bool RecvLine(SOCKET hSocket, std::string& strLine);
 bool GetMyExternalIP(CNetAddr& ipRet);
 void AddressCurrentlyConnected(const CService& addr);
 CNode* FindNode(const CNetAddr& ip);
 CNode* FindNode(const CService& ip);
-CNode* ConnectNode(CAddress addrConnect, int64 nTimeout=0);
+CNode* ConnectNode(CAddress addrConnect, const char *strDest = NULL, int64 nTimeout=0);
 void MapPort(bool fMapPort);
 bool BindListenPort(std::string& strError=REF(std::string()));
 void StartNode(void* parg);
@@ -82,7 +83,6 @@ enum threadId
 };
 
 extern bool fClient;
-extern bool fAllowDNS;
 extern uint64 nLocalServices;
 extern CAddress addrLocalHost;
 extern CAddress addrSeenByPeer;
@@ -134,6 +134,7 @@ public:
     std::string addrName;
     int nVersion;
     std::string strSubVer;
+	bool fOneShot;
     bool fClient;
     bool fInbound;
     bool fNetworkNode;
@@ -171,7 +172,7 @@ public:
     CCriticalSection cs_inventory;
     std::multimap<int64, CInv> mapAskFor;
 
-    CNode(SOCKET hSocketIn, CAddress addrIn, bool fInboundIn=false) : vSend(SER_NETWORK, INIT_PROTO_VERSION), vRecv(SER_NETWORK, INIT_PROTO_VERSION)
+    CNode(SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "", bool fInboundIn=false) : vSend(SER_NETWORK, INIT_PROTO_VERSION), vRecv(SER_NETWORK, INIT_PROTO_VERSION)
     {
         nServices = 0;
         hSocket = hSocketIn;
@@ -182,9 +183,10 @@ public:
         nHeaderStart = -1;
         nMessageStart = -1;
         addr = addrIn;
-        addrName = addr.ToStringIPPort();
+        addrName = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
         nVersion = 0;
         strSubVer = "";
+		fOneShot = false;
         fClient = false; // set by version message
         fHasGrant = false;
         fInbound = fInboundIn;

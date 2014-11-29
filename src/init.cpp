@@ -196,11 +196,13 @@ bool AppInit2(int argc, char* argv[])
             "  -timeout=<n>     \t  "   + _("Specify connection timeout (in milliseconds)") + "\n" +
             " -proxy=<ip:port> \t " + _("Connect through socks proxy") + "\n" +
             " -socks=<n> \t " + _("Select the version of socks proxy to use (4 or 5, 5 is default)") + "\n" +
-            "  -dns             \t  "   + _("Allow DNS lookups for addnode and connect") + "\n" +
+            " -dns \t " + _("Allow DNS lookups for -addnode, -seednode and -connect") + "\n" +
+			" -proxydns \t " + _("Pass DNS requests to (SOCKS5) proxy") + "\n" +
             "  -port=<port>     \t\t  " + _("Listen for connections on <port> (default: 9908 or testnet: 9909)") + "\n" +
             "  -maxconnections=<n>\t  " + _("Maintain at most <n> connections to peers (default: 125)") + "\n" +
             "  -addnode=<ip>    \t  "   + _("Add a node to connect to and attempt to keep the connection open") + "\n" +
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node") + "\n" +
+			" -seednode=<ip> \t\t " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
             "  -listen          \t  "   + _("Accept connections from outside (default: 1)") + "\n" +
 #ifdef QT_GUI
             "  -lang=<lang>     \t\t  " + _("Set language, for example \"de_DE\" (default: system locale)") + "\n" +
@@ -568,13 +570,19 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         // Note: the GetBoolArg() calls for all of these must happen later.
         SoftSetBoolArg("-listen", false);
         SoftSetBoolArg("-irc", false);
-        SoftSetBoolArg("-dnsseed", false);
+        SoftSetBoolArg("-proxydns", true);
         SoftSetBoolArg("-upnp", false);
-        SoftSetBoolArg("-dns", false);
     }
 
-    fAllowDNS = GetBoolArg("-dns");
+    fNameLookup = GetBoolArg("-dns");
+    fProxyNameLookup = GetBoolArg("-proxydns");
+    if (fProxyNameLookup)
+         fNameLookup = true;
     fNoListen = !GetBoolArg("-listen", true);
+	nSocksVersion = GetArg("-socks", 5);
+	
+	BOOST_FOREACH(string strDest, mapMultiArgs["-seednode"])
+                AddOneShot(strDest);
 
     // Continue to put "/P2SH/" in the coinbase to monitor
     // BIP16 support.
@@ -589,17 +597,6 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         {
             ThreadSafeMessageBox(strError, _("Version"), wxOK | wxMODAL);
             return false;
-        }
-    }
-
-    if (mapArgs.count("-addnode"))
-    {
-        BOOST_FOREACH(string strAddr, mapMultiArgs["-addnode"])
-        {
-            CAddress addr(CService(strAddr, GetDefaultPort(), fAllowDNS));
-            addr.nTime = 0; // so it won't relay unless successfully connected
-            if (addr.IsValid())
-                addrman.Add(addr, CNetAddr("127.0.0.1"));
         }
     }
 

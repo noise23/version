@@ -15,7 +15,10 @@
 using namespace std;
 
 // Settings
+int nSocksVersion = 5;
 int fUseProxy = false;
+bool fProxyNameLookup = false;
+bool fNameLookup = false;
 CService addrProxy("127.0.0.1",9050);
 int nConnectTimeout = 5000;
 
@@ -195,9 +198,14 @@ bool static Socks4(const CService &addrDest, SOCKET& hSocket)
     return true;
 }
 
-bool static Socks5(const CService &addrDest, SOCKET& hSocket)
+bool static Socks5(string strDest, int port, SOCKET& hSocket)
 {
-    printf("SOCKS5 connecting %s\n", addrDest.ToString().c_str());
+   printf("SOCKS5 connecting %s\n", strDest.c_str());
+    if (strDest.size() > 255)
+   {
+    closesocket(hSocket);
+    return error("Hostname too long");
+    }
     char pszSocks5Init[] = "\5\1\0";
     char *pszSocks5 = pszSocks5Init;
     int nSize = sizeof(pszSocks5Init);
@@ -219,32 +227,14 @@ bool static Socks5(const CService &addrDest, SOCKET& hSocket)
         closesocket(hSocket);
         return error("Proxy failed to initialize");
     }
-    char pszSocks5IPv4[] = "\5\1\0\1\0\0\0\0\0\0";
-    char pszSocks5IPv6[] = "\5\1\0\4\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-    if (addrDest.IsIPv4())
-    {
-        struct sockaddr_in addr;
-        addrDest.GetSockAddr(&addr);
-        memcpy(pszSocks5IPv4 + 4, &addr.sin_addr, 4);
-        memcpy(pszSocks5IPv4 + 8, &addr.sin_port, 2);
-        pszSocks5 = pszSocks5IPv4;
-        nSize = sizeof(pszSocks5IPv4);
-    }
-    else
-    {
-#ifdef USE_IPV6
-        struct sockaddr_in6 addr;
-        addrDest.GetSockAddr6(&addr);
-        memcpy(pszSocks5IPv6 + 4, &addr.sin6_addr, 16);
-        memcpy(pszSocks5IPv6 + 20, &addr.sin6_port, 2);
-        pszSocks5 = pszSocks5IPv6;
-        nSize = sizeof(pszSocks5IPv6);
-#else
-        return error("IPv6 support is not compiled in");
-#endif
-    }
-    ret = send(hSocket, pszSocks5, nSize, MSG_NOSIGNAL);
-    if (ret != nSize)
+    string strSocks5("\5\1");
+    strSocks5 += '\000'; strSocks5 += '\003';
+    strSocks5 += static_cast<char>(std::min((int)strDest.size(), 255));
+    strSocks5 += strDest;
+    strSocks5 += static_cast<char>((port >> 8) & 0xFF);
+    strSocks5 += static_cast<char>((port >> 0) & 0xFF);
+    ret = send(hSocket, strSocks5.c_str(), strSocks5.size(), MSG_NOSIGNAL);
+    if (ret != strSocks5.size())
     {
         closesocket(hSocket);
         return error("Error sending to proxy");
@@ -307,11 +297,11 @@ bool static Socks5(const CService &addrDest, SOCKET& hSocket)
         closesocket(hSocket);
         return error("Error reading from proxy");
     }
-    printf("SOCKS5 connected %s\n", addrDest.ToString().c_str());
+    printf("SOCKS5 connected %s\n", strDest.c_str());
     return true;
 }
 
-bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
+bool static ConnectSocketDirectly(const CService &addrConnect, SOCKET& hSocketRet, int nTimeout)
 {
     hSocketRet = INVALID_SOCKET;
 
@@ -323,12 +313,12 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
     setsockopt(hSocket, SOL_SOCKET, SO_NOSIGPIPE, (void*)&set, sizeof(int));
 #endif
 
-    bool fProxy = (fUseProxy && addrDest.IsRoutable());
     struct sockaddr_in sockaddr;
-    if (fProxy)
-        addrProxy.GetSockAddr(&sockaddr);
-    else
-        addrDest.GetSockAddr(&sockaddr);
+    if (!addrConnect.GetSockAddr(&sockaddr))
+    {
+        closesocket(hSocket);
+        return false;
+    }
 
 #ifdef WIN32
     u_long fNonblock = 1;
@@ -341,7 +331,6 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
         closesocket(hSocket);
         return false;
     }
-
 
     if (connect(hSocket, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) == SOCKET_ERROR)
     {
@@ -412,10 +401,22 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
         closesocket(hSocket);
         return false;
     }
+	
+      hSocketRet = hSocket;
+        return true;
+     }
+
+bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
+{
+         SOCKET hSocket = INVALID_SOCKET;
+          bool fProxy = (fUseProxy && addrDest.IsRoutable());
+
+          if (!ConnectSocketDirectly(fProxy ? addrProxy : addrDest, hSocket, nTimeout))
+          return false;	
 
     if (fProxy)
     {
-    	switch(GetArg("-socks", 5))
+    	switch(nSocksVersion)
          {
             case 4:
                 if (!Socks4(addrDest, hSocket))
@@ -424,11 +425,53 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
 
             case 5:
             default:
-                if (!Socks5(addrDest, hSocket))
+                if (!Socks5(addrDest.ToStringIP(), addrDest.GetPort(), hSocket))
                     return false;
                 break;
          } 
     }
+
+    hSocketRet = hSocket;
+    return true;
+}
+
+bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest, int portDefault, int nTimeout)
+{
+    string strDest(pszDest);
+    int port = portDefault;
+
+    size_t colon = strDest.find_last_of(':');
+    char *endp = NULL;
+    int n = strtol(pszDest + colon + 1, &endp, 10);
+    if (endp && *endp == 0 && n >= 0) {
+        strDest = strDest.substr(0, colon);
+        if (n > 0 && n < 0x10000)
+            port = n;
+    }
+    if (strDest[0] == '[' && strDest[strDest.size()-1] == ']')
+        strDest = strDest.substr(1, strDest.size()-2);
+
+    SOCKET hSocket = INVALID_SOCKET;
+    CService addrResolved(CNetAddr(strDest, fNameLookup && !fProxyNameLookup), port);
+    if (addrResolved.IsValid()) {
+        addr = addrResolved;
+        return ConnectSocket(addr, hSocketRet, nTimeout);
+    }
+    addr = CService("0.0.0.0:0");
+    if (!fNameLookup)
+        return false;
+    if (!ConnectSocketDirectly(addrProxy, hSocket, nTimeout))
+        return false;
+
+    switch(nSocksVersion)
+        {
+            case 4: return false;
+            case 5:
+            default:
+                if (!Socks5(strDest, port, hSocket))
+                    return false;
+                break;
+        }
 
     hSocketRet = hSocket;
     return true;
