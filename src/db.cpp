@@ -35,14 +35,18 @@ void CDBEnv::EnvShutdown()
         return;
 
     fDbEnvInit = false;
-    int ret = dbenv.close(0);
-    if (ret != 0)
-    printf("EnvShutdown exception: %s (%d)\n", DbEnv::strerror(ret), ret);
-	
+    try
+    {
+        dbenv.close(0);
+    }
+    catch (const DbException& e)
+    {
+        printf("EnvShutdown exception: %s (%d)\n", e.what(), e.get_errno());
+    }
     DbEnv(0).remove(GetDataDir().string().c_str(), 0);
 }
 
-CDBEnv::CDBEnv() : dbenv(DB_CXX_NO_EXCEPTIONS)
+CDBEnv::CDBEnv() : dbenv(0)
 {
 }
  
@@ -96,8 +100,8 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
                      DB_RECOVER    | 
                      nEnvFlags, 
                      S_IRUSR | S_IWUSR); 
-    if (ret != 0)
-               return error("CDB() : error %s (%d) opening database environment", DbEnv::strerror(ret), ret);
+    if (ret > 0) 
+        return error("CDB() : error %d opening database environment", ret); 
  
     fDbEnvInit = true; 
     return true; 
@@ -166,14 +170,6 @@ CDB::CDB(const char *pszFile, const char* pszMode) :
     }
 }
 
-static bool IsChainFile(std::string strFile)
- {
-       if (strFile == "blkindex.dat")
-                return true;
-
-                return false;
- }
-
 void CDB::Close()
 {
     if (!pdb)
@@ -187,9 +183,9 @@ void CDB::Close()
     unsigned int nMinutes = 0;
     if (fReadOnly)
         nMinutes = 1;
-    if (IsChainFile(strFile))
+    if (strFile == "blkindex.dat")
         nMinutes = 2;
-    if (IsChainFile(strFile) && IsInitialBlockDownload())
+    if (strFile == "blkindex.dat" && IsInitialBlockDownload())
         nMinutes = 5;
 
     bitdb.dbenv.txn_checkpoint(nMinutes ? GetArg("-dblogsize", 100)*1024 : 0, nMinutes, 0);
@@ -330,7 +326,7 @@ void CDBEnv::Flush(bool fShutdown)
                 CloseDb(strFile);
                 printf("%s checkpoint\n", strFile.c_str());
                 dbenv.txn_checkpoint(0, 0, 0);
-                if (!IsChainFile(strFile) || fDetachDB) {
+                if (strFile != "blkindex.dat" || fDetachDB) {
                     printf("%s detach\n", strFile.c_str());
                     dbenv.lsn_reset(strFile.c_str(), 0);
                 }
@@ -392,6 +388,66 @@ bool CTxDB::ContainsTx(uint256 hash)
 {
     assert(!fClient);
     return Exists(make_pair(string("tx"), hash));
+}
+
+bool CTxDB::ReadOwnerTxes(uint160 hash160, int nMinHeight, vector<CTransaction>& vtx)
+{
+    assert(!fClient);
+    vtx.clear();
+
+    // Get cursor
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        return false;
+
+    unsigned int fFlags = DB_SET_RANGE;
+    loop
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << string("owner") << hash160 << CDiskTxPos(0, 0, 0);
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            return false;
+        }
+
+        // Unserialize
+        string strType;
+        uint160 hashItem;
+        CDiskTxPos pos;
+        int nItemHeight;
+
+        try {
+            ssKey >> strType >> hashItem >> pos;
+            ssValue >> nItemHeight;
+        }
+        catch (std::exception &e) {
+            return error("%s() : deserialize error", __PRETTY_FUNCTION__);
+        }
+
+        // Read transaction
+        if (strType != "owner" || hashItem != hash160)
+            break;
+        if (nItemHeight >= nMinHeight)
+        {
+            vtx.resize(vtx.size()+1);
+            if (!vtx.back().ReadFromDisk(pos))
+            {
+                pcursor->close();
+                return false;
+            }
+        }
+    }
+
+    pcursor->close();
+    return true;
 }
 
 bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex)
@@ -492,8 +548,78 @@ CBlockIndex static * InsertBlockIndex(uint256 hash)
 
 bool CTxDB::LoadBlockIndex()
 {
-    if (!LoadBlockIndexGuts())
-         return false;
+    // Get database cursor
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        return false;
+
+    // Load mapBlockIndex
+    unsigned int fFlags = DB_SET_RANGE;
+    loop
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("blockindex"), uint256(0));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+            return false;
+
+        // Unserialize
+
+        try {
+        string strType;
+        ssKey >> strType;
+        if (strType == "blockindex" && !fRequestShutdown)
+        {
+            CDiskBlockIndex diskindex;
+            ssValue >> diskindex;
+
+            // Construct block index object
+            CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash());
+            pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
+            pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
+            pindexNew->nFile          = diskindex.nFile;
+            pindexNew->nBlockPos      = diskindex.nBlockPos;
+            pindexNew->nHeight        = diskindex.nHeight;
+            pindexNew->nMint          = diskindex.nMint;
+            pindexNew->nMoneySupply   = diskindex.nMoneySupply;
+            pindexNew->nFlags         = diskindex.nFlags;
+            pindexNew->nStakeModifier = diskindex.nStakeModifier;
+            pindexNew->prevoutStake   = diskindex.prevoutStake;
+            pindexNew->nStakeTime     = diskindex.nStakeTime;
+            pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
+            pindexNew->nVersion       = diskindex.nVersion;
+            pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+            pindexNew->nTime          = diskindex.nTime;
+            pindexNew->nBits          = diskindex.nBits;
+            pindexNew->nNonce         = diskindex.nNonce;
+
+            // Watch for genesis block
+            if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == hashGenesisBlock)
+                pindexGenesisBlock = pindexNew;
+
+            if (!pindexNew->CheckIndex())
+                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
+
+            // version: build setStakeSeen
+            if (pindexNew->IsProofOfStake())
+                setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
+        }
+        else
+        {
+            break; // if shutdown requested or finished loading block index
+        }
+        }    // try
+        catch (std::exception &e) {
+            return error("%s() : deserialize error", __PRETTY_FUNCTION__);
+        }
+    }
+    pcursor->close();
 
     if (fRequestShutdown)
         return true;
@@ -666,73 +792,6 @@ bool CTxDB::LoadBlockIndex()
 
     return true;
 }
-
-bool CTxDB::LoadBlockIndexGuts() 
-{ 
-    // Get database cursor 
-    Dbc* pcursor = GetCursor(); 
-    if (!pcursor) 
-        return false; 
- 
-    // Load mapBlockIndex 
-    unsigned int fFlags = DB_SET_RANGE; 
-    loop 
-    { 
-        // Read next record 
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION); 
-        if (fFlags == DB_SET_RANGE) 
-            ssKey << make_pair(string("blockindex"), uint256(0)); 
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION); 
-        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags); 
-        fFlags = DB_NEXT; 
-        if (ret == DB_NOTFOUND) 
-            break; 
-        else if (ret != 0) 
-            return false; 
- 
-        // Unserialize 
- 
-        try { 
-        string strType; 
-        ssKey >> strType; 
-        if (strType == "blockindex" && !fRequestShutdown) 
-        { 
-            CDiskBlockIndex diskindex; 
-            ssValue >> diskindex; 
- 
-            // Construct block index object 
-            CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash()); 
-            pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev); 
-            pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext); 
-            pindexNew->nFile          = diskindex.nFile; 
-            pindexNew->nBlockPos      = diskindex.nBlockPos; 
-            pindexNew->nHeight        = diskindex.nHeight; 
-            pindexNew->nVersion       = diskindex.nVersion; 
-            pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot; 
-            pindexNew->nTime          = diskindex.nTime; 
-            pindexNew->nBits          = diskindex.nBits; 
-            pindexNew->nNonce         = diskindex.nNonce; 
- 
-            // Watch for genesis block 
-            if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == hashGenesisBlock) 
-                pindexGenesisBlock = pindexNew; 
- 
-            if (!pindexNew->CheckIndex()) 
-                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight); 
-        } 
-        else 
-        { 
-            break; // if shutdown requested or finished loading block index 
-        } 
-        }    // try 
-        catch (std::exception &e) { 
-            return error("%s() : deserialize error", __PRETTY_FUNCTION__); 
-        } 
-    } 
-    pcursor->close(); 
- 
-    return true; 
-} 
 
 //
 // CAddrDB
