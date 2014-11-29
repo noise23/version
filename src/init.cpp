@@ -100,7 +100,6 @@ void HandleSIGTERM(int)
 
 
 
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // Start
@@ -194,15 +193,17 @@ bool AppInit2(int argc, char* argv[])
             "  -dbcache=<n>     \t\t  " + _("Set database cache size in megabytes (default: 25)") + "\n" +
             "  -dblogsize=<n>   \t\t  " + _("Set database disk log size in megabytes (default: 100)") + "\n" +
             "  -timeout=<n>     \t  "   + _("Specify connection timeout (in milliseconds)") + "\n" +
-            " -proxy=<ip:port> \t " + _("Connect through socks proxy") + "\n" +
-            " -socks=<n> \t " + _("Select the version of socks proxy to use (4 or 5, 5 is default)") + "\n" +
-            " -dns \t " + _("Allow DNS lookups for -addnode, -seednode and -connect") + "\n" +
-			" -proxydns \t " + _("Pass DNS requests to (SOCKS5) proxy") + "\n" +
+            "  -proxy=<ip:port> \t " + _("Connect through socks proxy") + "\n" +
+            "  -socks=<n> \t " + _("Select the version of socks proxy to use (4 or 5, 5 is default)") + "\n" +
+            "  -dns \t " + _("Allow DNS lookups for -addnode, -seednode and -connect") + "\n" +
+			"  -proxydns \t " + _("Pass DNS requests to (SOCKS5) proxy") + "\n" +
             "  -port=<port>     \t\t  " + _("Listen for connections on <port> (default: 9908 or testnet: 9909)") + "\n" +
             "  -maxconnections=<n>\t  " + _("Maintain at most <n> connections to peers (default: 125)") + "\n" +
             "  -addnode=<ip>    \t  "   + _("Add a node to connect to and attempt to keep the connection open") + "\n" +
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node") + "\n" +
-			" -seednode=<ip> \t\t " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
+	    "  -seednode=<ip> \t\t " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
+	    "  -externalip=<ip> \t " + _("Specify your own public address") + "\n" +
+            "  -discover \t " + _("Try to discover public IP address (default: 1)") + "\n" +
             "  -listen          \t  "   + _("Accept connections from outside (default: 1)") + "\n" +
 #ifdef QT_GUI
             "  -lang=<lang>     \t\t  " + _("Set language, for example \"de_DE\" (default: system locale)") + "\n" +
@@ -244,8 +245,8 @@ bool AppInit2(int argc, char* argv[])
             "  -keypool=<n>     \t  "   + _("Set key pool size to <n> (default: 100)") + "\n" +
             "  -rescan          \t  "   + _("Rescan the block chain for missing wallet transactions") + "\n" +
             "  -checkblocks=<n> \t\t  " + _("How many blocks to check at startup (default: 2500, 0 = all)") + "\n" +
-		    " -checklevel=<n> \t\t " + _("How thorough the block verification is (0-6, default: 1)") + "\n" +
-            " -loadblock=<file>\t " + _("Imports blocks from external blk000?.dat file") + "\n";
+		    "  -checklevel=<n> \t\t " + _("How thorough the block verification is (0-6, default: 1)") + "\n" +
+            "  -loadblock=<file>\t " + _("Imports blocks from external blk000?.dat file") + "\n";
 
         strUsage += string() +
             _("\nSSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n" +
@@ -562,6 +563,9 @@ InitMessage(_("Importing bootstrap blockchain data file."));
             return false;
         }
     }
+	
+	if (mapArgs.count("-connect"))
+           SoftSetBoolArg("-dnsseed", false);
 
     bool fTor = (fUseProxy && addrProxy.GetPort() == 9050);
     if (fTor)
@@ -572,6 +576,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         SoftSetBoolArg("-irc", false);
         SoftSetBoolArg("-proxydns", true);
         SoftSetBoolArg("-upnp", false);
+	SoftSetBoolArg("-discover", false);
     }
 
     fNameLookup = GetBoolArg("-dns");
@@ -599,6 +604,12 @@ InitMessage(_("Importing bootstrap blockchain data file."));
             return false;
         }
     }
+	
+	if (mapArgs.count("-externalip"))
+       {
+            BOOST_FOREACH(string strAddr, mapMultiArgs["-externalip"])
+            AddLocal(CNetAddr(strAddr, fNameLookup), LOCAL_MANUAL);
+       }
 
     if (mapArgs.count("-paytxfee"))
     {
