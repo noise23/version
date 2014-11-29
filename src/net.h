@@ -42,6 +42,21 @@ bool StopNode();
 
 enum
 {
+    LOCAL_NONE,
+    LOCAL_IF,
+    LOCAL_UPNP,
+    LOCAL_IRC,
+    LOCAL_HTTP,
+};
+
+bool AddLocal(const CNetAddr& addr, int nScore = LOCAL_NONE);
+bool SeenLocal(const CNetAddr& addr);
+bool IsLocal(const CNetAddr& addr);
+bool GetLocal(CNetAddr &addr, const CNetAddr *paddrPeer = NULL);
+CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
+
+enum
+{
     MSG_TX = 1,
     MSG_BLOCK,
 };
@@ -84,7 +99,6 @@ enum threadId
 
 extern bool fClient;
 extern uint64 nLocalServices;
-extern CAddress addrLocalHost;
 extern CAddress addrSeenByPeer;
 extern uint64 nLocalHostNonce;
 extern boost::array<int, THREAD_MAX> vnThreadsRunning;
@@ -132,6 +146,7 @@ public:
     unsigned int nMessageStart;
     CAddress addr;
     std::string addrName;
+	CNetAddr addrLocal;
     int nVersion;
     std::string strSubVer;
 	bool fOneShot;
