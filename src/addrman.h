@@ -22,7 +22,7 @@ private:
     // where knowledge about this address first came from
     CNetAddr source;
 
-    // last succesfull connection by us
+    // last successful connection by us
     int64 nLastSuccess;
 
     // last try whatsoever by us:
@@ -204,7 +204,7 @@ protected:
     CAddrInfo* Create(const CAddress &addr, const CNetAddr &addrSource, int *pnId = NULL);
 
     // Swap two elements in vRandom.
-    void SwapRandom(int nRandomPos1, int nRandomPos2);
+    void SwapRandom(unsigned int nRandomPos1, unsigned int nRandomPos2);
 
     // Return position in given bucket to replace.
     int SelectTried(int nKBucket);

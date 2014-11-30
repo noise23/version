@@ -102,12 +102,12 @@ CAddrInfo* CAddrMan::Create(const CAddress &addr, const CNetAddr &addrSource, in
     return &mapInfo[nId];
 }
 
-void CAddrMan::SwapRandom(int nRndPos1, int nRndPos2)
+void CAddrMan::SwapRandom(unsigned int nRndPos1, unsigned int nRndPos2)
 {
     if (nRndPos1 == nRndPos2)
         return;
 
-    assert(nRndPos1 >= 0 && nRndPos2 >= 0);
+
     assert(nRndPos1 < vRandom.size() && nRndPos2 < vRandom.size());
 
     int nId1 = vRandom[nRndPos1];
@@ -149,7 +149,7 @@ int CAddrMan::SelectTried(int nKBucket)
 
 int CAddrMan::ShrinkNew(int nUBucket)
 {
-    assert(nUBucket >= 0 && nUBucket < vvNew.size());
+    assert(nUBucket >= 0 && (unsigned int)nUBucket < vvNew.size());
     std::set<int> &vNew = vvNew[nUBucket];
 
     // first look for deletable items
@@ -411,7 +411,7 @@ CAddress CAddrMan::Select_(int nUnkBias)
             fChanceFactor *= 1.2;
         }
     } else {
-        // use an new node
+        // use a new node
         double fChanceFactor = 1.0;
         while(1)
         {

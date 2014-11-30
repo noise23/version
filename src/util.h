@@ -113,11 +113,6 @@ inline void Sleep(int64 n)
 void LogStackTrace();
 #endif
 
-
-
-
-
-
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 extern bool fDebug;
@@ -172,8 +167,6 @@ boost::filesystem::path GetConfigFile();
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
-bool GetStartOnSystemStartup();
-bool SetStartOnSystemStartup(bool fAutoStart);
 void ShrinkDebugFile();
 int GetRandInt(int nMax);
 uint64 GetRand(uint64 nMax);
@@ -184,16 +177,6 @@ int64 GetAdjustedTime();
 std::string FormatFullVersion();
 std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments);
 void AddTimeData(const CNetAddr& ip, int64 nTime);
-
-
-
-
-
-
-
-
-
-
 
 /** Wrapped boost mutex: supports recursive locking, but no waiting  */
 typedef boost::interprocess::interprocess_recursive_mutex CCriticalSection;
@@ -663,15 +646,6 @@ public:
         return vSorted;
     }
 };
-
-
-
-
-
-
-
-
-
 
 // Note: It turns out we might have been able to use boost::thread
 // by using TerminateThread(boost::thread.native_handle(), 0);

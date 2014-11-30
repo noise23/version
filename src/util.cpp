@@ -52,7 +52,6 @@ namespace boost {
 #endif
 #include <io.h> /* for _commit */
 #include "shlobj.h"
-#include "shlwapi.h"
 #endif
 
 #ifndef WIN32
@@ -1109,13 +1108,6 @@ void AddTimeData(const CNetAddr& ip, int64 nTime)
     }
 }
 
-
-
-
-
-
-
-
 string FormatVersion(int nVersion)
 {
     if (nVersion%100 == 0)
@@ -1140,151 +1132,6 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
     ss << "/";
     return ss.str();
 }
-
-#ifdef WIN32
-boost::filesystem::path static StartupShortcutPath()
-{
-    return MyGetSpecialFolderPath(CSIDL_STARTUP, true) / "Version.lnk";
-}
-
-bool GetStartOnSystemStartup()
-{
-    return filesystem::exists(StartupShortcutPath());
-}
-
-bool SetStartOnSystemStartup(bool fAutoStart)
-{
-    // If the shortcut exists already, remove it for updating
-    boost::filesystem::remove(StartupShortcutPath());
-
-    if (fAutoStart)
-    {
-        CoInitialize(NULL);
-
-        // Get a pointer to the IShellLink interface.
-        IShellLink* psl = NULL;
-        HRESULT hres = CoCreateInstance(CLSID_ShellLink, NULL,
-                                CLSCTX_INPROC_SERVER, IID_IShellLink,
-                                reinterpret_cast<void**>(&psl));
-
-        if (SUCCEEDED(hres))
-        {
-            // Get the current executable path
-            TCHAR pszExePath[MAX_PATH];
-            GetModuleFileName(NULL, pszExePath, sizeof(pszExePath));
-
-            TCHAR pszArgs[5] = TEXT("-min");
-
-            // Set the path to the shortcut target
-            psl->SetPath(pszExePath);
-            PathRemoveFileSpec(pszExePath);
-            psl->SetWorkingDirectory(pszExePath);
-            psl->SetShowCmd(SW_SHOWMINNOACTIVE);
-            psl->SetArguments(pszArgs);
-
-            // Query IShellLink for the IPersistFile interface for
-            // saving the shortcut in persistent storage.
-            IPersistFile* ppf = NULL;
-            hres = psl->QueryInterface(IID_IPersistFile,
-                                       reinterpret_cast<void**>(&ppf));
-            if (SUCCEEDED(hres))
-            {
-                WCHAR pwsz[MAX_PATH];
-                // Ensure that the string is ANSI.
-                MultiByteToWideChar(CP_ACP, 0, StartupShortcutPath().string().c_str(), -1, pwsz, MAX_PATH);
-                // Save the link by calling IPersistFile::Save.
-                hres = ppf->Save(pwsz, TRUE);
-                ppf->Release();
-                psl->Release();
-                CoUninitialize();
-                return true;
-            }
-            psl->Release();
-        }
-        CoUninitialize();
-        return false;
-    }
-    return true;
-}
-
-#elif defined(LINUX)
-
-// Follow the Desktop Application Autostart Spec:
-//  http://standards.freedesktop.org/autostart-spec/autostart-spec-latest.html
-
-boost::filesystem::path static GetAutostartDir()
-{
-    namespace fs = boost::filesystem;
-
-    char* pszConfigHome = getenv("XDG_CONFIG_HOME");
-    if (pszConfigHome) return fs::path(pszConfigHome) / "autostart";
-    char* pszHome = getenv("HOME");
-    if (pszHome) return fs::path(pszHome) / ".config" / "autostart";
-    return fs::path();
-}
-
-boost::filesystem::path static GetAutostartFilePath()
-{
-    return GetAutostartDir() / "version.desktop";
-}
-
-bool GetStartOnSystemStartup()
-{
-    boost::filesystem::ifstream optionFile(GetAutostartFilePath());
-    if (!optionFile.good())
-        return false;
-    // Scan through file for "Hidden=true":
-    string line;
-    while (!optionFile.eof())
-    {
-        getline(optionFile, line);
-        if (line.find("Hidden") != string::npos &&
-            line.find("true") != string::npos)
-            return false;
-    }
-    optionFile.close();
-
-    return true;
-}
-
-bool SetStartOnSystemStartup(bool fAutoStart)
-{
-    if (!fAutoStart)
-        boost::filesystem::remove(GetAutostartFilePath());
-    else
-    {
-        char pszExePath[MAX_PATH+1];
-        memset(pszExePath, 0, sizeof(pszExePath));
-        if (readlink("/proc/self/exe", pszExePath, sizeof(pszExePath)-1) == -1)
-            return false;
-
-        boost::filesystem::create_directories(GetAutostartDir());
-
-        boost::filesystem::ofstream optionFile(GetAutostartFilePath(), ios_base::out|ios_base::trunc);
-        if (!optionFile.good())
-            return false;
-        // Write a bitcoin.desktop file to the autostart directory:
-        optionFile << "[Desktop Entry]\n";
-        optionFile << "Type=Application\n";
-        optionFile << "Name=Version\n";
-        optionFile << "Exec=" << pszExePath << " -min\n";
-        optionFile << "Terminal=false\n";
-        optionFile << "Hidden=false\n";
-        optionFile.close();
-    }
-    return true;
-}
-#else
-
-// TODO: OSX startup stuff; see:
-// http://developer.apple.com/mac/library/documentation/MacOSX/Conceptual/BPSystemStartup/Articles/CustomLogin.html
-
-bool GetStartOnSystemStartup() { return false; }
-bool SetStartOnSystemStartup(bool fAutoStart) { return false; }
-
-#endif
-
-
 
 #ifdef DEBUG_LOCKORDER
 //
