@@ -21,6 +21,7 @@ LIBPATHS= \
  -L"$(DEPSDIR)/lib/db48"
 
 USE_UPNP:=1
+USE_IPV6:=1
 
 LIBS= -dead_strip
 
@@ -104,6 +105,10 @@ ifdef STATIC
 else
 	LIBS += -lminiupnpc
 endif
+endif
+
+ifneq (${USE_IPV6}, -)
+	DEFS += -DUSE_IPV6=$(USE_IPV6)
 endif
 
 all: versiond

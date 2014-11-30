@@ -134,6 +134,18 @@ bool AppInit(int argc, char* argv[])
     return fRet;
 }
 
+bool static Bind(const CService &addr) {
+    if (IsLimited(addr))
+        return false;
+    std::string strError;
+    if (!BindListenPort(addr, strError))
+    {
+        ThreadSafeMessageBox(strError, _("Version"), wxOK | wxMODAL);
+        return false;
+    }
+    return true;
+}
+
 bool AppInit2(int argc, char* argv[])
 {
 #ifdef _MSC_VER
@@ -201,10 +213,12 @@ bool AppInit2(int argc, char* argv[])
             "  -maxconnections=<n>\t  " + _("Maintain at most <n> connections to peers (default: 125)") + "\n" +
             "  -addnode=<ip>    \t  "   + _("Add a node to connect to and attempt to keep the connection open") + "\n" +
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node") + "\n" +
-	    "  -seednode=<ip> \t\t " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
-	    "  -externalip=<ip> \t " + _("Specify your own public address") + "\n" +
+	        "  -seednode=<ip> \t\t " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
+	        "  -externalip=<ip> \t " + _("Specify your own public address") + "\n" +
+			" -blocknet=<net> \t " + _("Do not connect to addresses in network net (ipv4, ipv6)") + "\n" +
             "  -discover \t " + _("Try to discover public IP address (default: 1)") + "\n" +
             "  -listen          \t  "   + _("Accept connections from outside (default: 1)") + "\n" +
+			"  -bind=<addr>     \t  "   + _("Bind to given address. Use [host]:port notation for IPv6") + "\n" +
 #ifdef QT_GUI
             "  -lang=<lang>     \t\t  " + _("Set language, for example \"de_DE\" (default: system locale)") + "\n" +
 #endif
@@ -559,14 +573,18 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         addrProxy = CService(mapArgs["-proxy"], 9050);
         if (!addrProxy.IsValid())
         {
-            ThreadSafeMessageBox(_("Invalid -proxy address"), _("Vcoin"), wxOK | wxMODAL);
+            ThreadSafeMessageBox(_("Invalid -proxy address"), _("Version"), wxOK | wxMODAL);
             return false;
         }
     }
 	
 	if (mapArgs.count("-connect"))
            SoftSetBoolArg("-dnsseed", false);
-
+		   
+    // even in Tor mode, if -bind is specified, you really want -listen
+    if (mapArgs.count("-bind"))
+        SoftSetBoolArg("-listen", true);
+		
     bool fTor = (fUseProxy && addrProxy.GetPort() == 9050);
     if (fTor)
     {
@@ -579,6 +597,17 @@ InitMessage(_("Importing bootstrap blockchain data file."));
 	SoftSetBoolArg("-discover", false);
     }
 
+	 if (mapArgs.count("-blocknet")) {
+         BOOST_FOREACH(std::string snet, mapMultiArgs["-blocknet"]) {
+                enum Network net = ParseNetwork(snet);
+                if (net == NET_UNROUTABLE) {
+                       ThreadSafeMessageBox(_("Unknown network specified in -blocknet"), _("Bitcoin"), wxOK | wxMODAL);
+                       return false;
+                     }
+                     SetLimited(net);
+                  }
+            }
+	
     fNameLookup = GetBoolArg("-dns");
     fProxyNameLookup = GetBoolArg("-proxydns");
     if (fProxyNameLookup)
@@ -595,14 +624,23 @@ InitMessage(_("Importing bootstrap blockchain data file."));
     const char* pszP2SH = "/P2SH/";
     COINBASE_FLAGS << std::vector<unsigned char>(pszP2SH, pszP2SH+strlen(pszP2SH));
 
+    bool fBound = false;
     if (!fNoListen)
     {
         std::string strError;
-        if (!BindListenPort(strError))
-        {
-            ThreadSafeMessageBox(strError, _("Version"), wxOK | wxMODAL);
+       if (mapArgs.count("-bind")) {
+            BOOST_FOREACH(std::string strBind, mapMultiArgs["-bind"]) {
+                fBound |= Bind(CService(strBind, GetDefaultPort(), false));
+            }
+        } else {
+            struct in_addr inaddr_any = {s_addr: INADDR_ANY};
+            fBound |= Bind(CService(inaddr_any, GetDefaultPort()));
+#ifdef USE_IPV6
+            fBound |= Bind(CService(in6addr_any, GetDefaultPort()));
+#endif
+         }
+        if (!fBound)
             return false;
-        }
     }
 	
 	if (mapArgs.count("-externalip"))
