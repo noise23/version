@@ -21,6 +21,7 @@
 #include <QLibraryInfo>
 
 #include <boost/interprocess/ipc/message_queue.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #if defined(BITCOIN_NEED_QT_PLUGINS) && !defined(_BITCOIN_QT_PLUGINS_INCLUDED)
 #define _BITCOIN_QT_PLUGINS_INCLUDED
@@ -146,17 +147,17 @@ private:
 HelpMessageBox::HelpMessageBox(QWidget *parent):
     QMessageBox(parent)
 {
-    header = tr("Bitcoin-Qt") + " " + tr("version") + " " +
+    header = tr("Version-Qt") + " " + tr("version") + " " +
             QString::fromStdString(FormatFullVersion()) + "\n\n" +
         tr("Usage:") + "\n" +
-          "  bitcoin-qt [options]                     " + "\n";
+          "  version-qt [options]                     " + "\n";
     coreOptions = QString::fromStdString(HelpMessage());
     uiOptions = tr("UI options") + ":\n" +
             "  -lang=<lang>           " + tr("Set language, for example \"de_DE\" (default: system locale)") + "\n" +
             "  -min                   " + tr("Start minimized") + "\n" +
             "  -splash                " + tr("Show splash screen on startup (default: 1)") + "\n";
 
-    setWindowTitle(tr("Bitcoin-Qt"));
+    setWindowTitle(tr("Version-Qt"));
     setTextFormat(Qt::PlainText);
     // setMinimumWidth is ignored for QMessageBox so put in nonbreaking spaces to make it wider.
     QChar em_space(0x2003);
@@ -176,10 +177,6 @@ void HelpMessageBox::exec()
 #endif
 }
 
-
-#ifdef WIN32
-#define strncasecmp strnicmp
-#endif
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -189,7 +186,7 @@ int main(int argc, char *argv[])
     // Do this early as we don't want to bother initializing if we are just calling IPC
     for (int i = 1; i < argc; i++)
     {
-        if (strlen(argv[i]) >= 7 && strncasecmp(argv[i], "version:", 7) == 0)
+        if (boost::algorithm::istarts_with(argv[i], "version:"))
         {
             const char *strURI = argv[i];
             try {
@@ -319,17 +316,17 @@ int main(int argc, char *argv[])
                 {
                     window.show();
                 }
+				
+#if !defined(MAC_OSX) && !defined(WIN32)
+// TODO: implement qtipcserver.cpp for Mac and Windows
 
                 // Place this here as guiref has to be defined if we dont want to lose URIs
                 ipcInit();
 
-#if !defined(MAC_OSX) && !defined(WIN32)
-// TODO: implement qtipcserver.cpp for Mac and Windows
-
                 // Check for URI in argv
                 for (int i = 1; i < argc; i++)
                 {
-                    if (strlen(argv[i]) >= 7 && strncasecmp(argv[i], "version:", 7) == 0)
+                    if (boost::algorithm::istarts_with(argv[i], "version:"))
                     {
                         const char *strURI = argv[i];
                         try {

@@ -15,6 +15,7 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/convenience.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #ifndef WIN32
 #include <signal.h>
@@ -96,9 +97,10 @@ void HandleSIGTERM(int)
     fRequestShutdown = true;
 }
 
-
-
-
+void HandleSIGHUP(int)
+{
+    fReopenDebugLog = true;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -151,7 +153,7 @@ bool AppInit(int argc, char* argv[])
 
         // Command-line RPC
         for (int i = 1; i < argc; i++)
-            if (!IsSwitchChar(argv[i][0]) && !(strlen(argv[i]) > 7 && strncasecmp(argv[i], "bitcoin:", 8) == 0))
+            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "version:"))
                 fCommandLine = true;
 
         if (fCommandLine)
@@ -304,7 +306,12 @@ bool AppInit2()
     sa.sa_flags = 0;
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGHUP, &sa, NULL);
+    // Reopen debug.log on SIGHUP
+    struct sigaction sa_hup;
+    sa_hup.sa_handler = HandleSIGHUP;
+    sigemptyset(&sa_hup.sa_mask);
+    sa_hup.sa_flags = 0;
+    sigaction(SIGHUP, &sa_hup, NULL);
 #endif
 
     fTestNet = GetBoolArg("-testnet");
@@ -632,20 +639,23 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         std::string strError;
        if (mapArgs.count("-bind")) {
             BOOST_FOREACH(std::string strBind, mapMultiArgs["-bind"]) {
-                CService addrBind(strBind, GetListenPort(), false);
-                if (!addrBind.IsValid())
+                CService addrBind;
+                if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
                     return InitError(strprintf(_("Cannot resolve -bind address: '%s'"), strBind.c_str()));
                 fBound |= Bind(addrBind);
             }
         } else {
-            struct in_addr inaddr_any = {s_addr: INADDR_ANY};
-            fBound |= Bind(CService(inaddr_any, GetListenPort()));
+            struct in_addr inaddr_any;
+            inaddr_any.s_addr = INADDR_ANY;
+            if (!IsLimited(NET_IPV4))
+                fBound |= Bind(CService(inaddr_any, GetListenPort()));
 #ifdef USE_IPV6
-            fBound |= Bind(CService(in6addr_any, GetListenPort()));
+            if (!IsLimited(NET_IPV6))
+                fBound |= Bind(CService(in6addr_any, GetListenPort()));
 #endif
          }
         if (!fBound)
-            return false;
+            return InitError(_("Not listening on any port"));
     }
 	
 	if (mapArgs.count("-externalip"))
