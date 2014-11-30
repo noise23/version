@@ -215,7 +215,7 @@ bool AppInit2(int argc, char* argv[])
             "  -connect=<ip>    \t\t  " + _("Connect only to the specified node") + "\n" +
 	        "  -seednode=<ip> \t\t " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n" +
 	        "  -externalip=<ip> \t " + _("Specify your own public address") + "\n" +
-			" -blocknet=<net> \t " + _("Do not connect to addresses in network net (ipv4, ipv6)") + "\n" +
+			" -blocknet=<net> \t " + _("Do not connect to addresses in network <net> (IPv4 or IPv6)") + "\n" +
             "  -discover \t " + _("Try to discover public IP address (default: 1)") + "\n" +
             "  -listen          \t  "   + _("Accept connections from outside (default: 1)") + "\n" +
 			"  -bind=<addr>     \t  "   + _("Bind to given address. Use [host]:port notation for IPv6") + "\n" +
@@ -630,13 +630,13 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         std::string strError;
        if (mapArgs.count("-bind")) {
             BOOST_FOREACH(std::string strBind, mapMultiArgs["-bind"]) {
-                fBound |= Bind(CService(strBind, GetDefaultPort(), false));
+                fBound |= Bind(CService(strBind, GetListenPort(), false));
             }
         } else {
             struct in_addr inaddr_any = {s_addr: INADDR_ANY};
-            fBound |= Bind(CService(inaddr_any, GetDefaultPort()));
+            fBound |= Bind(CService(inaddr_any, GetListenPort()));
 #ifdef USE_IPV6
-            fBound |= Bind(CService(in6addr_any, GetDefaultPort()));
+            fBound |= Bind(CService(in6addr_any, GetListenPort()));
 #endif
          }
         if (!fBound)
@@ -646,7 +646,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
 	if (mapArgs.count("-externalip"))
        {
             BOOST_FOREACH(string strAddr, mapMultiArgs["-externalip"])
-            AddLocal(CNetAddr(strAddr, fNameLookup), LOCAL_MANUAL);
+            AddLocal(CService(strAddr, GetListenPort(), fNameLookup), LOCAL_MANUAL);
        }
 
     if (mapArgs.count("-paytxfee"))

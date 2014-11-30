@@ -45,7 +45,7 @@ bool fClient = false;
 static bool fUseUPnP = false;
 uint64 nLocalServices = (fClient ? 0 : NODE_NETWORK);
 static CCriticalSection cs_mapLocalHost;
-static map<CNetAddr, int> mapLocalHost;
+static map<CService, int> mapLocalHost;
 static bool vfReachable[NET_MAX] = {};
 static bool vfLimited[NET_MAX] = {};
 CAddress addrSeenByPeer(CService("0.0.0.0", 0), nLocalServices);
@@ -93,7 +93,7 @@ void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
 }
 
 // find 'best' local address for a particular peer
-bool GetLocal(CNetAddr& addr, const CNetAddr *paddrPeer)
+bool GetLocal(CService& addr, const CNetAddr *paddrPeer)
 {
     if (fUseProxy || mapArgs.count("-connect") || fNoListen)
         return false;
@@ -102,7 +102,7 @@ bool GetLocal(CNetAddr& addr, const CNetAddr *paddrPeer)
     int nBestReachability = -1;
     {
         LOCK(cs_mapLocalHost);
-        for (map<CNetAddr, int>::iterator it = mapLocalHost.begin(); it != mapLocalHost.end(); it++)
+        for (map<CService, int>::iterator it = mapLocalHost.begin(); it != mapLocalHost.end(); it++)
         {
             int nCount = (*it).second;
             int nReachability = (*it).first.GetReachabilityFrom(paddrPeer);
@@ -121,11 +121,10 @@ bool GetLocal(CNetAddr& addr, const CNetAddr *paddrPeer)
 CAddress GetLocalAddress(const CNetAddr *paddrPeer)
 {
     CAddress ret(CService("0.0.0.0",0),0);
-    CNetAddr addr;
+    CService addr;
     if (GetLocal(addr, paddrPeer))
     {
-        ret.SetIP(addr);
-        ret.SetPort(GetListenPort());
+        ret = CAddress(addr);
         ret.nServices = nLocalServices;
         ret.nTime = GetAdjustedTime();
     }
@@ -193,7 +192,7 @@ void static AdvertizeLocal()
         if (pnode->fSuccessfullyConnected)
         {
             CAddress addrLocal = GetLocalAddress(&pnode->addr);
-            if (addrLocal.IsRoutable() && (CNetAddr)addrLocal != (CNetAddr)pnode->addrLocal)
+            if (addrLocal.IsRoutable() && (CService)addrLocal != (CService)pnode->addrLocal)
             {
                 pnode->PushAddress(addrLocal);
                 pnode->addrLocal = addrLocal;
@@ -203,7 +202,7 @@ void static AdvertizeLocal()
 }
 
 // learn a new local address
-bool AddLocal(const CNetAddr& addr, int nScore)
+bool AddLocal(const CService& addr, int nScore)
 {
     if (!addr.IsRoutable())
         return false;
@@ -223,6 +222,11 @@ bool AddLocal(const CNetAddr& addr, int nScore)
     return true;
 }
 
+bool AddLocal(const CNetAddr &addr, int nScore)
+{
+    return AddLocal(CService(addr, GetListenPort()), nScore);
+}
+
 /** Make a particular network entirely off-limits (no automatic connects to it) */
 void SetLimited(enum Network net, bool fLimited)
 {
@@ -237,7 +241,7 @@ bool IsLimited(const CNetAddr& addr)
 }
 
 /** vote for a local address */
-bool SeenLocal(const CNetAddr& addr)
+bool SeenLocal(const CService& addr)
 {
     {
         LOCK(cs_mapLocalHost);
@@ -252,7 +256,7 @@ bool SeenLocal(const CNetAddr& addr)
 }
 
 // check whether a given address is potentially local
-bool IsLocal(const CNetAddr& addr)
+bool IsLocal(const CService& addr)
 {
     LOCK(cs_mapLocalHost);
     return mapLocalHost.count(addr) > 0;
@@ -1688,7 +1692,7 @@ return;
                 struct sockaddr_in* s4 = (struct sockaddr_in*)(ifa->ifa_addr);
                 CNetAddr addr(s4->sin_addr);
                 if (AddLocal(addr, LOCAL_IF))
-                    printf("ipv4 %s: %s\n", ifa->ifa_name, addr.ToString().c_str());
+                    printf("IPv4 %s: %s\n", ifa->ifa_name, addr.ToString().c_str());
             }
 #ifdef USE_IPV6
             else if (ifa->ifa_addr->sa_family == AF_INET6)
@@ -1696,7 +1700,7 @@ return;
                 struct sockaddr_in6* s6 = (struct sockaddr_in6*)(ifa->ifa_addr);
                 CNetAddr addr(s6->sin6_addr);
                 if (AddLocal(addr, LOCAL_IF))
-                    printf("ipv6 %s: %s\n", ifa->ifa_name, addr.ToString().c_str());
+                    printf("IPv6 %s: %s\n", ifa->ifa_name, addr.ToString().c_str());
             }
 #endif
         }
