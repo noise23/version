@@ -134,15 +134,25 @@ bool AppInit(int argc, char* argv[])
     return fRet;
 }
 
+bool static InitError(const std::string &str)
+{
+    ThreadSafeMessageBox(str, _("Version"), wxOK | wxMODAL);
+    return false;
+
+}
+
+bool static InitWarning(const std::string &str)
+{
+    ThreadSafeMessageBox(str, _("Version"), wxOK | wxICON_EXCLAMATION | wxMODAL);
+    return true;
+}
+
 bool static Bind(const CService &addr) {
     if (IsLimited(addr))
         return false;
     std::string strError;
     if (!BindListenPort(addr, strError))
-    {
-        ThreadSafeMessageBox(strError, _("Version"), wxOK | wxMODAL);
-        return false;
-    }
+        return InitError(strError);
     return true;
 }
 
@@ -359,16 +369,13 @@ bool AppInit2(int argc, char* argv[])
         return false;
     }
 
-    // Make sure only a single bitcoin process is using the data directory.
+    // Make sure only a single version process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
     FILE* file = fopen(pathLockFile.string().c_str(), "a"); // empty lock file; created if it doesn't exist.
     if (file) fclose(file);
     static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
     if (!lock.try_lock())
-    {
-        ThreadSafeMessageBox(strprintf(_("Cannot obtain a lock on data directory %s.  Version is probably already running."), GetDataDir().string().c_str()), _("Version"), wxOK|wxMODAL);
-        return false;
-    }
+             return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  Version is probably already running."), GetDataDir().string().c_str()));
 
     std::ostringstream strErrors;
     //
@@ -445,8 +452,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         {
             strErrors << _("Wallet needed to be rewritten: restart Version to complete") << "\n";
             printf("%s", strErrors.str().c_str());
-            ThreadSafeMessageBox(strErrors.str(), _("Version"), wxOK | wxICON_ERROR | wxMODAL);
-            return false;
+            return InitError(strErrors.str());
         }
         else
             strErrors << _("Error loading wallet.dat") << "\n";
@@ -516,10 +522,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
     printf("mapAddressBook.size() = %d\n",  pwalletMain->mapAddressBook.size());
 
     if (!strErrors.str().empty())
-    {
-        ThreadSafeMessageBox(strErrors.str(), _("Version"), wxOK | wxICON_ERROR | wxMODAL);
-        return false;
-    }
+        return InitError(strErrors.str());
 
     // Add wallet transactions that aren't already in a block to mapTransactions
     pwalletMain->ReacceptWalletTransactions();
@@ -572,10 +575,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         fUseProxy = true;
         addrProxy = CService(mapArgs["-proxy"], 9050);
         if (!addrProxy.IsValid())
-        {
-            ThreadSafeMessageBox(_("Invalid -proxy address"), _("Version"), wxOK | wxMODAL);
-            return false;
-        }
+            return InitError(strprintf(_("Invalid -proxy address: '%s'"), mapArgs["-proxy"].c_str()));
     }
 	
 	if (mapArgs.count("-connect"))
@@ -600,10 +600,8 @@ InitMessage(_("Importing bootstrap blockchain data file."));
 	 if (mapArgs.count("-blocknet")) {
          BOOST_FOREACH(std::string snet, mapMultiArgs["-blocknet"]) {
                 enum Network net = ParseNetwork(snet);
-                if (net == NET_UNROUTABLE) {
-                       ThreadSafeMessageBox(_("Unknown network specified in -blocknet"), _("Bitcoin"), wxOK | wxMODAL);
-                       return false;
-                     }
+            if (net == NET_UNROUTABLE)
+                return InitError(strprintf(_("Unknown network specified in -blocknet: '%s'"), snet.c_str()));
                      SetLimited(net);
                   }
             }
@@ -614,6 +612,8 @@ InitMessage(_("Importing bootstrap blockchain data file."));
          fNameLookup = true;
     fNoListen = !GetBoolArg("-listen", true);
 	nSocksVersion = GetArg("-socks", 5);
+    if (nSocksVersion != 4 && nSocksVersion != 5)
+        return InitError(strprintf(_("Unknown -socks proxy version requested: %i"), nSocksVersion));
 	
 	BOOST_FOREACH(string strDest, mapMultiArgs["-seednode"])
                 AddOneShot(strDest);
@@ -630,7 +630,10 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         std::string strError;
        if (mapArgs.count("-bind")) {
             BOOST_FOREACH(std::string strBind, mapMultiArgs["-bind"]) {
-                fBound |= Bind(CService(strBind, GetListenPort(), false));
+                CService addrBind(strBind, GetListenPort(), false);
+                if (!addrBind.IsValid())
+                    return InitError(strprintf(_("Cannot resolve -bind address: '%s'"), strBind.c_str()));
+                fBound |= Bind(addrBind);
             }
         } else {
             struct in_addr inaddr_any = {s_addr: INADDR_ANY};
@@ -645,19 +648,20 @@ InitMessage(_("Importing bootstrap blockchain data file."));
 	
 	if (mapArgs.count("-externalip"))
        {
-            BOOST_FOREACH(string strAddr, mapMultiArgs["-externalip"])
+        BOOST_FOREACH(string strAddr, mapMultiArgs["-externalip"]) {
+            CService addrLocal(strAddr, GetListenPort(), fNameLookup);
+            if (!addrLocal.IsValid())
+                return InitError(strprintf(_("Cannot resolve -externalip address: '%s'"), strAddr.c_str()));
             AddLocal(CService(strAddr, GetListenPort(), fNameLookup), LOCAL_MANUAL);
-       }
+           }
+        }
 
     if (mapArgs.count("-paytxfee"))
     {
         if (!ParseMoney(mapArgs["-paytxfee"], nTransactionFee) || nTransactionFee < MIN_TX_FEE)
-        {
-            ThreadSafeMessageBox(_("Invalid amount for -paytxfee=<amount>"), _("Version"), wxOK | wxMODAL);
-            return false;
-        }
-        if (nTransactionFee > 0.25 * COIN)
-            ThreadSafeMessageBox(_("Warning: -paytxfee is set very high.  This is the transaction fee you will pay if you send a transaction."), _("Version"), wxOK | wxICON_EXCLAMATION | wxMODAL);
+            return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), mapArgs["-paytxfee"].c_str()));
+        if (nTransactionFee > 25 * COIN)
+            InitWarning(_("Warning: -paytxfee is set very high.  This is the transaction fee you will pay if you send a transaction."));
     }
 
     if (mapArgs.count("-reservebalance")) // version: reserve balance amount
@@ -685,7 +689,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
     RandAddSeedPerfmon();
 
     if (!CreateThread(StartNode, NULL))
-        ThreadSafeMessageBox(_("Error: CreateThread(StartNode) failed"), _("Version"), wxOK | wxMODAL);
+        InitError(_("Error: could not start node"));
 
     if (fServer)
         CreateThread(ThreadRPCServer, NULL);
