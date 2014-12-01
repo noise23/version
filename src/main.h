@@ -1770,6 +1770,12 @@ public:
     }
 
     bool ProcessAlert();
+
+
+    /*
+     * Get copy of (active) alert object by hash. Returns a null alert if it is not found.
+     */
+    static CAlert getAlertByHash(const uint256 &hash);
 };
 
 class CTxMemPool
