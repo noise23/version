@@ -73,6 +73,9 @@ private:
     AddressTablePriv *priv;
     QStringList columns;
     EditStatus editStatus;
+	
+    /** Notify listeners that data changed. */
+    void emitDataChanged(int index);
 
 signals:
     void defaultAddressChanged(const QString &address);
@@ -80,7 +83,9 @@ signals:
 public slots:
     /* Update address list from core.
      */
-     void updateEntry(const QString &address, const QString &label, int status);
+    void updateEntry(const QString &address, const QString &label, bool isMine, int status);
+
+    friend class AddressTablePriv;
 };
 
 #endif // ADDRESSTABLEMODEL_H
