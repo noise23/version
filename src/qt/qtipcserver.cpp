@@ -8,7 +8,6 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "ui_interface.h"
-#include "util.h"
 #include "qtipcserver.h"
 
 using namespace boost::interprocess;
@@ -32,7 +31,7 @@ void ipcThread(void* parg)
         ptime d = boost::posix_time::microsec_clock::universal_time() + millisec(100);
         if(mq->timed_receive(&strBuf, sizeof(strBuf), nSize, nPriority, d))
         {
-            ThreadSafeHandleURI(std::string(strBuf, nSize));
+            uiInterface.ThreadSafeHandleURI(std::string(strBuf, nSize));
             Sleep(1000);
         }
         if (fShutdown)
@@ -70,7 +69,7 @@ void ipcInit()
             ptime d = boost::posix_time::microsec_clock::universal_time() + millisec(1);
             if(mq->timed_receive(&strBuf, sizeof(strBuf), nSize, nPriority, d))
             {
-                ThreadSafeHandleURI(std::string(strBuf, nSize));
+                uiInterface.ThreadSafeHandleURI(std::string(strBuf, nSize));
             }
             else
                 break;

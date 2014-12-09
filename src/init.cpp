@@ -25,6 +25,7 @@ using namespace std;
 using namespace boost;
 
 CWallet* pwalletMain;
+CClientUIInterface uiInterface;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -43,7 +44,7 @@ void StartShutdown()
 {
 #ifdef QT_GUI
     // ensure we leave the Qt main loop for a clean GUI exit (Shutdown() is called in bitcoin.cpp afterwards)
-    QueueShutdown();
+    uiInterface.QueueShutdown();
 #else
     // Without UI, Shutdown() can simply be started in a new thread
     CreateThread(Shutdown, NULL);
@@ -107,9 +108,32 @@ void HandleSIGHUP(int)
 // Start
 //
 #if !defined(QT_GUI)
+static int noui_ThreadSafeMessageBox(const std::string& message, const std::string& caption, int style)
+{
+    printf("%s: %s\n", caption.c_str(), message.c_str());
+    fprintf(stderr, "%s: %s\n", caption.c_str(), message.c_str());
+    return 4;
+}
+
+static bool noui_ThreadSafeAskFee(int64 nFeeRequired, const std::string& strCaption)
+{
+    return true;
+}
+
+static void noui_QueueShutdown()
+{
+    // Without UI, Shutdown can simply be started in a new thread
+    CreateThread(Shutdown, NULL);
+}
 int main(int argc, char* argv[])
 {
     bool fRet = false;
+
+    // Connect versiond signal handlers
+    uiInterface.ThreadSafeMessageBox.connect(noui_ThreadSafeMessageBox);
+    uiInterface.ThreadSafeAskFee.connect(noui_ThreadSafeAskFee);
+    uiInterface.QueueShutdown.connect(noui_QueueShutdown);
+
     fRet = AppInit(argc, argv);
 
     if (fRet && fDaemon)
@@ -177,14 +201,14 @@ bool AppInit(int argc, char* argv[])
 
 bool static InitError(const std::string &str)
 {
-    ThreadSafeMessageBox(str, _("Version"), wxOK | wxMODAL);
+    uiInterface.ThreadSafeMessageBox(str, _("Version"), MF_OK|MF_MODAL);
     return false;
 
 }
 
 bool static InitWarning(const std::string &str)
 {
-    ThreadSafeMessageBox(str, _("Version"), wxOK | wxICON_EXCLAMATION | wxMODAL);
+    uiInterface.ThreadSafeMessageBox(str, _("Version"), MF_OK | MF_ICON_EXCLAMATION | MF_MODAL);
     return true;
 }
 
@@ -394,7 +418,7 @@ bool AppInit2()
         fprintf(stdout, "version server starting\n");
     int64 nStart;
 
-    InitMessage(_("Loading addresses..."));
+    uiInterface.InitMessage(_("Loading addresses..."));
     printf("Loading addresses...\n");
     nStart = GetTimeMillis();
    {
@@ -406,7 +430,7 @@ bool AppInit2()
    printf("Loaded %i addresses from peers.dat %"PRI64d"ms\n",
    addrman.size(), GetTimeMillis() - nStart);
 
-    InitMessage(_("Loading block index..."));
+    uiInterface.InitMessage(_("Loading block index..."));
     printf("Loading block index...\n");
     nStart = GetTimeMillis();
     if (!LoadBlockIndex())
@@ -424,7 +448,7 @@ bool AppInit2()
 	
  if (mapArgs.count("-loadblock"))
  {
- InitMessage(_("Importing blockchain data file."));
+ uiInterface.InitMessage(_("Importing blockchain data file."));
  BOOST_FOREACH(string strFile, mapMultiArgs["-loadblock"])
  {
  FILE *file = fopen(strFile.c_str(), "rb");
@@ -435,7 +459,7 @@ bool AppInit2()
 
   filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
  if (filesystem::exists(pathBootstrap)) {
-InitMessage(_("Importing bootstrap blockchain data file."));
+ uiInterface.InitMessage(_("Importing bootstrap blockchain data file."));
 
  FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
  if (file) {
@@ -445,7 +469,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
  }
  }
  
-    InitMessage(_("Loading wallet..."));
+    uiInterface.InitMessage(_("Loading wallet..."));
     printf("Loading wallet...\n");
     nStart = GetTimeMillis();
     bool fFirstRun;
@@ -513,14 +537,14 @@ InitMessage(_("Importing bootstrap blockchain data file."));
     }
     if (pindexBest != pindexRescan && pindexBest && pindexRescan && pindexBest->nHeight > pindexRescan->nHeight)
     {
-        InitMessage(_("Rescanning..."));
+        uiInterface.InitMessage(_("Rescanning..."));
         printf("Rescanning last %i blocks (from block %i)...\n", pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindexRescan, true);
         printf(" rescan      %15"PRI64d"ms\n", GetTimeMillis() - nStart);
     }
 
-    InitMessage(_("Done loading"));
+    uiInterface.InitMessage(_("Done loading"));
     printf("Done loading\n");
 
     //// debug print
@@ -681,7 +705,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
         int64 nReserveBalance = 0;
         if (!ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
         {
-            ThreadSafeMessageBox(_("Invalid amount for -reservebalance=<amount>"), _("Version"), wxOK | wxMODAL);
+            InitError(_("Invalid amount for -reservebalance=<amount>"));
             return false;
         }
     }
@@ -689,7 +713,7 @@ InitMessage(_("Importing bootstrap blockchain data file."));
     if (mapArgs.count("-checkpointkey")) // version: checkpoint master priv key
     {
         if (!Checkpoints::SetCheckpointPrivKey(GetArg("-checkpointkey", "")))
-            ThreadSafeMessageBox(_("Unable to sign checkpoint, wrong checkpointkey?\n"), _("Version"), wxOK | wxMODAL);
+            InitError(_("Unable to sign checkpoint, wrong checkpointkey?\n"));
     }
 
     //
