@@ -322,6 +322,12 @@ public:
         insert(end(), (unsigned char*)&b, (unsigned char*)&b + sizeof(b));
         return *this;
     }
+	
+    CScript& operator<<(const CPubKey& key)
+    {
+        std::vector<unsigned char> vchKey = key.Raw();
+        return (*this) << vchKey;
+    }
 
     CScript& operator<<(const CBigNum& b)
     {
