@@ -42,7 +42,8 @@ bool OpenNetworkConnection(const CAddress& addrConnect, const char *strDest = NU
 // Global state variables
 //
 bool fClient = false;
-static bool fUseUPnP = false;
+bool fDiscover = true;
+bool fUseUPnP = false;
 uint64 nLocalServices = (fClient ? 0 : NODE_NETWORK);
 static CCriticalSection cs_mapLocalHost;
 static map<CService, int> mapLocalHost;
@@ -95,7 +96,7 @@ void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
 // find 'best' local address for a particular peer
 bool GetLocal(CService& addr, const CNetAddr *paddrPeer)
 {
-    if (fUseProxy || mapArgs.count("-connect") || fNoListen)
+    if (fNoListen)
         return false;
 
     int nBestCount = -1;
@@ -206,6 +207,12 @@ bool AddLocal(const CService& addr, int nScore)
 {
     if (!addr.IsRoutable())
         return false;
+		
+    if (!fDiscover && nScore < LOCAL_MANUAL)
+         return false;
+		 
+     if (IsLimited(addr))
+	         return false;
 
     printf("AddLocal(%s,%i)\n", addr.ToString().c_str(), nScore);
 
@@ -329,9 +336,6 @@ bool GetMyExternalIP(CNetAddr& ipRet)
     CService addrConnect;
     const char* pszGet;
     const char* pszKeyword;
-
-    if (fNoListen||fUseProxy)
-        return false;
 
     for (int nLookup = 0; nLookup <= 1; nLookup++)
     for (int nHost = 1; nHost <= 2; nHost++)
@@ -517,7 +521,7 @@ void CNode::PushVersion()
 {
     /// when NTP implemented, change to just nTime = GetAdjustedTime()
     int64 nTime = (fInbound ? GetAdjustedTime() : GetTime());
-    CAddress addrYou = (fUseProxy ? CAddress(CService("0.0.0.0",0)) : addr);
+    CAddress addrYou = (addr.IsRoutable() && !IsProxy(addr) ? addr : CAddress(CService("0.0.0.0",0)));
     CAddress addrMe = GetLocalAddress(&addr);
     RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
     PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
@@ -987,7 +991,7 @@ void ThreadMapPort2(void* parg)
     r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr));
     if (r == 1)
     {
-        if (GetBoolArg("-discover", true)) {
+        if (fDiscover) {
             char externalIPAddress[40];
             r = UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress);
             if(r != UPNPCOMMAND_SUCCESS)
@@ -1064,12 +1068,8 @@ void ThreadMapPort2(void* parg)
     }
 }
 
-void MapPort(bool fMapPort)
+void MapPort()
 {
-    if (fUseUPnP != fMapPort)
-    {
-        fUseUPnP = fMapPort;
-    }
     if (fUseUPnP && vnThreadsRunning[THREAD_UPNP] < 1)
     {
         if (!CreateThread(ThreadMapPort, NULL))
@@ -1077,7 +1077,7 @@ void MapPort(bool fMapPort)
     }
 }
 #else
-void MapPort(bool /* unused fMapPort */)
+void MapPort()
 {
     // Intentionally left blank.
 }
@@ -1124,7 +1124,7 @@ void ThreadDNSAddressSeed2(void* parg)
             if (fTestNet && strDNSSeed[seed_idx][1][0] != 't') continue;
             if ((!fTestNet) && strDNSSeed[seed_idx][1][0] == 't') continue;
 
-            if (fProxyNameLookup) {
+            if (GetNameProxy()) {
             AddOneShot(strDNSSeed[seed_idx][1]);            
         } else {
               vector<CNetAddr> vaddr;
@@ -1269,8 +1269,7 @@ void ThreadOpenConnections2(void* parg)
             return;
 
         // Add seed nodes if IRC isn't working
-        bool fTOR = (fUseProxy && addrProxy.GetPort() == 9050);
-        if (addrman.size()==0 && (GetTime() - nStart > 60 || fTOR) && !fTestNet)
+        if (addrman.size()==0 && (GetTime() - nStart > 60) && !fTestNet)
         {
             std::vector<CAddress> vAdd;
             for (unsigned int i = 0; i < ARRAYLEN(pnSeed); i++)
@@ -1368,7 +1367,7 @@ void ThreadOpenAddedConnections2(void* parg)
 
     if (mapArgs.count("-addnode") == 0)
         return;
-    if (fProxyNameLookup) {
+    if (GetNameProxy()) {
          while(!fShutdown) {
              BOOST_FOREACH(string& strAddNode, mapMultiArgs["-addnode"]) {
                  CAddress addr;
@@ -1658,7 +1657,7 @@ bool BindListenPort(const CService &addrBind, string& strError)
 	
     vhListenSocket.push_back(hListenSocket);
 
-    if (addrBind.IsRoutable() && GetBoolArg("-discover", true))
+    if (addrBind.IsRoutable() && fDiscover)
         AddLocal(addrBind, LOCAL_BIND);
 
     return true;
@@ -1666,7 +1665,7 @@ bool BindListenPort(const CService &addrBind, string& strError)
 
 void static Discover()
 {
-if (!GetBoolArg("-discover", true))
+if (!fDiscover)
 return;
 
 #ifdef WIN32
@@ -1714,10 +1713,7 @@ return;
         freeifaddrs(myaddrs);
     }
 #endif
-     if (!fUseProxy && !mapArgs.count("-connect") && !fNoListen)
-    {
-        CreateThread(ThreadGetMyExternalIP, NULL);
-    }
+     CreateThread(ThreadGetMyExternalIP, NULL);
 }
 
 void StartNode(void* parg)
@@ -1727,14 +1723,6 @@ void StartNode(void* parg)
         int nMaxOutbound = min(MAX_OUTBOUND_CONNECTIONS, (int)GetArg("-maxconnections", 125));
         semOutbound = new CSemaphore(nMaxOutbound);
     }
-
-#ifdef USE_UPNP
-#if USE_UPNP
-    fUseUPnP = GetBoolArg("-upnp", true);
-#else
-    fUseUPnP = GetBoolArg("-upnp", false);
-#endif
-#endif
 
     if (pnodeLocalHost == NULL)
         pnodeLocalHost = new CNode(INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
@@ -1752,8 +1740,8 @@ void StartNode(void* parg)
             printf("Error: CreateThread(ThreadDNSAddressSeed) failed\n");
 
     // Map ports with UPnP
-    if (fHaveUPnP)
-        MapPort(fUseUPnP);
+    if (fUseUPnP)
+        MapPort();
 
     // Get addresses from IRC and advertise ours
     // if (!CreateThread(ThreadIRCSeed, NULL))
@@ -1814,7 +1802,9 @@ bool StopNode()
     if (vnThreadsRunning[THREAD_MESSAGEHANDLER] > 0) printf("ThreadMessageHandler still running\n");
     if (vnThreadsRunning[THREAD_MINER] > 0) printf("ThreadBitcoinMiner still running\n");
     if (vnThreadsRunning[THREAD_RPCSERVER] > 0) printf("ThreadRPCServer still running\n");
-    if (fHaveUPnP && vnThreadsRunning[THREAD_UPNP] > 0) printf("ThreadMapPort still running\n");
+#ifdef USE_UPNP
+    if (vnThreadsRunning[THREAD_UPNP] > 0) printf("ThreadMapPort still running\n");
+#endif
     if (vnThreadsRunning[THREAD_DNSSEED] > 0) printf("ThreadDNSAddressSeed still running\n");
     if (vnThreadsRunning[THREAD_ADDEDCONNECTIONS] > 0) printf("ThreadOpenAddedConnections still running\n");
     if (vnThreadsRunning[THREAD_DUMPADDRESS] > 0) printf("ThreadDumpAddresses still running\n");
