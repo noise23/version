@@ -431,6 +431,7 @@ bool AppInit2()
         ShrinkDebugFile();
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     printf("Version version %s (%s)\n", FormatFullVersion().c_str(), CLIENT_DATE.c_str());
+	printf("Startup time: %s\n", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
     printf("Default data directory %s\n", GetDefaultDataDir().string().c_str());
 	std::ostringstream strErrors;
 
