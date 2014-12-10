@@ -6,11 +6,10 @@
 
 #include "main.h"
 #include "ui_interface.h"
+static const int64 nClientStartupTime = GetTime();
 
 #include <QDateTime>
 #include <QTimer>
-
-// static const int64 nClientStartupTime = GetTime();
 
 ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), optionsModel(optionsModel),
@@ -128,6 +127,11 @@ QString ClientModel::formatBuildDate() const
 QString ClientModel::clientName() const
 {
     return QString::fromStdString(CLIENT_NAME);
+}
+
+QDateTime ClientModel::formatClientStartupTime() const
+{
+    return QDateTime::fromTime_t(nClientStartupTime);
 }
 
 // Handlers for core signals
