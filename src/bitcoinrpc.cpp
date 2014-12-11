@@ -50,6 +50,12 @@ static CCriticalSection cs_nWalletUnlockTime;
 
 extern Value dumpprivkey(const Array& params, bool fHelp);
 extern Value importprivkey(const Array& params, bool fHelp);
+extern Value getrawtransaction(const Array& params, bool fHelp); // in rcprawtransaction.cpp
+extern Value listunspent(const Array& params, bool fHelp);
+extern Value createrawtransaction(const Array& params, bool fHelp);
+extern Value decoderawtransaction(const Array& params, bool fHelp);
+extern Value signrawtransaction(const Array& params, bool fHelp);
+extern Value sendrawtransaction(const Array& params, bool fHelp);
 
 Object JSONRPCError(int code, const string& message)
 {
@@ -57,6 +63,43 @@ Object JSONRPCError(int code, const string& message)
     error.push_back(Pair("code", code));
     error.push_back(Pair("message", message));
     return error;
+}
+
+void RPCTypeCheck(const Array& params,
+                  const list<Value_type>& typesExpected)
+{
+    unsigned int i = 0;
+    BOOST_FOREACH(Value_type t, typesExpected)
+    {
+        if (params.size() <= i)
+            break;
+
+       const Value& v = params[i];
+        if (v.type() != t)
+        {
+            string err = strprintf("Expected type %s, got %s",
+                                   Value_type_name[t], Value_type_name[v.type()]);
+            throw JSONRPCError(-3, err);
+        }
+        i++;
+    }
+}
+
+void RPCTypeCheck(const Object& o,
+                  const map<string, Value_type>& typesExpected)
+{
+    BOOST_FOREACH(const PAIRTYPE(string, Value_type)& t, typesExpected)
+    {
+        const Value& v = find_value(o, t.first);
+        if (v.type() == null_type)
+            throw JSONRPCError(-3, strprintf("Missing %s", t.first.c_str()));
+        if (v.type() != t.second)
+        {
+            string err = strprintf("Expected type %s for %s, got %s",
+                                   Value_type_name[t.second], t.first.c_str(), Value_type_name[v.type()]);
+            throw JSONRPCError(-3, err);
+        }
+    }
 }
 
 double GetDifficulty(const CBlockIndex* blockindex = NULL)
@@ -145,6 +188,22 @@ HexBits(unsigned int nBits)
     return HexStr(BEGIN(uBits.cBits), END(uBits.cBits));
 }
 
+std::string
+HelpRequiringPassphrase()
+{
+    return pwalletMain->IsCrypted()
+        ? "\nrequires wallet passphrase to be set with walletpassphrase first"
+        : "";
+}
+
+void EnsureWalletIsUnlocked()
+{
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    if (fWalletUnlockMintOnly)
+        throw JSONRPCError(-13, "Error: Wallet unlocked for block minting only.");
+}
+
 void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
@@ -153,11 +212,47 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
+		entry.push_back(Pair("blocktime", (boost::int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
     }
     entry.push_back(Pair("txid", wtx.GetHash().GetHex()));
     entry.push_back(Pair("time", (boost::int64_t)wtx.GetTxTime()));
+	entry.push_back(Pair("timereceived", (boost::int64_t)wtx.nTimeReceived));
     BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
+}
+
+void TxToJSON(const CTransaction &tx, Object& entry)
+{
+    entry.push_back(Pair("version", tx.nVersion));
+    entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
+    entry.push_back(Pair("size", (boost::int64_t)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
+    Array vin;
+    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+    {
+        Object in;
+        if (tx.IsCoinBase())
+            in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        else
+        {
+            Object prevout;
+            prevout.push_back(Pair("hash", txin.prevout.hash.GetHex()));
+            prevout.push_back(Pair("n", (boost::int64_t)txin.prevout.n));
+            in.push_back(Pair("prevout", prevout));
+            in.push_back(Pair("scriptSig", txin.scriptSig.ToString()));
+        }
+        in.push_back(Pair("sequence", (boost::int64_t)txin.nSequence));
+        vin.push_back(in);
+    }
+    entry.push_back(Pair("vin", vin));
+    Array vout;
+    BOOST_FOREACH(const CTxOut& txout, tx.vout)
+    {
+        Object out;
+        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        out.push_back(Pair("scriptPubKey", txout.scriptPubKey.ToString()));
+        vout.push_back(out);
+    }
+    entry.push_back(Pair("vout", vout));
 }
 
 string AccountFromValue(const Value& value)
@@ -684,15 +779,11 @@ Value settxfee(const Array& params, bool fHelp)
 
 Value sendtoaddress(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() < 2 || params.size() > 4))
+    if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
-            "sendtoaddress <versionaddress> <amount> [comment] [comment-to]\n"
-            "<amount> is a real and is rounded to the nearest 0.000001\n"
-            "requires wallet passphrase to be set with walletpassphrase first");
-    if (!pwalletMain->IsCrypted() && (fHelp || params.size() < 2 || params.size() > 4))
-        throw runtime_error(
-            "sendtoaddress <versionaddress> <amount> [comment] [comment-to]\n"
-            "<amount> is a real and is rounded to the nearest 0.000001");
+            "sendtoaddress <bitcoinaddress> <amount> [comment] [comment-to]\n"
+            "<amount> is a real and is rounded to the nearest 0.000001"
+            + HelpRequiringPassphrase());
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
@@ -727,8 +818,7 @@ Value signmessage(const Array& params, bool fHelp)
             "signmessage <versionaddress> <message>\n"
             "Sign a message with the private key of an address");
 
-    if (pwalletMain->IsLocked())
-        throw JSONRPCError(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    EnsureWalletIsUnlocked();
 
     string strAddress = params[0].get_str();
     string strMessage = params[1].get_str();
@@ -1016,15 +1106,11 @@ Value movecmd(const Array& params, bool fHelp)
 
 Value sendfrom(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() < 3 || params.size() > 6))
+    if (fHelp || params.size() < 3 || params.size() > 6)
         throw runtime_error(
             "sendfrom <fromaccount> <toversionaddress> <amount> [minconf=1] [comment] [comment-to]\n"
-            "<amount> is a real and is rounded to the nearest 0.000001\n"
-            "requires wallet passphrase to be set with walletpassphrase first");
-    if (!pwalletMain->IsCrypted() && (fHelp || params.size() < 3 || params.size() > 6))
-        throw runtime_error(
-            "sendfrom <fromaccount> <toversionaddress> <amount> [minconf=1] [comment] [comment-to]\n"
-            "<amount> is a real and is rounded to the nearest 0.000001");
+            "<amount> is a real and is rounded to the nearest 0.000001"
+            + HelpRequiringPassphrase());
 
     string strAccount = AccountFromValue(params[0]);
     CBitcoinAddress address(params[1].get_str());
@@ -1044,8 +1130,7 @@ Value sendfrom(const Array& params, bool fHelp)
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
         wtx.mapValue["to"]      = params[5].get_str();
 
-    if (pwalletMain->IsLocked())
-        throw JSONRPCError(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    EnsureWalletIsUnlocked();
 
     // Check funds
     int64 nBalance = GetAccountBalance(strAccount, nMinDepth);
@@ -1063,15 +1148,11 @@ Value sendfrom(const Array& params, bool fHelp)
 
 Value sendmany(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() < 2 || params.size() > 4))
+    if (fHelp || params.size() < 2 || params.size() > 4)
         throw runtime_error(
             "sendmany <fromaccount> {address:amount,...} [minconf=1] [comment]\n"
-            "amounts are double-precision floating point numbers\n"
-            "requires wallet passphrase to be set with walletpassphrase first");
-    if (!pwalletMain->IsCrypted() && (fHelp || params.size() < 2 || params.size() > 4))
-        throw runtime_error(
-            "sendmany <fromaccount> {address:amount,...} [minconf=1] [comment]\n"
-            "amounts are double-precision floating point numbers");
+            "amounts are double-precision floating point numbers"
+            + HelpRequiringPassphrase());
 
     string strAccount = AccountFromValue(params[0]);
     Object sendTo = params[1].get_obj();
@@ -1108,10 +1189,7 @@ Value sendmany(const Array& params, bool fHelp)
         vecSend.push_back(make_pair(scriptPubKey, nAmount));
     }
 
-    if (pwalletMain->IsLocked())
-        throw JSONRPCError(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-    if (fWalletUnlockMintOnly)
-        throw JSONRPCError(-13, "Error: Wallet unlocked for block minting only.");
+    EnsureWalletIsUnlocked();
 
     // Check funds
     int64 nBalance = GetAccountBalance(strAccount, nMinDepth);
@@ -1630,9 +1708,11 @@ Value gettransaction(const Array& params, bool fHelp)
 
     Object entry;
 
-    if (!pwalletMain->mapWallet.count(hash))
-        throw JSONRPCError(-5, "Invalid or non-wallet transaction id");
-    const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+    if (pwalletMain->mapWallet.count(hash))
+    {
+        const CWalletTx& wtx = pwalletMain->mapWallet[hash];
+
+        TxToJSON(wtx, entry);
 
     int64 nCredit = wtx.GetCredit();
     int64 nDebit = wtx.GetDebit();
@@ -1643,11 +1723,42 @@ Value gettransaction(const Array& params, bool fHelp)
     if (wtx.IsFromMe())
         entry.push_back(Pair("fee", ValueFromAmount(nFee)));
 
-    WalletTxToJSON(pwalletMain->mapWallet[hash], entry);
+        WalletTxToJSON(wtx, entry);
 
-    Array details;
-    ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
-    entry.push_back(Pair("details", details));
+        Array details;
+        ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
+        entry.push_back(Pair("details", details));
+    }
+    else
+    {
+        CTransaction tx;
+        uint256 hashBlock = 0;
+        if (GetTransaction(hash, tx, hashBlock))
+        {
+            entry.push_back(Pair("txid", hash.GetHex()));
+            TxToJSON(tx, entry);
+            if (hashBlock == 0)
+                entry.push_back(Pair("confirmations", 0));
+            else
+            {
+                entry.push_back(Pair("blockhash", hashBlock.GetHex()));
+                map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+                if (mi != mapBlockIndex.end() && (*mi).second)
+                {
+                    CBlockIndex* pindex = (*mi).second;
+                    if (pindex->IsInMainChain())
+                    {
+                        entry.push_back(Pair("confirmations", 1 + nBestHeight - pindex->nHeight));
+                        entry.push_back(Pair("time", (boost::int64_t)pindex->nTime));
+                    }
+                    else
+                        entry.push_back(Pair("confirmations", 0));
+                }
+            }
+        }
+        else
+            throw JSONRPCError(-5, "No information available about transaction");
+    }
 
     return entry;
 }
@@ -1669,17 +1780,13 @@ Value backupwallet(const Array& params, bool fHelp)
 
 Value keypoolrefill(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() > 0))
+    if (fHelp || params.size() > 0)
         throw runtime_error(
             "keypoolrefill\n"
-            "Fills the keypool, requires wallet passphrase to be set.");
-    if (!pwalletMain->IsCrypted() && (fHelp || params.size() > 0))
-        throw runtime_error(
-            "keypoolrefill\n"
-            "Fills the keypool.");
+            "Fills the keypool."
+            + HelpRequiringPassphrase());
 
-    if (pwalletMain->IsLocked())
-        throw JSONRPCError(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+        EnsureWalletIsUnlocked();
 
     pwalletMain->TopUpKeyPool();
 
@@ -2530,6 +2637,12 @@ static const CRPCCommand vRPCCommands[] =
     { "repairwallet",           &repairwallet,           false},
     { "makekeypair",            &makekeypair,            false},
     { "sendalert",              &sendalert,              false},
+    { "listunspent",            &listunspent,            false },
+    { "getrawtransaction",      &getrawtransaction,      false },
+    { "createrawtransaction",   &createrawtransaction,   false },
+    { "decoderawtransaction",   &decoderawtransaction,   false },
+    { "signrawtransaction",     &signrawtransaction,     false },
+    { "sendrawtransaction",     &sendrawtransaction,     false },
 };
 
 CRPCTable::CRPCTable()
@@ -3166,6 +3279,14 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
             throw runtime_error("type mismatch "+s);
         params[1] = v.get_array();
     }
+    if (strMethod == "listunspent"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
+    if (strMethod == "listunspent"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "getrawtransaction"      && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "createrawtransaction"   && n > 0) ConvertTo<Array>(params[0]);
+    if (strMethod == "createrawtransaction"   && n > 1) ConvertTo<Object>(params[1]);
+    if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<Array>(params[1]);
+    if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<Array>(params[2]);
+
     return params;
 }
 
