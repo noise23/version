@@ -1210,20 +1210,6 @@ public:
     {
         return true;
     }
-    bool EraseBlockFromDisk()
-    {
-        // Open history file
-        CAutoFile fileout = CAutoFile(OpenBlockFile(nFile, nBlockPos, "rb+"), SER_DISK, CLIENT_VERSION);
-        if (!fileout)
-            return false;
-
-        // Overwrite with empty null block
-        CBlock block;
-        block.SetNull();
-        fileout << block;
-
-        return true;
-    }
 
     enum { nMedianTimeSpan=11 };
 
