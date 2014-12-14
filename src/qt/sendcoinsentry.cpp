@@ -68,6 +68,9 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 void SendCoinsEntry::setModel(WalletModel *model)
 {
     this->model = model;
+	
+    connect(ui->payAmount, SIGNAL(textChanged()), this, SIGNAL(payAmountChanged()));
+	
     clear();
 }
 
