@@ -6,6 +6,7 @@
 
 #include "main.h"
 #include "wallet.h"
+#include "alert.h"
 #include "db.h"
 #include "walletdb.h"
 #include "net.h"

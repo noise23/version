@@ -8,6 +8,7 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
+#include "alert.h"
 #include "checkpoints.h"
 #include "db.h"
 #include "net.h"
@@ -2675,8 +2676,8 @@ bool LoadExternalBlockFile(FILE* fileIn)
 // CAlert
 //
 
-map<uint256, CAlert> mapAlerts;
-CCriticalSection cs_mapAlerts;
+extern map<uint256, CAlert> mapAlerts;
+extern CCriticalSection cs_mapAlerts;
 
 static string strMintMessage = "Info: Minting suspended due to locked wallet."; 
 static string strMintWarning;
@@ -2742,81 +2743,10 @@ string GetWarnings(string strFor)
     return "error";
 }
 
-CAlert CAlert::getAlertByHash(const uint256 &hash)
-{
-    CAlert retval;
-    {
-        LOCK(cs_mapAlerts);
-        map<uint256, CAlert>::iterator mi = mapAlerts.find(hash);
-        if(mi != mapAlerts.end())
-            retval = mi->second;
-    }
-    return retval;
-}
-
-bool CAlert::ProcessAlert()
-{
-    if (!CheckSignature())
-        return false;
-    if (!IsInEffect())
-        return false;
-
-    {
-        LOCK(cs_mapAlerts);
-        // Cancel previous alerts
-        for (map<uint256, CAlert>::iterator mi = mapAlerts.begin(); mi != mapAlerts.end();)
-        {
-            const CAlert& alert = (*mi).second;
-            if (Cancels(alert))
-            {
-                printf("cancelling alert %d\n", alert.nID);
-                uiInterface.NotifyAlertChanged((*mi).first, CT_DELETED);
-                mapAlerts.erase(mi++);
-            }
-            else if (!alert.IsInEffect())
-            {
-                printf("expiring alert %d\n", alert.nID);
-                uiInterface.NotifyAlertChanged((*mi).first, CT_DELETED);
-                mapAlerts.erase(mi++);
-            }
-            else
-                mi++;
-        }
-
-        // Check if this alert has been cancelled
-        BOOST_FOREACH(PAIRTYPE(const uint256, CAlert)& item, mapAlerts)
-        {
-            const CAlert& alert = item.second;
-            if (alert.Cancels(*this))
-            {
-                printf("alert already cancelled by %d\n", alert.nID);
-                return false;
-            }
-        }
-
-        // Add to mapAlerts
-        mapAlerts.insert(make_pair(GetHash(), *this));
-        // Notify UI if it applies to me
-        if(AppliesToMe())
-            uiInterface.NotifyAlertChanged(GetHash(), CT_NEW);
-    }
-
-    printf("accepted alert %d, AppliesToMe()=%d\n", nID, AppliesToMe());
-    return true;
-}
-
-
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // Messages
 //
-
 
 bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
 {
@@ -2841,9 +2771,6 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
     // Don't know what it is, just say we already got one
     return true;
 }
-
-
-
 
 bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 {
