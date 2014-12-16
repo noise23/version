@@ -836,7 +836,7 @@ void ThreadSocketHandler2(void* parg)
 
                     if (nPos > ReceiveBufferSize()) {
                         if (!pnode->fDisconnect)
-                            printf("socket recv flood control disconnect (%d bytes)\n", vRecv.size());
+                            printf("socket recv flood control disconnect (%"PRIszu" bytes)\n", vRecv.size());
                         pnode->CloseSocketDisconnect();
                     }
                     else {
@@ -902,7 +902,7 @@ void ThreadSocketHandler2(void* parg)
                         }
                         if (vSend.size() > SendBufferSize()) {
                             if (!pnode->fDisconnect)
-                                printf("socket send flood control disconnect (%d bytes)\n", vSend.size());
+                                printf("socket send flood control disconnect (%"PRIszu" bytes)\n", vSend.size());
                             pnode->CloseSocketDisconnect();
                         }
                     }
