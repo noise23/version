@@ -418,7 +418,6 @@ bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierCheck
     if (fTestNet) return true; // Testnet has no checkpoints
     if (mapStakeModifierCheckpoints.count(nHeight))
     {
-        printf("CheckStakeModifierCheckpoints: nHeight: %d nStakeModifierChecksum: 0x%08"PRI64x"", nHeight, nStakeModifierChecksum);
         return nStakeModifierChecksum == mapStakeModifierCheckpoints[nHeight];
     }
     return true;
