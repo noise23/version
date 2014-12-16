@@ -889,8 +889,18 @@ public:
     void UpdateTime(const CBlockIndex* pindexPrev);
 
     // version: entropy bit for stake modifier if chosen by modifier
-    unsigned int GetStakeEntropyBit() const
+    unsigned int GetStakeEntropyBit(unsigned int nHeight) const
     {
+        // Protocol switch to support p2pool at Version block #536699
+        if (nHeight > 536698 || fTestNet)
+    {
+        // Take last bit of block hash as entropy bit
+        unsigned int nEntropyBit = ((GetHash().Get64()) & 1llu);
+        if (fDebug && GetBoolArg("-printstakemodifier"))
+            printf("GetStakeEntropyBit: nHeight=%u hashBlock=%s nEntropyBit=%u\n", nHeight, GetHash().ToString().c_str(), nEntropyBit);
+        return nEntropyBit;
+    }
+        // Before Version block #536699 - old protocol
         uint160 hashSig = Hash160(vchBlockSig);
         if (fDebug && GetBoolArg("-printstakemodifier"))
             printf("GetStakeEntropyBit: hashSig=%s", hashSig.ToString().c_str());
