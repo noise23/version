@@ -167,7 +167,6 @@ string CRPCTable::help(string strCommand) const
         // We already filter duplicates, but these deprecated screw up the sort order
         if (strMethod == "getamountreceived" ||
             strMethod == "getallreceived" ||
-            strMethod == "getblocknumber" || // deprecated
             (strMethod.find("label") != string::npos))
             continue;
         if (strCommand != "" && strMethod != strCommand)
@@ -209,7 +208,6 @@ Value help(const Array& params, bool fHelp)
     return tableRPC.help(strCommand);
 }
 
-
 Value stop(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -219,47 +217,6 @@ Value stop(const Array& params, bool fHelp)
     // Shutdown will take long enough that the response should get back
     StartShutdown();
     return "version server stopping";
-}
-
-
-// deprecated
-Value getblocknumber(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getblocknumber\n"
-            "Deprecated.  Use getblockcount.");
-
-    return nBestHeight;
-}
-
-// version: get network Gh/s estimate
-Value getnetworkghps(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getnetworkghps\n"
-            "Returns a recent Ghash/second network mining estimate.");
-
-    int64 nTargetSpacingWorkMin = 30;
-    int64 nTargetSpacingWork = nTargetSpacingWorkMin;
-    int64 nInterval = 72;
-    CBlockIndex* pindex = pindexGenesisBlock;
-    CBlockIndex* pindexPrevWork = pindexGenesisBlock;
-    while (pindex)
-    {
-        // Exponential moving average of recent proof-of-work block spacing
-        if (pindex->IsProofOfWork())
-        {
-            int64 nActualSpacingWork = pindex->GetBlockTime() - pindexPrevWork->GetBlockTime();
-            nTargetSpacingWork = ((nInterval - 1) * nTargetSpacingWork + nActualSpacingWork + nActualSpacingWork) / (nInterval + 1);
-            nTargetSpacingWork = max(nTargetSpacingWork, nTargetSpacingWorkMin);
-            pindexPrevWork = pindex;
-        }
-        pindex = pindex->pnext;
-    }
-    double dNetworkGhps = GetDifficulty() * 4.294967296 / nTargetSpacingWork; 
-    return dNetworkGhps;
 }
 
 //
@@ -272,7 +229,6 @@ static const CRPCCommand vRPCCommands[] =
     { "help",                   &help,                   true },
     { "stop",                   &stop,                   true },
     { "getblockcount",          &getblockcount,          true },
-    { "getblocknumber",         &getblocknumber,         true },
     { "getconnectioncount",     &getconnectioncount,     true },
     { "getpeerinfo",            &getpeerinfo,            true },
     { "getdifficulty",          &getdifficulty,          true },
