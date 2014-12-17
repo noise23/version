@@ -18,6 +18,7 @@ class CBlockIndex;
 #include "json/json_spirit_utils.h"
 
 #include "util.h"
+#include "checkpoints.h"
 
 json_spirit::Object JSONRPCError(int code, const std::string& message);
 
@@ -75,12 +76,16 @@ public:
 
 extern const CRPCTable tableRPC;
 extern CReserveKey* pMiningKey;
-// extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
-extern double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);
-
 extern int64 nWalletUnlockTime;
 extern int64 AmountFromValue(const json_spirit::Value& value);
 extern json_spirit::Value ValueFromAmount(int64 amount);
+extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
+extern double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);
+
+
+extern std::string HexBits(unsigned int nBits);
+extern std::string HelpRequiringPassphrase();
+extern void EnsureWalletIsUnlocked();
 
 extern json_spirit::Value getconnectioncount(const json_spirit::Array& params, bool fHelp); // in rpcnet.cpp
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
