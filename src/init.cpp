@@ -26,6 +26,7 @@ using namespace boost;
 
 CWallet* pwalletMain;
 CClientUIInterface uiInterface;
+enum Checkpoints::CPMode CheckpointsMode;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -239,6 +240,7 @@ std::string HelpMessage()
         "  -lang=<lang>           " + _("Set language, for example \"de_DE\" (default: system locale)") + "\n" +
 #endif
         "  -dnsseed               " + _("Find peers using DNS lookup (default: 1)") + "\n" +
+		"  -cppolicy              " + _("Sync checkpoints policy (default: strict)") + "\n" +
         "  -banscore=<n>          " + _("Threshold for disconnecting misbehaving peers (default: 100)") + "\n" +
         "  -bantime=<n>           " + _("Number of seconds to keep misbehaving peers from reconnecting (default: 86400)") + "\n" +
         "  -maxreceivebuffer=<n>  " + _("Maximum per-connection receive buffer, <n>*1000 bytes (default: 10000)") + "\n" +
@@ -326,6 +328,18 @@ bool AppInit2()
 #endif
 
     // ********************************************************* Step 2: parameter interactions
+	
+	CheckpointsMode = Checkpoints::STRICT; 
+    std::string strCpMode = GetArg("-cppolicy", "strict"); 
+ 
+    if(strCpMode == "strict") 
+        CheckpointsMode = Checkpoints::STRICT; 
+ 
+    if(strCpMode == "advisory") 
+        CheckpointsMode = Checkpoints::ADVISORY; 
+ 
+    if(strCpMode == "permissive") 
+        CheckpointsMode = Checkpoints::PERMISSIVE;
 
     fTestNet = GetBoolArg("-testnet");
     if (fTestNet) {

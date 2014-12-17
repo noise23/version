@@ -75,8 +75,7 @@ int64 nHPSTimerStart;
 
 // Settings
 int64 nTransactionFee = MIN_TX_FEE;
-
-
+extern enum Checkpoints::CPMode CheckpointsMode;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -2121,11 +2120,14 @@ bool CBlock::AcceptBlock()
         }
     }
 
-    bool cpSatisfies = Checkpoints::CheckSync(hash, pindexPrev);
-
-    // version: check that the block satisfies synchronized checkpoint
-    if (!Checkpoints::CheckSync(hash, pindexPrev))
-        return error("AcceptBlock() : rejected by synchronized checkpoint");
+    bool cpSatisfies = Checkpoints::CheckSync(hash, pindexPrev); 
+ 
+    // Check that the block satisfies synchronized checkpoint 
+    if (CheckpointsMode == Checkpoints::STRICT && !cpSatisfies) 
+         return error("AcceptBlock() : rejected by synchronized checkpoint"); 
+ 
+    if (CheckpointsMode == Checkpoints::ADVISORY && !cpSatisfies) 
+         strMiscWarning = _("WARNING: syncronized checkpoint violation detected, but skipped!"); 
 
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
@@ -2705,19 +2707,20 @@ string GetWarnings(string strFor)
         strStatusBar = strMiscWarning;
     }
 
-    // version: should not enter safe mode for longer invalid chain
-    // version: if sync-checkpoint is too old do not enter safe mode
-    if (Checkpoints::IsSyncCheckpointTooOld(60 * 60 * 24 * 10) && !fTestNet)
-    {
-        nPriority = 100;
-        strStatusBar = "WARNING: Checkpoint is too old. Wait for block chain to download, or notify developers of the issue.";
-    }
+    // Should not enter safe mode for longer invalid chain 
+    // If sync-checkpoint is too old do not enter safe mode 
+    // Display warning only in the STRICT mode 
+    if (CheckpointsMode == Checkpoints::STRICT && Checkpoints::IsSyncCheckpointTooOld(60 * 60 * 24 * 10) && !fTestNet && !IsInitialBlockDownload()) 
+    { 
+        nPriority = 100; 
+        strStatusBar = _("WARNING: Checkpoint is too old. Wait for block chain to download, or notify developers."); 
+    } 
 
     // version: if detected invalid checkpoint enter safe mode
     if (Checkpoints::hashInvalidCheckpoint != 0)
     {
         nPriority = 3000;
-        strStatusBar = strRPC = "WARNING: Invalid checkpoint found! Displayed transactions may not be correct! You may need to upgrade, or notify developers of the issue.";
+        strStatusBar = strRPC = _("WARNING: Invalid checkpoint found! Displayed transactions may not be correct! You may need to upgrade, or notify developers.");
     }
 
     // Alerts
