@@ -27,6 +27,7 @@ using namespace boost;
 CWallet* pwalletMain;
 CClientUIInterface uiInterface;
 enum Checkpoints::CPMode CheckpointsMode;
+unsigned int nNodeLifespan;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -328,6 +329,8 @@ bool AppInit2()
 #endif
 
     // ********************************************************* Step 2: parameter interactions
+	
+	nNodeLifespan = GetArg("-addrlifespan", 7);
 	
 	CheckpointsMode = Checkpoints::STRICT; 
     std::string strCpMode = GetArg("-cppolicy", "strict"); 
