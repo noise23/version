@@ -494,6 +494,8 @@ bool AppInit2()
             return false;
     }
 
+    if (filesystem::exists(GetDataDir() / "wallet.dat"))
+    {
     CDBEnv::VerifyResult r = bitdb.Verify("wallet.dat", CWalletDB::Recover);
     if (r == CDBEnv::RECOVER_OK)
     {
@@ -505,6 +507,7 @@ bool AppInit2()
     }
     if (r == CDBEnv::RECOVER_FAIL)
         return InitError(_("wallet.dat corrupt, salvage failed"));
+    }
 	
     // ********************************************************* Step 6: network initialization
 
