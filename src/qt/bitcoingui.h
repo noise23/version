@@ -151,6 +151,8 @@ private slots:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage();
+    /** Show block explorer page */
+    void gotoBlockBrowser(QString transactionId = "");
 
     /** Show configuration dialog */
     void optionsClicked();

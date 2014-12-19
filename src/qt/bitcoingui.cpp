@@ -195,6 +195,9 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
 	
 	blockBrowser = new BlockBrowser(this);
     connect(blockAction, SIGNAL(triggered()), blockBrowser, SLOT(show()));
+	
+    // Clicking on "Block Explorer" in the transaction page sends you to the blockbrowser
+    connect(transactionView, SIGNAL(blockBrowserSignal(QString)), this, SLOT(gotoBlockBrowser(QString)));
 
     gotoOverviewPage();
 }
@@ -300,6 +303,7 @@ void BitcoinGUI::createActions()
     connect(backupWalletAction, SIGNAL(triggered()), this, SLOT(backupWallet()));
     connect(changePassphraseAction, SIGNAL(triggered()), this, SLOT(changePassphrase()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(verifyMessage()));
+    connect(blockAction, SIGNAL(triggered()), this, SLOT(gotoBlockBrowser()));
 }
 
 void BitcoinGUI::createMenuBar()
@@ -752,6 +756,14 @@ void BitcoinGUI::gotoAddressBookPage()
     exportAction->setEnabled(true);
     disconnect(exportAction, SIGNAL(triggered()), 0, 0);
     connect(exportAction, SIGNAL(triggered()), addressBookPage, SLOT(exportClicked()));
+}
+
+void BitcoinGUI::gotoBlockBrowser(QString transactionId)
+{
+    if(!transactionId.isEmpty())
+    blockBrowser->setTransactionId(transactionId);
+    
+    blockBrowser->show();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
