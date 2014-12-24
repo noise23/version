@@ -1,8 +1,9 @@
-// Copyright (c) 2012-2013 The Version developers
+// Copyright (c) 2012-2013 The PPCoin developers
+// Copyright (c) 2014-2015 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#ifndef VOIN_KERNEL_H
-#define VOIN_KERNEL_H
+#ifndef VERSION_KERNEL_H
+#define VERSION_KERNEL_H
 
 #include "main.h"
 
@@ -13,13 +14,6 @@ extern unsigned int nModifierInterval;
 // MODIFIER_INTERVAL_RATIO:
 // ratio of group interval length between the last group and the first group
 static const int MODIFIER_INTERVAL_RATIO = 3;
-
-// Protocol switch time of v0.3 kernel protocol
-extern unsigned int nProtocolV03SwitchTime;
-extern unsigned int nProtocolV03TestSwitchTime;
-
-// Whether a given coinstake is subject to new v0.3 protocol
-bool IsProtocolV03(unsigned int nTimeCoinStake);
 
 // Compute the hash modifier for proof-of-stake
 bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64& nStakeModifier, bool& fGeneratedStakeModifier);
@@ -44,4 +38,4 @@ bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierCheck
 // Get time weight using supplied timestamps 
 int64 GetWeight(int64 nIntervalBeginning, int64 nIntervalEnd);
 
-#endif // VOIN_KERNEL_H
+#endif // VERSION_KERNEL_H
