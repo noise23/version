@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2011-2015 The Version developers
+// Copyright (c) 2014-2015 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -2221,7 +2221,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
 
 
-        if (bnNewBlock > bnRequired)
+        if (bnNewBlock > bnRequired && pindexBest->nHeight > 536698)
         {
             if (pfrom)
                 pfrom->Misbehaving(100);
