@@ -8,8 +8,10 @@
 #include "main.h"
 
 // MODIFIER_INTERVAL: time to elapse before new modifier is computed
-static const unsigned int MODIFIER_INTERVAL = 6 * 60 * 60;
+static const unsigned int MODIFIER_INTERVAL = 6 * 60 * 60; // old interval between stake modifiers is 6 hours
+static const unsigned int MODIFIER_INTERVAL_V2 = 40 * 60; // new interval between stake modifiers is 40 minutes
 extern unsigned int nModifierInterval;
+extern unsigned int nModifierIntervalNew;
 
 // MODIFIER_INTERVAL_RATIO:
 // ratio of group interval length between the last group and the first group
