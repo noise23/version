@@ -158,6 +158,7 @@ public:
     void ResendWalletTransactions();
     int64 GetBalance() const;
     int64 GetUnconfirmedBalance() const;
+    int64 GetImmatureBalance() const;
     int64 GetStake() const;
     int64 GetNewMint() const;
     bool CreateTransaction(const std::vector<std::pair<CScript, int64> >& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, int64& nFeeRet, const CCoinControl *coinControl=NULL);

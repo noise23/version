@@ -95,6 +95,7 @@ OverviewPage::OverviewPage(QWidget *parent) :
     currentBalance(-1),
     currentStake(0),
     currentUnconfirmedBalance(-1),
+    currentImmatureBalance(-1),
     txdelegate(new TxViewDelegate())
 {
     this->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
@@ -134,15 +135,23 @@ OverviewPage::~OverviewPage()
     delete ui;
 }
 
-void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance)
+void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance)
 {
     int unit = model->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
     currentStake = stake;
     currentUnconfirmedBalance = unconfirmedBalance;
+    currentImmatureBalance = immatureBalance;
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
     ui->labelStake->setText(BitcoinUnits::formatWithUnit(unit, stake));
     ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(unit, unconfirmedBalance));
+    ui->labelImmature->setText(BitcoinUnits::formatWithUnit(unit, immatureBalance));
+
+    // only show immature (newly mined) balance if it's non-zero, so as not to complicate things
+    // for the non-mining users
+    bool showImmature = immatureBalance != 0;
+    ui->labelImmature->setVisible(showImmature);
+    ui->labelImmatureText->setVisible(showImmature);
 }
 
 void OverviewPage::setNumTransactions(int count)
@@ -167,8 +176,8 @@ void OverviewPage::setModel(WalletModel *model)
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
         // Keep up to date with wallet
-        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance());
-        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64)));
+        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(), model->getImmatureBalance());
+        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this, SLOT(setBalance(qint64, qint64, qint64, qint64)));
 
         setNumTransactions(model->getNumTransactions());
         connect(model, SIGNAL(numTransactionsChanged(int)), this, SLOT(setNumTransactions(int)));
@@ -182,7 +191,7 @@ void OverviewPage::displayUnitChanged()
     if(!model || !model->getOptionsModel())
         return;
     if(currentBalance != -1)
-        setBalance(currentBalance, currentStake, currentUnconfirmedBalance);
+        setBalance(currentBalance, currentStake, currentUnconfirmedBalance, currentImmatureBalance);
 
     txdelegate->unit = model->getOptionsModel()->getDisplayUnit();
     ui->listTransactions->update();
