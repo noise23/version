@@ -40,7 +40,7 @@ static const int COINBASE_MATURITY_V = 10;
 static const int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 static const int STAKE_MIN_AGE = 60 * 60 * 24 * 5; // minimum age for coin age
 static const int STAKE_MAX_AGE = 60 * 60 * 24 * 30; // stake age of full weight
-static const int64 MAX_MINT_PROOF_OF_STAKE = 120 * CENT;	// 120% annual interest
+static const int64 MAX_MINT_PROOF_OF_STAKE = 60 * CENT;	// 60% annual interest
 
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
