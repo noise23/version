@@ -54,7 +54,7 @@ static const uint256 hashGenesisBlockTestNet("0x00f23abb01085b64ff1f232398e24982
 inline int64 PastDrift(int64 nTime, int nHeight)
 {
  if (nHeight > 536698)
- return nTime - 5 * 60; // up to 5 minutes from the past
+ return nTime - 60; // up to 1 minute from the past
  else
  return nTime - 2 * 60 * 60; // up to 120 minutes from the past
 }
@@ -62,7 +62,7 @@ inline int64 PastDrift(int64 nTime, int nHeight)
 inline int64 FutureDrift(int64 nTime, int nHeight)
 {
  if (nHeight > 536698)
- return nTime + 5 * 60; // up to 5 minutes from the future
+ return nTime + 60; // up to 1 minute from the future
  else
  return nTime + 2 * 60 * 60; // up to 120 minutes from the future
 }
