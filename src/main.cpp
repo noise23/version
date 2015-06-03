@@ -1029,19 +1029,28 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 }
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake) 
-{ 
-    CBigNum bnTargetLimit = !fProofOfStake ? bnProofOfWorkLimit : bnProofOfStakeLimit; 
- 
-    if (pindexLast == NULL) 
-        return bnTargetLimit.GetCompact(); // genesis block 
- 
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake); 
-    if (pindexPrev->pprev == NULL) 
-        return bnTargetLimit.GetCompact(); // first block 
-    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake); 
-    if (pindexPrevPrev->pprev == NULL) 
-        return bnTargetLimit.GetCompact(); // second block 
- 
+{
+    CBigNum bnTargetLimit, bnNew;
+
+    /* Separate range limits */
+        if(fProofOfStake) bnTargetLimit = bnProofOfStakeLimit;
+        else bnTargetLimit = bnProofOfWorkLimit;
+
+    /* The genesis block */
+    if(pindexLast == NULL) return bnTargetLimit.GetCompact();
+    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
+    /* The 1st block */
+    if(pindexPrev->pprev == NULL) return bnTargetLimit.GetCompact();
+    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
+    /* The 2nd block */
+    if(pindexPrevPrev->pprev == NULL) return bnTargetLimit.GetCompact();
+    /* The next block */
+    int nHeight = pindexLast->nHeight + 1;
+
+    if(nHeight <= 536698) {
+
+        /* Legacy block retargets */
+
     int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime(); 
     int64 nTargetSpacing = fProofOfStake? nStakeTargetSpacing : min(nTargetSpacingWorkMax, (int64) nStakeTargetSpacing * (1 + pindexLast->nHeight - pindexPrev->nHeight)); 
  
@@ -1049,6 +1058,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
           nActualSpacing = nTargetSpacing; 
  
     CBigNum bnNew; 
+
     bnNew.SetCompact(pindexPrev->nBits); 
  
     int64 nInterval = nTargetTimespan / nTargetSpacing; 
@@ -1057,9 +1067,66 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
  
     if (bnNew > bnTargetLimit) 
         bnNew = bnTargetLimit; 
- 
-    return bnNew.GetCompact(); 
-} 
+
+    } else {
+
+        /* Orbitcoin Super Shield (OSS);
+         * retargets every block using two averaging windows of 5 and 20 blocks,
+         * 0.25 damping and +5% to -10% limiting */
+
+        int64 nIntervalShort = 5, nIntervalLong = 20, nTargetSpacing, nTargetTimespan,
+              nActualTimespan, nActualTimespanShort, nActualTimespanLong, nActualTimespanAvg,
+              nActualTimespanMax, nActualTimespanMin;
+
+        if(fProofOfStake) 
+          nTargetSpacing = 1.5 * 60; // 90 sec PoS target spacing 
+        else 
+		  nTargetSpacing = 60;  // 60 sec PoW target spacing 
+        
+        nTargetTimespan = nTargetSpacing * nIntervalLong;
+
+        /* The short averaging window */
+        const CBlockIndex* pindexShort = pindexPrev;
+        for(int i = 0; pindexShort && (i < nIntervalShort); i++)
+          pindexShort = GetLastBlockIndex(pindexShort->pprev, fProofOfStake);
+        nActualTimespanShort = (int64)pindexPrev->nTime - (int64)pindexShort->nTime;
+
+        /* The long averaging window */
+        const CBlockIndex* pindexLong = pindexShort;
+        for(int i = 0; pindexLong && (i < (nIntervalLong - nIntervalShort)); i++)
+          pindexLong = GetLastBlockIndex(pindexLong->pprev, fProofOfStake);
+        nActualTimespanLong = (int64)pindexPrev->nTime - (int64)pindexLong->nTime;
+
+        /* Time warp protection */
+        nActualTimespanShort = max(nActualTimespanShort, (nTargetSpacing * nIntervalShort * 3 / 4));
+        nActualTimespanShort = min(nActualTimespanShort, (nTargetSpacing * nIntervalShort * 4 / 3));
+        nActualTimespanLong  = max(nActualTimespanLong,  (nTargetSpacing * nIntervalLong  * 3 / 4));
+        nActualTimespanLong  = min(nActualTimespanLong,  (nTargetSpacing * nIntervalLong  * 4 / 3));
+
+        /* The average of both windows */
+        nActualTimespanAvg = (nActualTimespanShort * (nIntervalLong / nIntervalShort) + nActualTimespanLong) / 2;
+
+        /* 0.25 damping */
+        nActualTimespan = nActualTimespanAvg + 3 * nTargetTimespan;
+        nActualTimespan /= 4;
+
+        /* Difficulty limiters */
+        nActualTimespanMax = nTargetTimespan * 110 / 100;
+        nActualTimespanMin = nTargetTimespan * 100 / 105;
+        if(nActualTimespan < nActualTimespanMin) nActualTimespan = nActualTimespanMin;
+        if(nActualTimespan > nActualTimespanMax) nActualTimespan = nActualTimespanMax;
+
+        /* Retarget */
+        bnNew.SetCompact(pindexPrev->nBits);
+        bnNew *= nActualTimespan;
+        bnNew /= nTargetTimespan;
+
+        if(bnNew > bnTargetLimit) bnNew = bnTargetLimit;
+
+    }
+
+    return bnNew.GetCompact();
+}
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {
