@@ -917,9 +917,13 @@ int64 GetProofOfWorkReward(int nHeight, unsigned int nBits, int64 nFees)
     {
 	nSubsidy = 2 * COIN;
     }
+	else if(nHeight > 510000 && nHeight <= 536698)
+    {
+	nSubsidy = 1 * COIN;
+    }
     else
     {
-        nSubsidy = 1 * COIN; // 1 V  pow reward forever
+    nSubsidy = 2 * COIN; // 2 V  pow reward forever
     }
 
     if (fDebug && GetBoolArg("-printcreation"))
