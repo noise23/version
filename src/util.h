@@ -514,7 +514,7 @@ public:
     }
 };
 
-bool CreateThread(void(*pfn)(void*), void* parg);
+bool NewThread(void(*pfn)(void*), void* parg);
 
 #ifdef WIN32
 

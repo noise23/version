@@ -24,7 +24,7 @@ static bool noui_ThreadSafeAskFee(int64 nFeeRequired, const std::string& strCapt
 static void noui_QueueShutdown()
 {
     // Without UI, Shutdown can simply be started in a new thread
-    CreateThread(Shutdown, NULL);
+    NewThread(Shutdown, NULL);
 }
 
 void noui_connect()
