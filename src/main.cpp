@@ -2381,21 +2381,56 @@ bool CBlock::SignBlock(const CKeyStore& keystore)
 {
     vector<valtype> vSolutions;
     txnouttype whichType;
-    const CTxOut& txout = IsProofOfStake()? vtx[1].vout[1] : vtx[0].vout[0];
 
-    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
-        return false;
-    if (whichType == TX_PUBKEY)
+    if(!IsProofOfStake())
     {
-        // Sign
-        const valtype& vchPubKey = vSolutions[0];
-        CKey key;
-        if (!keystore.GetKey(Hash160(vchPubKey), key))
-            return false;
-        if (key.GetPubKey() != vchPubKey)
-            return false;
-        return key.Sign(GetHash(), vchBlockSig);
+        for(unsigned int i = 0; i < vtx[0].vout.size(); i++)
+        {
+            const CTxOut& txout = vtx[0].vout[i];
+
+            if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+                continue;
+
+            if (whichType == TX_PUBKEY)
+            {
+                // Sign
+                valtype& vchPubKey = vSolutions[0];
+                CKey key;
+
+                if (!keystore.GetKey(Hash160(vchPubKey), key))
+                    continue;
+                if (key.GetPubKey() != vchPubKey)
+                    continue;
+                if(!key.Sign(GetHash(), vchBlockSig))
+                    continue;
+
+                return true;
+            }
+        }
     }
+    else
+    {
+        const CTxOut& txout = vtx[1].vout[1];
+
+        if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+            return false;
+
+        if (whichType == TX_PUBKEY)
+        {
+            // Sign
+            valtype& vchPubKey = vSolutions[0];
+            CKey key;
+
+            if (!keystore.GetKey(Hash160(vchPubKey), key))
+                return false;
+            if (key.GetPubKey() != vchPubKey)
+                return false;
+
+            return key.Sign(GetHash(), vchBlockSig);
+        }
+    }
+
+    printf("Sign failed\n");
     return false;
 }
 
@@ -2407,27 +2442,51 @@ bool CBlock::CheckBlockSignature() const
 
     vector<valtype> vSolutions;
     txnouttype whichType;
-    const CTxOut& txout = IsProofOfStake()? vtx[1].vout[1] : vtx[0].vout[0];
 
-    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
-        return false;
-    if (whichType == TX_PUBKEY)
+    if(IsProofOfStake())
     {
-        const valtype& vchPubKey = vSolutions[0];
-        CKey key;
-        if (!key.SetPubKey(vchPubKey))
+        const CTxOut& txout = vtx[1].vout[1];
+
+        if (!Solver(txout.scriptPubKey, whichType, vSolutions))
             return false;
-        if (vchBlockSig.empty())
-            return false;
-        return key.Verify(GetHash(), vchBlockSig);
+        if (whichType == TX_PUBKEY)
+        {
+            valtype& vchPubKey = vSolutions[0];
+            CKey key;
+            if (!key.SetPubKey(vchPubKey))
+                return false;
+            if (vchBlockSig.empty())
+                return false;
+            return key.Verify(GetHash(), vchBlockSig);
+        }
+    }
+    else
+    {
+        for(unsigned int i = 0; i < vtx[0].vout.size(); i++)
+        {
+            const CTxOut& txout = vtx[0].vout[i];
+
+            if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+                return false;
+
+            if (whichType == TX_PUBKEY)
+            {
+                // Verify
+                valtype& vchPubKey = vSolutions[0];
+                CKey key;
+                if (!key.SetPubKey(vchPubKey))
+                    continue;
+                if (vchBlockSig.empty())
+                    continue;
+                if(!key.Verify(GetHash(), vchBlockSig))
+                    continue;
+
+                return true;
+            }
+        }
     }
     return false;
 }
-
-
-
-
-
 
 bool CheckDiskSpace(uint64 nAdditionalBytes)
 {
