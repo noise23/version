@@ -565,7 +565,8 @@ private:
 
 void ThreadRPCServer(void* parg)
 {
-    IMPLEMENT_RANDOMIZE_STACK(ThreadRPCServer(parg));
+    // Make this thread recognisable as the RPC listener
+    RenameThread("version-rpclist");
 
     // getwork/getblocktemplate mining rewards paid here:
     pMiningKey = new CReserveKey(pwalletMain);

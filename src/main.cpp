@@ -4205,6 +4205,9 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
     printf("CPUMiner started for proof-of-%s\n", fProofOfStake? "stake" : "work");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
+    // Make this thread recognisable as the mining thread
+    RenameThread("version-miner");
+
     bool fTryToSync = true;
 	
     // Each thread has its own key and counter

@@ -391,27 +391,6 @@ bool SoftSetArg(const std::string& strArg, const std::string& strValue);
 bool SoftSetBoolArg(const std::string& strArg, bool fValue);
 
 
-
-
-
-
-
-
-
-// Randomize the stack to help protect against buffer overrun exploits
-#define IMPLEMENT_RANDOMIZE_STACK(ThreadFn)     \
-    {                                           \
-        static char nLoops;                     \
-        if (nLoops <= 0)                        \
-            nLoops = GetRand(20) + 1;           \
-        if (nLoops-- > 1)                       \
-        {                                       \
-            ThreadFn;                           \
-            return;                             \
-        }                                       \
-    }
-
-
 template<typename T1>
 inline uint256 Hash(const T1 pbegin, const T1 pend)
 {
@@ -608,9 +587,7 @@ inline void ExitThread(size_t nExitCode)
 }
 #endif
 
-
-
-
+void RenameThread(const char* name);
 
 inline uint32_t ByteReverse(uint32_t value)
 {

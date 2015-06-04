@@ -31,6 +31,11 @@ namespace boost {
 #include <openssl/rand.h>
 #include <stdarg.h>
 
+#if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
+#include <pthread.h>
+#include <pthread_np.h>
+#endif
+
 #ifdef WIN32
 #ifdef _MSC_VER
 #pragma warning(disable:4786)
@@ -52,6 +57,10 @@ namespace boost {
 #endif
 #include <io.h> /* for _commit */
 #include "shlobj.h"
+#endif
+
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
 #endif
 
 #ifndef WIN32
@@ -1095,3 +1104,20 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
     ss << "/";
     return ss.str();
 }
+
+void RenameThread(const char* name)
+{
+#if defined(PR_SET_NAME)
+    // Only the first 15 characters are used (16 - NUL terminator)
+    ::prctl(PR_SET_NAME, name, 0, 0, 0);
+#elif (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
+    pthread_set_name_np(pthread_self(), name);
+
+#elif defined(MAC_OSX)
+    pthread_setname_np(name);
+#else
+    // Prevent warnings for unused parameters...
+    (void)name;
+#endif
+}
+
