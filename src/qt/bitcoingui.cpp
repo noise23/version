@@ -79,7 +79,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     blockBrowser(0)
 {
     resize(850, 550);
-    setWindowTitle(tr("Version [V] Personal Vault"));
+    setWindowTitle(tr("Version [V] Personal Vault ") + QString::fromStdString(FormatFullVersion()));
 #ifndef Q_WS_MAC
     setWindowIcon(QIcon(":icons/version"));
 #else
