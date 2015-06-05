@@ -2106,6 +2106,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // Check coinstake timestamp
         if (!CheckCoinStakeTimestamp(GetBlockTime(), (int64)vtx[1].nTime))
         return DoS(50, error("CheckBlock() : coinstake timestamp violation nTimeBlock=%"PRI64d" nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
+		
+        // Check proof-of-stake block signature
+        if (fCheckSig && !CheckBlockSignature(true))
+            return DoS(100, error("CheckBlock() : bad proof-of-stake block signature"));
       }
       else
       {
@@ -2115,9 +2119,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
                    return DoS(50, error("CheckBlock() : coinbase reward exceeded %s > %s",
                         FormatMoney(vtx[0].GetValueOut()).c_str(),
                         FormatMoney(IsProofOfWork()? GetProofOfWorkReward(0, nBits, 0) : 0).c_str()));
-
-
-
     }
 
     // Check transactions
@@ -2148,13 +2149,9 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     if (nSigOps > MAX_BLOCK_SIGOPS)
         return DoS(100, error("CheckBlock() : out-of-bounds SigOpCount"));
 
-    // Check merkleroot
+    // Check merkle root
     if (hashMerkleRoot != BuildMerkleTree())
         return DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"));
-
-    // version: check block signature
-    if (!CheckBlockSignature())
-        return DoS(100, error("CheckBlock() : bad block signature"));
 
     return true;
 }
@@ -2445,7 +2442,7 @@ bool CBlock::SignBlock(const CKeyStore& keystore)
 }
 
 // version: check block signature
-bool CBlock::CheckBlockSignature() const
+bool CBlock::CheckBlockSignature(bool fProofOfStake) const
 {
     if (GetHash() == hashGenesisBlock)
         return vchBlockSig.empty();
@@ -2453,7 +2450,7 @@ bool CBlock::CheckBlockSignature() const
     vector<valtype> vSolutions;
     txnouttype whichType;
 
-    if(IsProofOfStake())
+    if(fProofOfStake)
     {
         const CTxOut& txout = vtx[1].vout[1];
 

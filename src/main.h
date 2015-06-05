@@ -1074,7 +1074,7 @@ public:
     bool AcceptBlock();
     bool GetCoinAge(uint64& nCoinAge) const; // version: calculate total coin age spent in block
     bool SignBlock(const CKeyStore& keystore);
-    bool CheckBlockSignature() const;
+    bool CheckBlockSignature(bool fProofOfStake) const;
 
 private:
     bool SetBestChainInner(CTxDB& txdb, CBlockIndex *pindexNew);
