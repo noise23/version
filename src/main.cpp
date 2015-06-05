@@ -1436,7 +1436,17 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             }
         }
 
-        if (!IsCoinStake())
+        if (IsCoinStake())
+        {
+            // version: coin stake tx earns reward instead of paying fee
+            uint64 nCoinAge;
+            if (!GetCoinAge(txdb, nCoinAge))
+                return error("ConnectInputs() : %s unable to get coin age for coinstake", GetHash().ToString().substr(0,10).c_str());
+            int64 nStakeReward = GetValueOut() - nValueIn;
+            if (nStakeReward > GetProofOfStakeReward(nCoinAge, pindexBlock->nBits, nTime, 0, 0) - GetMinFee() + MIN_TX_FEE)
+                return DoS(100, error("ConnectInputs() : %s stake reward exceeded", GetHash().ToString().substr(0,10).c_str()));
+        }
+        else
         {
             if (nValueIn < GetValueOut())
                 return DoS(100, error("ConnectInputs() : %s value in < value out", GetHash().ToString().substr(0,10).c_str()));
@@ -1550,7 +1560,6 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
     int64 nFees = 0;
     int64 nValueIn = 0;
     int64 nValueOut = 0;
-    int64 nStakeReward = 0;
     unsigned int nSigOps = 0;
     BOOST_FOREACH(CTransaction& tx, vtx)
     {
@@ -1609,8 +1618,7 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
             nValueOut += nTxValueOut;
             if (!tx.IsCoinStake())
                 nFees += nTxValueIn - nTxValueOut;
-            if (tx.IsCoinStake())
-                nStakeReward = nTxValueOut - nTxValueIn;
+
 
             if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false))
                 return false;
@@ -1618,29 +1626,6 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
 
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
-
-    if (IsProofOfWork())
-    {
-        int64 nReward = GetProofOfWorkReward(nHeight, nBits, nFees);
-        // Check coinbase reward
-        if (vtx[0].GetValueOut() > nReward)
-            return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%"PRI64d" vs calculated=%"PRI64d")",
-                   vtx[0].GetValueOut(),
-                   nReward));
-    }
-    if (IsProofOfStake())
-    {
-        // coin stake tx earns reward instead of paying fee
-        uint64 nCoinAge;
-        if (!vtx[1].GetCoinAge(txdb, nCoinAge))
-            return error("ConnectBlock() : %s unable to get coin age for coinstake", vtx[1].GetHash().ToString().substr(0,10).c_str());
-
-        int64 nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nBits, nTime, nHeight, false);
-
-        if (nStakeReward > nCalculatedStakeReward)
-            return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%"PRI64d" vs calculated=%"PRI64d")", nStakeReward, nCalculatedStakeReward));
-    }
-
 
 
     // version: track money supply and mint amount info
@@ -2084,11 +2069,9 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         return DoS(100, error("CheckBlock() : size limits failed"));
 
     // Check proof of work matches claimed amount
- //   if(nHeight>55000)
-//    {
     if (IsProofOfWork() && !CheckProofOfWork(GetHash(), nBits))
         return DoS(50, error("CheckBlock() : proof of work failed"));
- //   }
+
 
     // Check timestamp
     if (GetBlockTime() > FutureDrift(GetAdjustedTime(), 0))
@@ -2101,6 +2084,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         if (vtx[i].IsCoinBase())
             return DoS(100, error("CheckBlock() : more than one coinbase"));
 
+
     // Check coinbase timestamp
     if (GetBlockTime() > FutureDrift((int64)vtx[0].nTime, 0))
         return DoS(50, error("CheckBlock() : coinbase timestamp is too early"));
@@ -2111,19 +2095,28 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         if (vtx[0].vout.size() != 1 || !vtx[0].vout[0].IsEmpty())
             return DoS(100, error("CheckBlock() : coinbase output not empty for proof-of-stake block"));
 
-    // version: only the second transaction can be the optional coinstake
+        // Second transaction must be coinstake, the rest must not be
         if (vtx.empty() || !vtx[1].IsCoinStake())
             return DoS(100, error("CheckBlock() : second tx is not coinstake"));
         for (unsigned int i = 2; i < vtx.size(); i++)
             if (vtx[i].IsCoinStake())
                 return DoS(100, error("CheckBlock() : more than one coinstake"));
+
     // Check coinstake timestamp
         if (!CheckCoinStakeTimestamp(GetBlockTime(), (int64)vtx[1].nTime))
         return DoS(50, error("CheckBlock() : coinstake timestamp violation nTimeBlock=%"PRI64d" nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
+      }
+      else
+      {
+        // Check coinbase reward
+ 
+               if (vtx[0].GetValueOut() > (IsProofOfWork()? (GetProofOfWorkReward(0, nBits, 0) - vtx[0].GetMinFee() + MIN_TX_FEE) : 0))
+                   return DoS(50, error("CheckBlock() : coinbase reward exceeded %s > %s",
+                        FormatMoney(vtx[0].GetValueOut()).c_str(),
+                        FormatMoney(IsProofOfWork()? GetProofOfWorkReward(0, nBits, 0) : 0).c_str()));
 
-        // Check proof-of-stake block signature
-        if (fCheckSig && !CheckBlockSignature())
-            return DoS(100, error("CheckBlock() : bad proof-of-stake block signature"));
+
+
     }
 
     // Check transactions
@@ -2295,6 +2288,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
+
 
     CBlockIndex* pcheckpoint = Checkpoints::GetLastSyncCheckpoint();
     if (pcheckpoint && pblock->hashPrevBlock != hashBestChain && !Checkpoints::WantedByPendingSyncCheckpoint(hash))
