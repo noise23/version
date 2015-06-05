@@ -1983,7 +1983,7 @@ bool CBlock::GetCoinAge(uint64& nCoinAge) const
 }
 
 
-bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const uint256& hashProofOfStake)
+bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
 {
     // Check for duplicate
     uint256 hash = GetHash();
@@ -2011,7 +2011,13 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
         return error("AddToBlockIndex() : SetStakeEntropyBit() failed");
 
     // version: record proof-of-stake hash value
-    pindexNew->hashProofOfStake = hashProofOfStake;
+        if (pindexNew->IsProofOfStake())
+    {
+        if (!mapProofOfStake.count(hash))
+            return error("AddToBlockIndex() : hashProofOfStake not found in map");
+        pindexNew->hashProofOfStake = mapProofOfStake[hash];
+    }
+
 
     // version: compute stake modifier
     uint64 nStakeModifier = 0;
@@ -2190,16 +2196,7 @@ bool CBlock::AcceptBlock()
     if (!Checkpoints::CheckHardened(nHeight, hash))
         return DoS(100, error("AcceptBlock() : rejected by hardened checkpoint lockin at %d", nHeight));
 
- // Verify hash target and signature of coinstake tx
-    uint256 hashProofOfStake = 0, targetProofOfStake = 0;
-    if (IsProofOfStake())
-    {
-        if (!CheckProofOfStake(vtx[1], nBits, hashProofOfStake, targetProofOfStake))
-        {
-            printf("WARNING: ProcessBlock(): check proof-of-stake failed for block %s\n", hash.ToString().c_str());
-            return false; // do not error here as we expect this during initial block download
-        }
-    }
+
 
     bool cpSatisfies = Checkpoints::CheckSync(hash, pindexPrev); 
  
@@ -2209,6 +2206,10 @@ bool CBlock::AcceptBlock()
  
     if (CheckpointsMode == Checkpoints::ADVISORY && !cpSatisfies) 
          strMiscWarning = _("WARNING: syncronized checkpoint violation detected, but skipped!"); 
+    // Enforce rule that the coinbase starts with serialized block height
+    CScript expect = CScript() << nHeight;
+    if (!std::equal(expect.begin(), expect.end(), vtx[0].vin[0].scriptSig.begin()))
+        return DoS(100, error("AcceptBlock() : block height mismatch in coinbase"));
 
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
@@ -2217,7 +2218,7 @@ bool CBlock::AcceptBlock()
     unsigned int nBlockPos = 0;
     if (!WriteToDisk(nFile, nBlockPos))
         return error("AcceptBlock() : WriteToDisk failed");
-    if (!AddToBlockIndex(nFile, nBlockPos, hashProofOfStake))
+    if (!AddToBlockIndex(nFile, nBlockPos))
         return error("AcceptBlock() : AddToBlockIndex failed");
 
     // Relay inventory, but don't relay old inventory during initial block download
@@ -2270,7 +2271,7 @@ bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, uns
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     // Check for duplicate
-    //printf("ProcessBlock: Check for duplicate\n");
+
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().substr(0,20).c_str());
@@ -2287,6 +2288,18 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
 
+ // Verify hash target and signature of coinstake tx
+        if (pblock->IsProofOfStake())
+    {
+        uint256 hashProofOfStake = 0, targetProofOfStake = 0;
+        if (!CheckProofOfStake(pblock->vtx[1], pblock->nBits, hashProofOfStake, targetProofOfStake))
+        {
+            printf("WARNING: ProcessBlock(): check proof-of-stake failed for block %s\n", hash.ToString().c_str());
+            return false; // do not error here as we expect this during initial block download
+        }
+        if (!mapProofOfStake.count(hash)) // add to mapProofOfStake
+            mapProofOfStake.insert(make_pair(hash, hashProofOfStake));
+    }
 
     CBlockIndex* pcheckpoint = Checkpoints::GetLastSyncCheckpoint();
     if (pcheckpoint && pblock->hashPrevBlock != hashBestChain && !Checkpoints::WantedByPendingSyncCheckpoint(hash))
@@ -2650,7 +2663,7 @@ bool LoadBlockIndex(bool fAllowNew)
         unsigned int nBlockPos;
         if (!block.WriteToDisk(nFile, nBlockPos))
             return error("LoadBlockIndex() : writing genesis block to disk failed");
-        if (!block.AddToBlockIndex(nFile, nBlockPos, 0))
+        if (!block.AddToBlockIndex(nFile, nBlockPos))
             return error("LoadBlockIndex() : genesis block not accepted");
 
         // version: initialize synchronized checkpoint
