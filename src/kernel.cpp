@@ -299,6 +299,8 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
     int64 nValueIn = txPrev.vout[prevout.n].nValue;
+    uint256 hashBlockFrom = blockFrom.GetHash();
+	
     // v0.3 protocol kernel hash weight starts from 0 at the 30-day min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
@@ -310,7 +312,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     int nStakeModifierHeight = 0;
     int64 nStakeModifierTime = 0;
 
-        if (!GetKernelStakeModifier(blockFrom.GetHash(), nStakeModifier, nStakeModifierHeight, nStakeModifierTime, fPrintProofOfStake))
+        if (!GetKernelStakeModifier(hashBlockFrom, nStakeModifier, nStakeModifierHeight, nStakeModifierTime, fPrintProofOfStake))
             return false;
         ss << nStakeModifier;
 
@@ -322,7 +324,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
             printf("CheckStakeKernelHash() : using modifier 0x%016"PRI64x" at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
                 nStakeModifier, nStakeModifierHeight,
                 DateTimeStrFormat(nStakeModifierTime).c_str(),
-                mapBlockIndex[blockFrom.GetHash()]->nHeight,
+                mapBlockIndex[hashBlockFrom]->nHeight,
                 DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
         printf("CheckStakeKernelHash() : check modifier=0x%016"PRI64x" nTimeBlockFrom=%u nTxPrevOffset=%u nTimeTxPrev=%u nPrevout=%u nTimeTx=%u hashProof=%s\n",
             nStakeModifier,
@@ -338,7 +340,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
             printf("CheckStakeKernelHash() : using modifier 0x%016"PRI64x" at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
                 nStakeModifier, nStakeModifierHeight, 
                 DateTimeStrFormat(nStakeModifierTime).c_str(),
-                mapBlockIndex[blockFrom.GetHash()]->nHeight,
+                mapBlockIndex[hashBlockFrom]->nHeight,
                 DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
         printf("CheckStakeKernelHash() : pass modifier=0x%016"PRI64x" nTimeBlockFrom=%u nTxPrevOffset=%u nTimeTxPrev=%u nPrevout=%u nTimeTx=%u hashProof=%s\n",
             nStakeModifier,

@@ -3400,13 +3400,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     {
         CBlock block;
         vRecv >> block;
+        uint256 hashBlock = block.GetHash();
 
 	if (fDebug)
-	        printf("received block %s\n", block.GetHash().ToString().substr(0,20).c_str());
+	        printf("received block %s\n", hashBlock.ToString().substr(0,20).c_str());
         // block.print();
 	if (fDebug)
         	printf("CInv inv(MSG_BLOCK, block.GetHash())\n");
-        CInv inv(MSG_BLOCK, block.GetHash());
+        CInv inv(MSG_BLOCK, hashBlock);
 	if (fDebug) 	       
 		printf("pfrom->AddInventoryKnown\n");
         pfrom->AddInventoryKnown(inv);
@@ -4224,15 +4225,15 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
-    uint256 hash = pblock->GetHash();
+    uint256 hashblock = pblock->GetHash();
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
-    if (hash > hashTarget && pblock->IsProofOfWork())
-        return error("BitcoinMiner : proof-of-work not meeting target");
+    if (hashblock > hashTarget && pblock->IsProofOfWork())
+        return error("VersionMiner : proof-of-work not meeting target");
 
     //// debug print
-    printf("BitcoinMiner:\n");
-    printf("new block found  \n  hash: %s  \ntarget: %s\n", hash.GetHex().c_str(), hashTarget.GetHex().c_str());
+    printf("VersionMiner:\n");
+    printf("new block found  \n  hashblock: %s  \ntarget: %s\n", hashblock.GetHex().c_str(), hashTarget.GetHex().c_str());
     pblock->print();
     printf("%s ", DateTimeStrFormat(GetTime()).c_str());
     printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
@@ -4241,7 +4242,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != hashBestChain)
-            return error("BitcoinMiner : generated block is stale");
+            return error("VersionMiner : generated block is stale");
 
         // Remove key from key pool
         reservekey.KeepKey();
@@ -4249,12 +4250,12 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         // Track how many getdata requests this block gets
         {
             LOCK(wallet.cs_wallet);
-            wallet.mapRequestCount[pblock->GetHash()] = 0;
+            wallet.mapRequestCount[hashblock] = 0;
         }
 
         // Process this block the same as if we had received it from another node
         if (!ProcessBlock(NULL, pblock))
-            return error("BitcoinMiner : ProcessBlock, block not accepted");
+            return error("VersionMiner : ProcessBlock, block not accepted");
     }
 
     return true;
