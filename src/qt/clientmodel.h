@@ -28,6 +28,9 @@ public:
     int getNumBlocksAtStartup();
 
     QDateTime getLastBlockDate() const;
+    double getDifficulty(bool fProofofStake=false);
+    double getPoWMHashPS();
+    double getPosKernalPS();
 
     //! Return true if client connected to testnet
     bool isTestNet() const;

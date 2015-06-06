@@ -6,9 +6,9 @@
 #include "db.h"
 #include "wallet.h"
 
-// double GetPoSKernelPS(const CBlockIndex* blockindex);
+double GetPoSKernelPS(const CBlockIndex* blockindex);
 double GetDifficulty(const CBlockIndex* blockindex);
-// double GetPoWMHashPS(const CBlockIndex* blockindex);
+double GetPoWMHashPS(const CBlockIndex* blockindex);
 
 using namespace std;
 
@@ -262,7 +262,7 @@ void BlockBrowser::updateExplorer(bool block)
         ui->nonceBox->setText(QString::number(getBlockNonce(height))); 
         ui->timeBox->setText(QString::fromUtf8(DateTimeStrFormat(getBlockTime(height)).c_str())); 
         ui->diffBox->setText(QString::number(GetDifficulty(pindex), 'f', 6));
-/**        if (pindex->IsProofOfStake()) { 
+       if (pindex->IsProofOfStake()) { 
             ui->hashRateLabel->setText("Block Network Stake Weight:");
             ui->diffLabel->setText("PoS Block Difficulty:");			
             ui->hashRateBox->setText(QString::number(GetPoSKernelPS(pindex), 'f', 3) + " ");
@@ -270,9 +270,9 @@ void BlockBrowser::updateExplorer(bool block)
         else { 
             ui->hashRateLabel->setText("Block Hash Rate:");
             ui->diffLabel->setText("PoW Block Difficulty:");
-            ui->hashRateBox->setText(QString::number(GetPoWMHashPS(pindex), 'f', 3) + " GH/s");
+            ui->hashRateBox->setText(QString::number(GetPoWMHashPS(pindex), 'f', 3) + " MH/s");
         }
-**/
+
             ui->moneySupplyBox->setText(QString::number(getMoneySupply(height), 'f', 6) + " V");
     } 
     

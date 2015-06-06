@@ -12,6 +12,10 @@ static const int64 nClientStartupTime = GetTime();
 #include <QDateTime>
 #include <QTimer>
 
+
+double GetDifficulty(const CBlockIndex* blockindex);
+double GetPoWMHashPS(const CBlockIndex* blockindex = NULL);
+double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);
 ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), optionsModel(optionsModel),
     cachedNumBlocks(0), cachedNumBlocksOfPeers(0), pollTimer(0)
@@ -31,6 +35,11 @@ ClientModel::~ClientModel()
     unsubscribeFromCoreSignals();
 }
 
+double ClientModel::getPosKernalPS()
+{
+    return GetPoSKernelPS();
+}
+
 int ClientModel::getNumConnections() const
 {
     return vNodes.size();
@@ -41,6 +50,10 @@ int ClientModel::getNumBlocks() const
     return nBestHeight;
 }
 
+double ClientModel::getPoWMHashPS()
+{
+    return GetPoWMHashPS();
+}
 int ClientModel::getNumBlocksAtStartup()
 {
     if (numBlocksAtStartup == -1) numBlocksAtStartup = getNumBlocks();
