@@ -14,7 +14,9 @@
 
 #include <QApplication>
 #include <QMessageBox>
+#if QT_VERSION < 0x050000
 #include <QTextCodec>
+#endif
 #include <QLocale>
 #include <QTranslator>
 #include <QSplashScreen>
@@ -186,9 +188,11 @@ int main(int argc, char *argv[])
     }
 #endif
 
+#if QT_VERSION < 0x0500
     // Internal string conversion is all UTF-8
     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
     QTextCodec::setCodecForCStrings(QTextCodec::codecForTr());
+#endif
 
     Q_INIT_RESOURCE(bitcoin);
     QApplication app(argc, argv);
