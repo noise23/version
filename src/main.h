@@ -115,11 +115,6 @@ bool ProcessMessages(CNode* pfrom);
 bool SendMessages(CNode* pto, bool fSendTrickle);
 bool LoadExternalBlockFile(FILE* fileIn);
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet);
-CBlock* CreateNewBlock(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfStake=false);
-void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
-void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1);
-bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
-bool CheckStake(CBlock* pblock, CWallet& wallet); // Check mined proof-of-stake block
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 int64 GetProofOfWorkReward(int nHeight, unsigned int nBits, int64 nFees);
 int64 GetProofOfStakeReward(int64 nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly);
