@@ -43,6 +43,34 @@ double GetDifficulty(const CBlockIndex* blockindex)
     return dDiff;
 }
 
+double GetPoWMHashPS(const CBlockIndex* blockindex)
+{
+    int nPoWInterval = 72;
+    int64 nTargetSpacingWorkMin = 1, nTargetSpacingWork = 1;
+
+    CBlockIndex* pindex = pindexGenesisBlock;
+    CBlockIndex* pindexPrevWork = pindexGenesisBlock;
+    const CBlockIndex* pindexStop = pindexBest;
+
+    if (blockindex != NULL)
+        pindexStop = blockindex;
+
+    while (pindex && pindex->nHeight < pindexStop->nHeight)
+    {
+        if (pindex->IsProofOfWork())
+        {
+            int64 nActualSpacingWork = pindex->GetBlockTime() - pindexPrevWork->GetBlockTime();
+            nTargetSpacingWork = ((nPoWInterval - 1) * nTargetSpacingWork + nActualSpacingWork + nActualSpacingWork) / (nPoWInterval + 1);
+            nTargetSpacingWork = max(nTargetSpacingWork, nTargetSpacingWorkMin);
+            pindexPrevWork = pindex;
+        }
+
+        pindex = pindex->pnext;
+    }
+
+    return GetDifficulty(pindexPrevWork) * 4294.967296 / nTargetSpacingWork;
+}
+
 double GetPoSKernelPS(const CBlockIndex* blockindex)
 {
     int nPoSInterval = 72;
@@ -51,9 +79,10 @@ double GetPoSKernelPS(const CBlockIndex* blockindex)
 
     const CBlockIndex* pindex = pindexBest;
     const CBlockIndex* pindexPrevStake = NULL;
-	
-	if (blockindex != NULL)
-		pindex = blockindex;
+
+    if (blockindex != NULL)
+        pindex = blockindex;
+
 
     while (pindex && nStakesHandled < nPoSInterval)
     {
@@ -68,7 +97,7 @@ double GetPoSKernelPS(const CBlockIndex* blockindex)
         pindex = pindex->pprev;
     }
 
-    return nStakesTime ? dStakeKernelsTriedAvg / nStakesTime : 0;
+    return dStakeKernelsTriedAvg / nStakesTime;
 }
 
 // version: get network Gh/s estimate
