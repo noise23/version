@@ -403,12 +403,14 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     uint256 hashblock = pblock->GetHash();
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
-    if (hashblock > hashTarget && pblock->IsProofOfWork())
-        return error("VersionMiner : proof-of-work not meeting target");
+    if(!pblock->IsProofOfWork())
+        return error("CheckWork() : %s is not a proof-of-work block", hashblock.GetHex().c_str());
+
+    if (hashblock > hashTarget)
+        return error("CheckWork() : proof-of-work not meeting target");
 
     //// debug print
-    printf("VersionMiner:\n");
-    printf("new block found  \n  hashblock: %s  \ntarget: %s\n", hashblock.GetHex().c_str(), hashTarget.GetHex().c_str());
+    printf("CheckWork() : new proof-of-work block found  \n  hashblock: %s  \ntarget: %s\n", hashblock.GetHex().c_str(), hashTarget.GetHex().c_str());
     pblock->print();
     printf("%s ", DateTimeStrFormat(GetTime()).c_str());
     printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
@@ -417,7 +419,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != hashBestChain)
-            return error("VersionMiner : generated block is stale");
+            return error("CheckWork : generated block is stale");
 
         // Remove key from key pool
         reservekey.KeepKey();
@@ -430,7 +432,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
         // Process this block the same as if we had received it from another node
         if (!ProcessBlock(NULL, pblock))
-            return error("VersionMiner : ProcessBlock, block not accepted");
+            return error("CheckWork : ProcessBlock, block not accepted");
     }
 
     return true;

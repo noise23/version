@@ -88,7 +88,7 @@
      <item>
       <widget class="QLabel" name="label_version_copyright">
        <property name="text">
-        <string>Copyright © 2011-2013 Version Developers</string>
+        <string>Copyright © 2011-2015 Version Developers</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>
