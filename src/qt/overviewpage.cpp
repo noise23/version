@@ -102,8 +102,6 @@ OverviewPage::OverviewPage(QWidget *parent) :
     currentImmatureBalance(-1),
     txdelegate(new TxViewDelegate())
 {
-    this->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
-
     ui->setupUi(this);
 
     // Balance: <balance>
@@ -124,7 +122,6 @@ OverviewPage::OverviewPage(QWidget *parent) :
     ui->labelNumTransactions->setToolTip(tr("Total number of transactions in wallet"));
 
     // Recent transactions
-    ui->listTransactions->setStyleSheet("QListView { background:transparent }");
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(DECORATION_SIZE, DECORATION_SIZE));
     ui->listTransactions->setSelectionMode(QAbstractItemView::NoSelection);

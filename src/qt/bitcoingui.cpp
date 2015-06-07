@@ -95,7 +95,6 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
 
-    setStyleSheet("background-color: #404040;color:#ffffff;");
 
     // Accept D&D of URIs
     setAcceptDrops(true);
@@ -145,13 +144,6 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     // Create status bar
     statusBar();
 
-    overviewPage->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
-    transactionsPage->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; } QTableView { alternate-background-color: #808080; } QHeaderView { color: #000000; }");
-    addressBookPage->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
-    receiveCoinsPage->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; } QTableView { alternate-background-color: #808080; } QHeaderView { color: #000000; }");
-    sendCoinsPage->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
-    messagePage->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
-    statusBar()->setStyleSheet("QToolTip { color: #fff; background-color: #202020; border: none; }");
 
     // Status bar notification icons
     QFrame *frameBlocks = new QFrame();
@@ -350,11 +342,7 @@ void BitcoinGUI::createMenuBar()
     help->addAction(aboutQtAction);
     help->setObjectName("aboutMenu");
 
-    file->setStyleSheet("QMenu#fileMenu { background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 19, 127, 255), stop:1 rgba(0, 37, 254, 255)); color: #ffffff; } QMenu::item#fileMenu { background-color: transparent;color:#ffffff; } QMenu::item:selected#fileMenu { background-color: #202020;color:#ffffff; }");
-    settings->setStyleSheet("QMenu#settingsMenu { background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 19, 127, 255), stop:1 rgba(0, 37, 254, 255)); color: #ffffff; } QMenu::item#settingsMenu { background-color: transparent;color:#ffffff; } QMenu::item:selected#settingsMenu { background-color: #202020;color:#ffffff; }");
-    help->setStyleSheet("QMenu#aboutMenu { background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 19, 127, 255), stop:1 rgba(0, 37, 254, 255)); color: #ffffff; } QMenu::item#aboutMenu { background-color: transparent;color:#ffffff; } QMenu::item:selected#aboutMenu { background-color: #202020;color:#ffffff; }");
-    //background-color: #0025FE;
-    appMenuBar->setStyleSheet("border: 1px solid #202020; color: #000000; background-color: #eeeeee;"); //background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 19, 127, 255), stop:1 rgba(0, 37, 254, 255));");
+
 }
 
 void BitcoinGUI::createToolBars()
@@ -375,8 +363,6 @@ void BitcoinGUI::createToolBars()
     toolbar2->addAction(blockAction);
     toolbar2->addAction(exportAction);
 
-    toolbar->setStyleSheet("background-color: #404040; border: 1px solid #202020;");
-    toolbar2->setStyleSheet("background-color: #404040; border: 1px solid #202020;");
 }
 
 void BitcoinGUI::setClientModel(ClientModel *clientModel)
