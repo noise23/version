@@ -17,6 +17,7 @@ class COutput;
 class COutPoint;
 class uint256;
 class CCoinControl;
+class CBitcoinAddress;
 
 QT_BEGIN_NAMESPACE
 class QTimer;
@@ -86,7 +87,7 @@ public:
     };
 
     // Send coins to a list of recipients
-    SendCoinsReturn sendCoins(const QList<SendCoinsRecipient> &recipients, const CCoinControl *coinControl=NULL);
+    SendCoinsReturn sendCoins(const QList<SendCoinsRecipient> &recipients, int SplitBlock, const CCoinControl *coinControl=NULL);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);
@@ -98,6 +99,9 @@ public:
 
     //PoS Information about value and time
     void getStakeWeightFromValue(const qint64& nTime, const qint64& nValue, quint64& nWeight);
+	
+	void setSplitBlock(bool fSplitBlock); 
+	bool getSplitBlock();
 	
     // RAI object for unlocking wallet, returned by requestUnlock()
     class UnlockContext
@@ -128,6 +132,7 @@ public:
 	void lockCoin(COutPoint& output);
 	void unlockCoin(COutPoint& output);
 	void listLockedCoins(std::vector<COutPoint>& vOutpts);
+    bool isMine(const CBitcoinAddress &address);
 
 private:
     CWallet *wallet;
