@@ -560,7 +560,7 @@
           <item>
            <widget class="QCheckBox" name="checkBoxCoinControlChange">
             <property name="text">
-             <string>custom change address</string>
+             <string>Custom Change Address</string>
             </property>
            </widget>
           </item>
@@ -630,12 +630,6 @@
             <property name="enabled"> 
              <bool>false</bool> 
             </property> 
-            <property name="font"> 
-             <font> 
-              <weight>75</weight> 
-              <bold>true</bold> 
-             </font> 
-            </property> 
             <property name="text"> 
              <string># Of Blocks To Make:</string> 
             </property> 
@@ -664,12 +658,6 @@
            <widget class="QLabel" name="labelBlockSizeText"> 
             <property name="enabled"> 
              <bool>false</bool> 
-            </property> 
-            <property name="font"> 
-             <font> 
-              <weight>75</weight> 
-              <bold>true</bold> 
-             </font> 
             </property> 
             <property name="text"> 
              <string>Block Size:</string> 
