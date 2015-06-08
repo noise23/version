@@ -138,16 +138,35 @@
        </layout>
       </widget>
      </item>
-     <item>
-      <widget class="QFrame" name="logoFrame">
-       <property name="minimumSize">
+	      <item>
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
         <size>
-         <width>256</width>
-         <height>256</height>
+         <width>20</width>
+         <height>20</height>
         </size>
        </property>
-       <property name="styleSheet">
-        <string notr="true">background-image: url(:/icons/version); background-repeat: no-repeat; background-position: bottom left;</string>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="logoLabel">
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>200</height>
+        </size>
+       </property>
+      <property name="pixmap">
+           <pixmap resource="../bitcoin.qrc">:/images/version2</pixmap>
+       </property>
+	             <property name="scaledContents">
+           <bool>false</bool>
+          </property>
+	   	   <property name="alignment" >
+        <set>Qt::AlignHCenter|Qt::AlignBottom</set>
        </property>
        <property name="frameShape">
         <enum>QFrame::NoFrame</enum>
@@ -168,7 +187,7 @@
        <property name="sizeHint" stdset="0">
         <size>
          <width>20</width>
-         <height>40</height>
+         <height>20</height>
         </size>
        </property>
       </spacer>
