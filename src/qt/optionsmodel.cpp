@@ -6,6 +6,9 @@
 #include "walletdb.h"
 #include "guiutil.h"
 
+// shared UI settings in guiutil.h
+bool fUseVTheme;
+
 OptionsModel::OptionsModel(QObject *parent) :
     QAbstractListModel(parent)
 {
@@ -46,7 +49,8 @@ void OptionsModel::Init()
     fMinimizeToTray = settings.value("fMinimizeToTray", false).toBool();
     fMinimizeOnClose = settings.value("fMinimizeOnClose", false).toBool();
     nTransactionFee = settings.value("nTransactionFee").toLongLong();
-	fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
+    fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
+    fUseVTheme = settings.value("fUseVTheme", true).toBool();
 
     // These are shared with core bitcoin; we want
     // command-line options to override the GUI settings:
@@ -168,6 +172,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return QVariant(bitdb.GetDetach());
           case CoinControlFeatures:
             return QVariant(fCoinControlFeatures);
+        case UseVTheme:
+            return QVariant(fUseVTheme);
         default:
             return QVariant();
         }
@@ -272,6 +278,10 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             emit coinControlFeaturesChanged(fCoinControlFeatures);
             }
+            break;
+          case UseVTheme:
+            fUseVTheme = value.toBool();
+            settings.setValue("fUseVTheme", fUseVTheme);
             break;
         default:
             break;

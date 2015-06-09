@@ -334,6 +334,13 @@
         </layout>
        </item>
        <item>
+        <widget class="QCheckBox" name="useVTheme">
+         <property name="text">
+          <string>Use V visual theme (requires restart)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="displayAddresses">
          <property name="toolTip">
           <string>Whether to show Version addresses in the transaction list or not.</string>

@@ -474,6 +474,7 @@ void SendCoinsDialog::coinControlSplitBlockChecked(int state)
 		if (state == Qt::Checked) 
 		{
 			model->setSplitBlock(true);
+			ui->labelBlocksToMakeText->setEnabled(true); 
 			ui->splitBlockLineEdit->setEnabled(true); 
 			ui->labelBlockSizeText->setEnabled(true); 
 			ui->labelBlockSize->setEnabled(true); 
@@ -481,6 +482,7 @@ void SendCoinsDialog::coinControlSplitBlockChecked(int state)
 		else 
 		{
 			model->setSplitBlock(false);
+			ui->labelBlocksToMakeText->setEnabled(false);
 			ui->splitBlockLineEdit->setEnabled(false); 
 			ui->labelBlockSizeText->setEnabled(false); 
 			ui->labelBlockSize->setEnabled(false); 

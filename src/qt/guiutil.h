@@ -2,6 +2,7 @@
 #define GUIUTIL_H
 
 #include <QString>
+extern bool fUseVTheme;
 
 QT_BEGIN_NAMESPACE
 class QFont;
