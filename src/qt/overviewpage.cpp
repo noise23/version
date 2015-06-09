@@ -122,6 +122,7 @@ OverviewPage::OverviewPage(QWidget *parent) :
     ui->labelNumTransactions->setToolTip(tr("Total number of transactions in wallet"));
 
     // Recent transactions
+    ui->listTransactions->setStyleSheet("QListView { background:transparent }");
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(DECORATION_SIZE, DECORATION_SIZE));
     ui->listTransactions->setSelectionMode(QAbstractItemView::NoSelection);
