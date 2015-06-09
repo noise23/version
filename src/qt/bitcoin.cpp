@@ -88,7 +88,7 @@ static void InitMessage(const std::string &message)
 {
     if(splashref)
     {
-		splashref->showMessage("Personal Vault "  + QString::fromStdString(FormatFullVersion().c_str()) + " : " + QString::fromStdString(message), Qt::AlignBottom|Qt::AlignHCenter, QColor(194,145,114));
+		splashref->showMessage("Personal Vault "  + QString::fromStdString(FormatFullVersion().c_str()) + " : " + QString::fromStdString(message), Qt::AlignBottom|Qt::AlignHCenter, QColor(213,241,255));
         QApplication::instance()->processEvents();
     }
 }
