@@ -232,28 +232,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QFrame" name="frame_3">
-       <property name="minimumSize">
-        <size>
-         <width>480</width>
-         <height>270</height>
-        </size>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">background-image: url(:/icons/version_overlay); background-position: bottom right;</string>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::NoFrame</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Plain</enum>
-       </property>
-       <property name="lineWidth">
-        <number>0</number>
-       </property>
-      </widget>
-     </item>
-     <item>
       <spacer name="verticalSpacer_2">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
