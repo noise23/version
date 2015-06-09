@@ -86,6 +86,6 @@
         <file alias="zh_TW">locale/bitcoin_zh_TW.qm</file>
     </qresource>
     <qresource prefix="/text">
-        <file alias="stylesheet">res/text/style.qss</file>
+        <file alias="stylesheet">res/text/version.qss</file>
     </qresource>
 </RCC>

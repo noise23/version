@@ -983,7 +983,7 @@ void BitcoinGUI::updateStyle()
     if (!fUseVTheme)
         return;
 
-    QString qssPath = QString::fromStdString( GetDataDir().string() ) + "/style.qss";
+    QString qssPath = QString::fromStdString( GetDataDir().string() ) + "/version.qss";
 
     QFile f( qssPath );
 
