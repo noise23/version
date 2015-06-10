@@ -50,7 +50,7 @@ namespace boost {
 #ifdef _WIN32_IE
 #undef _WIN32_IE
 #endif
-#define _WIN32_IE 0x0400
+#define _WIN32_IE 0x0501
 #define WIN32_LEAN_AND_MEAN 1
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -159,7 +159,7 @@ void RandAddSeedPerfmon()
     {
         RAND_add(pdata, nSize, nSize/100.0);
         memset(pdata, 0, nSize);
-        printf("%s RandAddSeed() %d bytes\n", DateTimeStrFormat(GetTime()).c_str(), nSize);
+        printf("%s RandAddSeed() %lu bytes\n", DateTimeStrFormat(GetTime()).c_str(), nSize);
     }
 #endif
 }
@@ -799,7 +799,7 @@ void PrintExceptionContinue(std::exception* pex, const char* pszThread)
 }
 
 #ifdef WIN32
-boost::filesystem::path MyGetSpecialFolderPath(int nFolder, bool fCreate)
+boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate)
 {
     namespace fs = boost::filesystem;
 
@@ -829,7 +829,7 @@ boost::filesystem::path GetDefaultDataDir()
     // Unix: ~/.version
 #ifdef WIN32
     // Windows
-    return MyGetSpecialFolderPath(CSIDL_APPDATA, true) / "Version";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "Version";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");

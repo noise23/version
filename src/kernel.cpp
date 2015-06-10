@@ -56,14 +56,14 @@ static bool GetLastStakeModifier(const CBlockIndex* pindex, uint64& nStakeModifi
 }
 
 // Get selection interval section (in seconds)
-static int64 GetStakeModifierSelectionIntervalSection(int nSection, uint nActualModifierInterval)
+static int64 GetStakeModifierSelectionIntervalSection(int nSection, unsigned int nActualModifierInterval)
 {
     assert (nSection >= 0 && nSection < 64);
     return (nActualModifierInterval * 63 / (63 + ((63 - nSection) * (MODIFIER_INTERVAL_RATIO - 1))));
 }
 
 // Get stake modifier selection interval (in seconds)
-static int64 GetStakeModifierSelectionInterval(uint nActualModifierInterval)
+static int64 GetStakeModifierSelectionInterval(unsigned int nActualModifierInterval)
 {
     int64 nSelectionInterval = 0;
     for (int nSection=0; nSection<64; nSection++)
@@ -74,8 +74,11 @@ static int64 GetStakeModifierSelectionInterval(uint nActualModifierInterval)
 // select a block from the candidate blocks in vSortedByTimestamp, excluding
 // already selected blocks in vSelectedBlocks, and with timestamp up to
 // nSelectionIntervalStop.
-static bool SelectBlockFromCandidates(vector<pair<int64, uint256> >& vSortedByTimestamp, map<uint256, const CBlockIndex*>& mapSelectedBlocks,
-    int64 nSelectionIntervalStop, uint64 nStakeModifierPrev, const CBlockIndex** pindexSelected)
+static bool SelectBlockFromCandidates(
+    vector<pair<int64, uint256> >& vSortedByTimestamp,
+    map<uint256, const CBlockIndex*>& mapSelectedBlocks,
+    int64 nSelectionIntervalStop, uint64 nStakeModifierPrev,
+    const CBlockIndex** pindexSelected)
 {
     bool fSelected = false;
     uint256 hashBest = 0;
@@ -149,7 +152,7 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64& nStakeModif
         printf("ComputeNextStakeModifier: prev modifier=0x%016"PRI64x" time=%s\n", nStakeModifier, DateTimeStrFormat(nModifierTime).c_str());
     }
 
-    uint nActualModifierInterval;
+    unsigned int nActualModifierInterval;
     if (pindexPrev->nHeight > 536698)
       nActualModifierInterval = nModifierIntervalNew;
     else
@@ -236,7 +239,7 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64& nStakeModifier
     nStakeModifierHeight = pindexFrom->nHeight;
     nStakeModifierTime = pindexFrom->GetBlockTime();
 
-    uint nActualModifierInterval;
+    unsigned int nActualModifierInterval;
     if (pindexFrom->nHeight > 536698)
       nActualModifierInterval = nModifierIntervalNew;
     else

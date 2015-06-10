@@ -3,6 +3,7 @@
 #include "walletmodel.h"
 #include "bitcoinunits.h"
 #include "util.h"
+#include "init.h"
 
 #include <QString>
 #include <QDateTime>
@@ -39,6 +40,8 @@
 #define NOMINMAX
 #endif
 #include "shlwapi.h"
+#include "shlobj.h"
+#include "shellapi.h"
 #endif
 
 namespace GUIUtil {
