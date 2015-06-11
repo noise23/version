@@ -13,6 +13,7 @@
 #include "ui_interface.h"
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "db.h"
 
 #undef printf
 #include <boost/asio.hpp>
@@ -42,13 +43,17 @@ using namespace json_spirit;
 
 void ThreadRPCServer2(void* parg);
 
-// Key used by getwork/getblocktemplate miners.
-// Allocated in StartRPCThreads, free'd in StopRPCThreads
-CReserveKey* pMiningKey = NULL;
 
 static std::string strRPCUserColonPass;
 
+const Object emptyobj;
+
 void ThreadRPCServer3(void* parg);
+
+static inline unsigned short GetDefaultRPCPort()
+{
+    return GetBoolArg("-testnet", false) ? 19908 : 9908;
+}
 
 Object JSONRPCError(int code, const string& message)
 {
@@ -59,7 +64,8 @@ Object JSONRPCError(int code, const string& message)
 }
 
 void RPCTypeCheck(const Array& params,
-                  const list<Value_type>& typesExpected)
+                  const list<Value_type>& typesExpected,
+                  bool fAllowNull)
 {
     unsigned int i = 0;
     BOOST_FOREACH(Value_type t, typesExpected)
@@ -67,30 +73,31 @@ void RPCTypeCheck(const Array& params,
         if (params.size() <= i)
             break;
 
-       const Value& v = params[i];
-        if (v.type() != t)
+        const Value& v = params[i];
+        if (!((v.type() == t) || (fAllowNull && (v.type() == null_type))))
         {
             string err = strprintf("Expected type %s, got %s",
                                    Value_type_name[t], Value_type_name[v.type()]);
-            throw JSONRPCError(-3, err);
+            throw JSONRPCError(RPC_TYPE_ERROR, err);
         }
         i++;
     }
 }
-
 void RPCTypeCheck(const Object& o,
-                  const map<string, Value_type>& typesExpected)
+                  const map<string, Value_type>& typesExpected,
+                  bool fAllowNull)
 {
     BOOST_FOREACH(const PAIRTYPE(string, Value_type)& t, typesExpected)
     {
         const Value& v = find_value(o, t.first);
-        if (v.type() == null_type)
-            throw JSONRPCError(-3, strprintf("Missing %s", t.first.c_str()));
-        if (v.type() != t.second)
+        if (!fAllowNull && v.type() == null_type)
+            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing %s", t.first.c_str()));
+
+        if (!((v.type() == t.second) || (fAllowNull && (v.type() == null_type))))
         {
             string err = strprintf("Expected type %s for %s, got %s",
                                    Value_type_name[t.second], t.first.c_str(), Value_type_name[v.type()]);
-            throw JSONRPCError(-3, err);
+            throw JSONRPCError(RPC_TYPE_ERROR, err);
         }
     }
 }
@@ -99,10 +106,10 @@ int64 AmountFromValue(const Value& value)
 {
     double dAmount = value.get_real();
     if (dAmount <= 0.0 || dAmount > MAX_MONEY)
-        throw JSONRPCError(-3, "Invalid amount");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
     int64 nAmount = roundint64(dAmount * COIN);
     if (!MoneyRange(nAmount))
-        throw JSONRPCError(-3, "Invalid amount");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
     return nAmount;
 }
 
@@ -111,8 +118,7 @@ Value ValueFromAmount(int64 amount)
     return (double)amount / (double)COIN;
 }
 
-std::string
-HexBits(unsigned int nBits)
+std::string HexBits(unsigned int nBits)
 {
     union {
         int32_t nBits;
@@ -120,42 +126,6 @@ HexBits(unsigned int nBits)
     } uBits;
     uBits.nBits = htonl((int32_t)nBits);
     return HexStr(BEGIN(uBits.cBits), END(uBits.cBits));
-}
-
-
-
-void TxToJSON(const CTransaction &tx, Object& entry)
-{
-    entry.push_back(Pair("version", tx.nVersion));
-    entry.push_back(Pair("locktime", (boost::int64_t)tx.nLockTime));
-    entry.push_back(Pair("size", (boost::int64_t)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
-    Array vin;
-    BOOST_FOREACH(const CTxIn& txin, tx.vin)
-    {
-        Object in;
-        if (tx.IsCoinBase())
-            in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        else
-        {
-            Object prevout;
-            prevout.push_back(Pair("hash", txin.prevout.hash.GetHex()));
-            prevout.push_back(Pair("n", (boost::int64_t)txin.prevout.n));
-            in.push_back(Pair("prevout", prevout));
-            in.push_back(Pair("scriptSig", txin.scriptSig.ToString()));
-        }
-        in.push_back(Pair("sequence", (boost::int64_t)txin.nSequence));
-        vin.push_back(in);
-    }
-    entry.push_back(Pair("vin", vin));
-    Array vout;
-    BOOST_FOREACH(const CTxOut& txout, tx.vout)
-    {
-        Object out;
-        out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("scriptPubKey", txout.scriptPubKey.ToString()));
-        vout.push_back(out);
-    }
-    entry.push_back(Pair("vout", vout));
 }
 
 ///
@@ -171,9 +141,7 @@ string CRPCTable::help(string strCommand) const
         const CRPCCommand *pcmd = mi->second;
         string strMethod = mi->first;
         // We already filter duplicates, but these deprecated screw up the sort order
-        if (strMethod == "getamountreceived" ||
-            strMethod == "getallreceived" ||
-            (strMethod.find("label") != string::npos))
+        if (strMethod.find("label") != string::npos)
             continue;
         if (strCommand != "" && strMethod != strCommand)
             continue;
@@ -216,13 +184,16 @@ Value help(const Array& params, bool fHelp)
 
 Value stop(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
-            "stop\n"
-            "Stop version server.");
+            "stop <detach>\n"
+            "<detach> is true or false to detach the database or not for this stop only\n"
+            "Stop Version server (and possibly override the detachdb config value).");
     // Shutdown will take long enough that the response should get back
+    if (params.size() > 0)
+        bitdb.SetDetach(params[0].get_bool());
     StartShutdown();
-    return "version server stopping";
+    return "Version server stopping";
 }
 
 //
@@ -230,69 +201,71 @@ Value stop(const Array& params, bool fHelp)
 //
 
 static const CRPCCommand vRPCCommands[] =
-{ //  name                      function                 safe mode?
-  //  ------------------------  -----------------------  ----------
-    { "help",                   &help,                   true },
-    { "stop",                   &stop,                   true },
-    { "getblockcount",          &getblockcount,          true },
-    { "getconnectioncount",     &getconnectioncount,     true },
-    { "getpeerinfo",            &getpeerinfo,            true },
-    { "getdifficulty",          &getdifficulty,          true },
-    { "getgenerate",            &getgenerate,            true },
-    { "setgenerate",            &setgenerate,            true },
-    { "gethashespersec",        &gethashespersec,        true },
-    { "getnetworkghps",         &getnetworkghps,         true },
-    { "getinfo",                &getinfo,                true },
-    { "getmininginfo",          &getmininginfo,          true },
-    { "getnewaddress",          &getnewaddress,          true },
-    { "getaccountaddress",      &getaccountaddress,      true },
-    { "setaccount",             &setaccount,             true },
-    { "getaccount",             &getaccount,             false },
-    { "getaddressesbyaccount",  &getaddressesbyaccount,  true },
-    { "sendtoaddress",          &sendtoaddress,          false },
-    { "getreceivedbyaddress",   &getreceivedbyaddress,   false },
-    { "getreceivedbyaccount",   &getreceivedbyaccount,   false },
-    { "listreceivedbyaddress",  &listreceivedbyaddress,  false },
-    { "listreceivedbyaccount",  &listreceivedbyaccount,  false },
-    { "backupwallet",           &backupwallet,           true },
-    { "keypoolrefill",          &keypoolrefill,          true },
-    { "walletpassphrase",       &walletpassphrase,       true },
-    { "walletpassphrasechange", &walletpassphrasechange, false },
-    { "walletlock",             &walletlock,             true },
-    { "encryptwallet",          &encryptwallet,          false },
-    { "validateaddress",        &validateaddress,        true },
-    { "getbalance",             &getbalance,             false },
-    { "move",                   &movecmd,                false },
-    { "sendfrom",               &sendfrom,               false },
-    { "sendmany",               &sendmany,               false },
-    { "addmultisigaddress",     &addmultisigaddress,     false },
-    { "getrawmempool",          &getrawmempool,          true },
-    { "getblock",               &getblock,               false },
-    { "getblockhash",           &getblockhash,           false },
-    { "gettransaction",         &gettransaction,         false },
-    { "listtransactions",       &listtransactions,       false },
-    { "signmessage",            &signmessage,            false },
-    { "verifymessage",          &verifymessage,          false },
-    { "getwork",                &getwork,                true },
-    { "listaccounts",           &listaccounts,           false },
-    { "settxfee",               &settxfee,               false },
-    { "getblocktemplate",       &getblocktemplate,       true },
-    { "submitblock",            &submitblock,            false },
-    { "listsinceblock",         &listsinceblock,         false },
-    { "dumpprivkey",            &dumpprivkey,            false },
-    { "importprivkey",          &importprivkey,          false },
-    { "getcheckpoint",          &getcheckpoint,          true },
-    { "reservebalance",         &reservebalance,         false},
-    { "checkwallet",            &checkwallet,            false},
-    { "repairwallet",           &repairwallet,           false},
-    { "makekeypair",            &makekeypair,            false},
-    { "sendalert",              &sendalert,              false},
-    { "listunspent",            &listunspent,            false },
-    { "getrawtransaction",      &getrawtransaction,      false },
-    { "createrawtransaction",   &createrawtransaction,   false },
-    { "decoderawtransaction",   &decoderawtransaction,   false },
-    { "signrawtransaction",     &signrawtransaction,     false },
-    { "sendrawtransaction",     &sendrawtransaction,     false },
+{ //  name                      function                 safe mode?  unlocked
+  //  ------------------------  -----------------------  ----------  --------
+    { "help",                   &help,                   true,       true },
+    { "stop",                   &stop,                   true,       true },
+    { "getblockcount",          &getblockcount,          true,       false },
+    { "getconnectioncount",     &getconnectioncount,     true,       false },
+    { "getpeerinfo",            &getpeerinfo,            true,       false },
+    { "getdifficulty",          &getdifficulty,          true,       false },
+    { "getgenerate",            &getgenerate,            true,       false },
+    { "setgenerate",            &setgenerate,            true,       false },
+    { "gethashespersec",        &gethashespersec,        true,       false },
+    { "getinfo",                &getinfo,                true,       false },
+    { "getmininginfo",          &getmininginfo,          true,       false },
+    { "getnewaddress",          &getnewaddress,          true,       false },
+    { "getaccountaddress",      &getaccountaddress,      true,       false },
+    { "setaccount",             &setaccount,             true,       false },
+    { "getaccount",             &getaccount,             false,      false },
+    { "getaddressesbyaccount",  &getaddressesbyaccount,  true,       false },
+    { "sendtoaddress",          &sendtoaddress,          false,      false },
+    { "getreceivedbyaddress",   &getreceivedbyaddress,   false,      false },
+    { "getreceivedbyaccount",   &getreceivedbyaccount,   false,      false },
+    { "listreceivedbyaddress",  &listreceivedbyaddress,  false,      false },
+    { "listreceivedbyaccount",  &listreceivedbyaccount,  false,      false },
+    { "backupwallet",           &backupwallet,           true,       false },
+    { "keypoolrefill",          &keypoolrefill,          true,       false },
+    { "walletpassphrase",       &walletpassphrase,       true,       false },
+    { "walletpassphrasechange", &walletpassphrasechange, false,      false },
+    { "walletlock",             &walletlock,             true,       false },
+    { "encryptwallet",          &encryptwallet,          false,      false },
+    { "validateaddress",        &validateaddress,        true,       false },
+    { "getbalance",             &getbalance,             false,      false },
+    { "move",                   &movecmd,                false,      false },
+    { "sendfrom",               &sendfrom,               false,      false },
+    { "sendmany",               &sendmany,               false,      false },
+    { "addmultisigaddress",     &addmultisigaddress,     false,      false },
+    { "getrawmempool",          &getrawmempool,          true,       false },
+    { "getblock",               &getblock,               false,      false },
+    { "getblockbynumber",       &getblockbynumber,       false,      false },
+    { "getblockhash",           &getblockhash,           false,      false },
+    { "gettransaction",         &gettransaction,         false,      false },
+    { "listtransactions",       &listtransactions,       false,      false },
+    { "listaddressgroupings",   &listaddressgroupings,   false,      false },
+    { "signmessage",            &signmessage,            false,      false },
+    { "verifymessage",          &verifymessage,          false,      false },
+    { "getwork",                &getwork,                true,       false },
+    { "listaccounts",           &listaccounts,           false,      false },
+    { "settxfee",               &settxfee,               false,      false },
+    { "getblocktemplate",       &getblocktemplate,       true,       false },
+    { "submitblock",            &submitblock,            false,      false },
+    { "listsinceblock",         &listsinceblock,         false,      false },
+    { "dumpprivkey",            &dumpprivkey,            false,      false },
+    { "importprivkey",          &importprivkey,          false,      false },
+    { "listunspent",            &listunspent,            false,      false },
+    { "getrawtransaction",      &getrawtransaction,      false,      false },
+    { "createrawtransaction",   &createrawtransaction,   false,      false },
+    { "decoderawtransaction",   &decoderawtransaction,   false,      false },
+    { "signrawtransaction",     &signrawtransaction,     false,      false },
+    { "sendrawtransaction",     &sendrawtransaction,     false,      false },
+    { "getcheckpoint",          &getcheckpoint,          true,       false },
+    { "reservebalance",         &reservebalance,         false,      true },
+    { "checkwallet",            &checkwallet,            false,      true },
+    { "repairwallet",           &repairwallet,           false,      true },
+    { "resendtx",               &resendtx,               false,      true  },
+    { "makekeypair",            &makekeypair,            false,      true },
+    { "sendalert",              &sendalert,              false,      false },
 };
 
 CRPCTable::CRPCTable()
@@ -354,7 +327,7 @@ string rfc1123Time()
 
 static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
 {
-    if (nStatus == 401)
+    if (nStatus == HTTP_UNAUTHORIZED)
         return strprintf("HTTP/1.0 401 Authorization Required\r\n"
             "Date: %s\r\n"
             "Server: version-json-rpc/%s\r\n"
@@ -372,11 +345,11 @@ static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
             "<BODY><H1>401 Unauthorized.</H1></BODY>\r\n"
             "</HTML>\r\n", rfc1123Time().c_str(), FormatFullVersion().c_str());
     const char *cStatus;
-         if (nStatus == 200) cStatus = "OK";
-    else if (nStatus == 400) cStatus = "Bad Request";
-    else if (nStatus == 403) cStatus = "Forbidden";
-    else if (nStatus == 404) cStatus = "Not Found";
-    else if (nStatus == 500) cStatus = "Internal Server Error";
+         if (nStatus == HTTP_OK) cStatus = "OK";
+    else if (nStatus == HTTP_BAD_REQUEST) cStatus = "Bad Request";
+    else if (nStatus == HTTP_FORBIDDEN) cStatus = "Forbidden";
+    else if (nStatus == HTTP_NOT_FOUND) cStatus = "Not Found";
+    else if (nStatus == HTTP_INTERNAL_SERVER_ERROR) cStatus = "Internal Server Error";
     else cStatus = "";
     return strprintf(
             "HTTP/1.1 %d %s\r\n"
@@ -403,7 +376,7 @@ int ReadHTTPStatus(std::basic_istream<char>& stream, int &proto)
     vector<string> vWords;
     boost::split(vWords, str, boost::is_any_of(" "));
     if (vWords.size() < 2)
-        return 500;
+        return HTTP_INTERNAL_SERVER_ERROR;
     proto = 0;
     const char *ver = strstr(str.c_str(), "HTTP/1.");
     if (ver != NULL)
@@ -448,7 +421,7 @@ int ReadHTTP(std::basic_istream<char>& stream, map<string, string>& mapHeadersRe
     // Read header
     int nLen = ReadHTTPHeader(stream, mapHeadersRet);
     if (nLen < 0 || nLen > (int)MAX_SIZE)
-        return 500;
+        return HTTP_INTERNAL_SERVER_ERROR;
 
     // Read message
     if (nLen > 0)
@@ -500,7 +473,7 @@ string JSONRPCRequest(const string& strMethod, const Array& params, const Value&
     return write_string(Value(request), false) + "\n";
 }
 
-string JSONRPCReply(const Value& result, const Value& error, const Value& id)
+Object JSONRPCReplyObj(const Value& result, const Value& error, const Value& id)
 {
     Object reply;
     if (error.type() != null_type)
@@ -509,16 +482,22 @@ string JSONRPCReply(const Value& result, const Value& error, const Value& id)
         reply.push_back(Pair("result", result));
     reply.push_back(Pair("error", error));
     reply.push_back(Pair("id", id));
+    return reply;
+}
+
+string JSONRPCReply(const Value& result, const Value& error, const Value& id)
+{
+    Object reply = JSONRPCReplyObj(result, error, id);
     return write_string(Value(reply), false) + "\n";
 }
 
 void ErrorReply(std::ostream& stream, const Object& objError, const Value& id)
 {
     // Send error reply from json-rpc error object
-    int nStatus = 500;
+    int nStatus = HTTP_INTERNAL_SERVER_ERROR;
     int code = find_value(objError, "code").get_int();
-    if (code == -32600) nStatus = 400;
-    else if (code == -32601) nStatus = 404;
+    if (code == RPC_INVALID_REQUEST) nStatus = HTTP_BAD_REQUEST;
+    else if (code == RPC_METHOD_NOT_FOUND) nStatus = HTTP_NOT_FOUND;
     string strReply = JSONRPCReply(Value::null, objError, id);
     stream << HTTPReply(nStatus, strReply, false) << std::flush;
 }
@@ -534,7 +513,7 @@ bool ClientAllowed(const boost::asio::ip::address& address)
     if (address == asio::ip::address_v4::loopback()
      || address == asio::ip::address_v6::loopback()
      || (address.is_v4()
-         // Chech whether IPv4 addresses match 127.0.0.0/8 (loopback subnet)
+         // Check whether IPv4 addresses match 127.0.0.0/8 (loopback subnet)
       && (address.to_v4().to_ulong() & 0xff000000) == 0x7f000000))
         return true;
 
@@ -651,9 +630,6 @@ void ThreadRPCServer(void* parg)
     // Make this thread recognisable as the RPC listener
     RenameThread("version-rpclist");
 
-    // getwork/getblocktemplate mining rewards paid here:
-    pMiningKey = new CReserveKey(pwalletMain);
-
     try
     {
         vnThreadsRunning[THREAD_RPCLISTENER]++;
@@ -667,9 +643,6 @@ void ThreadRPCServer(void* parg)
         vnThreadsRunning[THREAD_RPCLISTENER]--;
         PrintException(NULL, "ThreadRPCServer()");
     }
-
-    delete pMiningKey; pMiningKey = NULL;
-
     printf("ThreadRPCServer exited\n");
 }
 
@@ -689,7 +662,6 @@ static void RPCListen(boost::shared_ptr< basic_socket_acceptor<Protocol, SocketA
                    ssl::context& context,
                    const bool fUseSSL)
 {
-
     // Accept connection
      AcceptedConnectionImpl<Protocol>* conn = new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL);
 
@@ -716,7 +688,9 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, 
 {
     vnThreadsRunning[THREAD_RPCLISTENER]++;
 
-    // Immediately start accepting new connections
+    // Immediately start accepting new connections, except when we're cancelled or our socket is closed.
+    if (error != asio::error::operation_aborted
+     && acceptor->is_open())
     RPCListen(acceptor, context, fUseSSL);
 	
     AcceptedConnectionImpl<ip::tcp>* tcp_conn = dynamic_cast< AcceptedConnectionImpl<ip::tcp>* >(conn);
@@ -734,7 +708,7 @@ static void RPCAcceptHandler(boost::shared_ptr< basic_socket_acceptor<Protocol, 
     {
         // Only send a 403 if we're not using SSL to prevent a DoS during the SSL handshake.
         if (!fUseSSL)
-            conn->stream() << HTTPReply(403, "", false) << std::flush;
+            conn->stream() << HTTPReply(HTTP_FORBIDDEN, "", false) << std::flush;
         delete conn;
     }
 
@@ -802,44 +776,68 @@ void ThreadRPCServer2(void* parg)
     // Try a dual IPv6/IPv4 socket, falling back to separate IPv4 and IPv6 sockets
     const bool loopback = !mapArgs.count("-rpcallowip");
     asio::ip::address bindAddress = loopback ? asio::ip::address_v6::loopback() : asio::ip::address_v6::any();
-    ip::tcp::endpoint endpoint(bindAddress, GetArg("-rpcport", 9908));
+    ip::tcp::endpoint endpoint(bindAddress, GetArg("-rpcport", GetDefaultRPCPort()));
+        boost::system::error_code v6_only_error;
+    boost::shared_ptr<ip::tcp::acceptor> acceptor(new ip::tcp::acceptor(io_service));
 
-    std::list< boost::shared_ptr<ip::tcp::acceptor> > acceptors;
+    boost::signals2::signal<void ()> StopRequests;
+
+    bool fListening = false;
+    std::string strerr;
     try
     {
-        acceptors.push_back(boost::shared_ptr<ip::tcp::acceptor>(new ip::tcp::acceptor(io_service)));
-        acceptors.back()->open(endpoint.protocol());
-        acceptors.back()->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
+        acceptor->open(endpoint.protocol());
+        acceptor->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
 
         // Try making the socket dual IPv6/IPv4 (if listening on the "any" address)
-        boost::system::error_code v6_only_error;
-        acceptors.back()->set_option(boost::asio::ip::v6_only(loopback), v6_only_error);
+        acceptor->set_option(boost::asio::ip::v6_only(loopback), v6_only_error);
 
-        acceptors.back()->bind(endpoint);
-        acceptors.back()->listen(socket_base::max_connections);
+        acceptor->bind(endpoint);
+        acceptor->listen(socket_base::max_connections);
 
-        RPCListen(acceptors.back(), context, fUseSSL);
+        RPCListen(acceptor, context, fUseSSL);
+        // Cancel outstanding listen-requests for this acceptor when shutting down
+        StopRequests.connect(signals2::slot<void ()>(
+                    static_cast<void (ip::tcp::acceptor::*)()>(&ip::tcp::acceptor::close), acceptor.get())
+                .track(acceptor));
 
+        fListening = true;
+    }
+    catch(boost::system::system_error &e)
+    {
+        strerr = strprintf(_("An error occurred while setting up the RPC port %u for listening on IPv6, falling back to IPv4: %s"), endpoint.port(), e.what());
+    }
+
+    try {
         // If dual IPv6/IPv4 failed (or we're opening loopback interfaces only), open IPv4 separately
-        if (loopback || v6_only_error)
+        if (!fListening || loopback || v6_only_error)
         {
             bindAddress = loopback ? asio::ip::address_v4::loopback() : asio::ip::address_v4::any();
             endpoint.address(bindAddress);
 
-            acceptors.push_back(boost::shared_ptr<ip::tcp::acceptor>(new ip::tcp::acceptor(io_service)));
-            acceptors.back()->open(endpoint.protocol());
-            acceptors.back()->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
-            acceptors.back()->bind(endpoint);
-            acceptors.back()->listen(socket_base::max_connections);
+            acceptor.reset(new ip::tcp::acceptor(io_service));
+            acceptor->open(endpoint.protocol());
+            acceptor->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
+            acceptor->bind(endpoint);
+            acceptor->listen(socket_base::max_connections);
 
-            RPCListen(acceptors.back(), context, fUseSSL);
+            RPCListen(acceptor, context, fUseSSL);
+            // Cancel outstanding listen-requests for this acceptor when shutting down
+            StopRequests.connect(signals2::slot<void ()>(
+                        static_cast<void (ip::tcp::acceptor::*)()>(&ip::tcp::acceptor::close), acceptor.get())
+                    .track(acceptor));
+
+            fListening = true;
         }
     }
     catch(boost::system::system_error &e)
     {
-        uiInterface.ThreadSafeMessageBox(strprintf(_("An error occured while setting up the RPC port %i for listening: %s"), endpoint.port(), e.what()),
-                             _("Error"), CClientUIInterface::OK | CClientUIInterface::MODAL);
-        uiInterface.QueueShutdown();
+        strerr = strprintf(_("An error occurred while setting up the RPC port %u for listening on IPv4: %s"), endpoint.port(), e.what());
+    }
+
+    if (!fListening) {
+        uiInterface.ThreadSafeMessageBox(strerr, _("Error"), CClientUIInterface::OK | CClientUIInterface::MODAL);
+        StartShutdown();
         return;
     }
 
@@ -847,40 +845,109 @@ void ThreadRPCServer2(void* parg)
     while (!fShutdown)
         io_service.run_one();
     vnThreadsRunning[THREAD_RPCLISTENER]++;
-	
-    // Terminate all outstanding accept-requests
-    BOOST_FOREACH(boost::shared_ptr<ip::tcp::acceptor>& acceptor, acceptors)
-    {
-        acceptor->cancel();
-        acceptor->close();
-    }
-    acceptors.clear();
-
-    // Handle any actions that are still in progress.
-    vnThreadsRunning[THREAD_RPCLISTENER]--;
-    io_service.run();
-    vnThreadsRunning[THREAD_RPCLISTENER]++;
+    StopRequests();
 }
+
+class JSONRequest
+{
+public:
+    Value id;
+    string strMethod;
+    Array params;
+
+    JSONRequest() { id = Value::null; }
+    void parse(const Value& valRequest);
+};
+
+void JSONRequest::parse(const Value& valRequest)
+        {
+            // Parse request
+    if (valRequest.type() != obj_type)
+        throw JSONRPCError(RPC_INVALID_REQUEST, "Invalid Request object");
+            const Object& request = valRequest.get_obj();
+
+            // Parse id now so errors from here on will have the id
+            id = find_value(request, "id");
+
+            // Parse method
+            Value valMethod = find_value(request, "method");
+            if (valMethod.type() == null_type)
+        throw JSONRPCError(RPC_INVALID_REQUEST, "Missing method");
+            if (valMethod.type() != str_type)
+        throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
+    strMethod = valMethod.get_str();
+            if (strMethod != "getwork" && strMethod != "getblocktemplate")
+                printf("ThreadRPCServer method=%s\n", strMethod.c_str());
+
+            // Parse params
+            Value valParams = find_value(request, "params");
+            if (valParams.type() == array_type)
+                params = valParams.get_array();
+            else if (valParams.type() == null_type)
+                params = Array();
+            else
+        throw JSONRPCError(RPC_INVALID_REQUEST, "Params must be an array");
+}
+
+static Object JSONRPCExecOne(const Value& req)
+{
+    Object rpc_result;
+
+    JSONRequest jreq;
+    try {
+        jreq.parse(req);
+
+        Value result = tableRPC.execute(jreq.strMethod, jreq.params);
+        rpc_result = JSONRPCReplyObj(result, Value::null, jreq.id);
+        }
+        catch (Object& objError)
+        {
+        rpc_result = JSONRPCReplyObj(Value::null, objError, jreq.id);
+    }
+    catch (std::exception& e)
+    {
+        rpc_result = JSONRPCReplyObj(Value::null,
+                                     JSONRPCError(RPC_PARSE_ERROR, e.what()), jreq.id);
+    }
+
+    return rpc_result;
+}
+
+static string JSONRPCExecBatch(const Array& vReq)
+{
+    Array ret;
+    for (unsigned int reqIdx = 0; reqIdx < vReq.size(); reqIdx++)
+        ret.push_back(JSONRPCExecOne(vReq[reqIdx]));
+
+    return write_string(Value(ret), false) + "\n";
+}
+
+static CCriticalSection cs_THREAD_RPCHANDLER;
 
 void ThreadRPCServer3(void* parg)
 {
     // Make this thread recognisable as the RPC handler
-    RenameThread("version-rpchand");
+    RenameThread("bitcoin-rpchand");
 
-    vnThreadsRunning[THREAD_RPCHANDLER]++;
+    {
+        LOCK(cs_THREAD_RPCHANDLER);
+        vnThreadsRunning[THREAD_RPCHANDLER]++;
+    }
     AcceptedConnection *conn = (AcceptedConnection *) parg;
 
     bool fRun = true;
-    while (true) {
+       while (true) {
         if (fShutdown || !fRun)
         {
             conn->close();
             delete conn;
-            --vnThreadsRunning[THREAD_RPCHANDLER];
+            {
+                LOCK(cs_THREAD_RPCHANDLER);
+                --vnThreadsRunning[THREAD_RPCHANDLER];
+            }
             return;
         }
-
-        map<string, string> mapHeaders;
+    map<string, string> mapHeaders;
         string strRequest;
 
         ReadHTTP(conn->stream(), mapHeaders, strRequest);
@@ -888,7 +955,7 @@ void ThreadRPCServer3(void* parg)
         // Check authorization
         if (mapHeaders.count("authorization") == 0)
         {
-            conn->stream() << HTTPReply(401, "", false) << std::flush;
+            conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
             break;
         }
         if (!HTTPAuthorized(mapHeaders))
@@ -900,64 +967,55 @@ void ThreadRPCServer3(void* parg)
             if (mapArgs["-rpcpassword"].size() < 20)
                 Sleep(250);
 
-            conn->stream() << HTTPReply(401, "", false) << std::flush;
+            conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
             break;
         }
         if (mapHeaders["connection"] == "close")
             fRun = false;
 
-        Value id = Value::null;
+        JSONRequest jreq;
         try
         {
             // Parse request
             Value valRequest;
-            if (!read_string(strRequest, valRequest) || valRequest.type() != obj_type)
-                throw JSONRPCError(-32700, "Parse error");
-            const Object& request = valRequest.get_obj();
+            if (!read_string(strRequest, valRequest))
+                throw JSONRPCError(RPC_PARSE_ERROR, "Parse error");
+    string strReply;
 
-            // Parse id now so errors from here on will have the id
-            id = find_value(request, "id");
+            // singleton request
+            if (valRequest.type() == obj_type) {
+                jreq.parse(valRequest);
 
-            // Parse method
-            Value valMethod = find_value(request, "method");
-            if (valMethod.type() == null_type)
-                throw JSONRPCError(-32600, "Missing method");
-            if (valMethod.type() != str_type)
-                throw JSONRPCError(-32600, "Method must be a string");
-            string strMethod = valMethod.get_str();
-            if (strMethod != "getwork" && strMethod != "getblocktemplate")
-                printf("ThreadRPCServer method=%s\n", strMethod.c_str());
+                Value result = tableRPC.execute(jreq.strMethod, jreq.params);
 
-            // Parse params
-            Value valParams = find_value(request, "params");
-            Array params;
-            if (valParams.type() == array_type)
-                params = valParams.get_array();
-            else if (valParams.type() == null_type)
-                params = Array();
+                // Send reply
+                strReply = JSONRPCReply(result, Value::null, jreq.id);
+
+            // array of requests
+            } else if (valRequest.type() == array_type)
+                strReply = JSONRPCExecBatch(valRequest.get_array());
             else
-                throw JSONRPCError(-32600, "Params must be an array");
+                throw JSONRPCError(RPC_PARSE_ERROR, "Top-level object parse error");
 
-            Value result = tableRPC.execute(strMethod, params);
-
-            // Send reply
-            string strReply = JSONRPCReply(result, Value::null, id);
-            conn->stream() << HTTPReply(200, strReply, fRun) << std::flush;
+            conn->stream() << HTTPReply(HTTP_OK, strReply, fRun) << std::flush;
         }
         catch (Object& objError)
         {
-            ErrorReply(conn->stream(), objError, id);
+            ErrorReply(conn->stream(), objError, jreq.id);
             break;
         }
         catch (std::exception& e)
         {
-            ErrorReply(conn->stream(), JSONRPCError(-32700, e.what()), id);
+            ErrorReply(conn->stream(), JSONRPCError(RPC_PARSE_ERROR, e.what()), jreq.id);
             break;
         }
     }
 
     delete conn;
-    vnThreadsRunning[THREAD_RPCHANDLER]--;
+    {
+        LOCK(cs_THREAD_RPCHANDLER);
+        vnThreadsRunning[THREAD_RPCHANDLER]--;
+    }
 }
 
 json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_spirit::Array &params) const
@@ -965,27 +1023,31 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
     // Find method
     const CRPCCommand *pcmd = tableRPC[strMethod];
     if (!pcmd)
-        throw JSONRPCError(-32601, "Method not found");
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
 
     // Observe safe mode
     string strWarning = GetWarnings("rpc");
     if (strWarning != "" && !GetBoolArg("-disablesafemode") &&
         !pcmd->okSafeMode)
-        throw JSONRPCError(-2, string("Safe mode: ") + strWarning);
+        throw JSONRPCError(RPC_FORBIDDEN_BY_SAFE_MODE, string("Safe mode: ") + strWarning);
 
     try
     {
         // Execute
         Value result;
         {
-            LOCK2(cs_main, pwalletMain->cs_wallet);
-            result = pcmd->actor(params, false);
+            if (pcmd->unlocked)
+                result = pcmd->actor(params, false);
+            else {
+                LOCK2(cs_main, pwalletMain->cs_wallet);
+                result = pcmd->actor(params, false);
+            }
         }
         return result;
     }
     catch (std::exception& e)
     {
-        throw JSONRPCError(-1, e.what());
+        throw JSONRPCError(RPC_MISC_ERROR, e.what());
     }
 }
 
@@ -1006,7 +1068,7 @@ Object CallRPC(const string& strMethod, const Array& params)
     asio::ssl::stream<asio::ip::tcp::socket> sslStream(io_service, context);
     SSLIOStreamDevice<asio::ip::tcp> d(sslStream, fUseSSL);
     iostreams::stream< SSLIOStreamDevice<asio::ip::tcp> > stream(d);
-    if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", CBigNum(fTestNet? TESTNET_RPC_PORT : RPC_PORT).ToString().c_str())))
+    if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", itostr(GetDefaultRPCPort()))))
         throw runtime_error("couldn't connect to server");
 
     // HTTP basic authentication
@@ -1023,9 +1085,9 @@ Object CallRPC(const string& strMethod, const Array& params)
     map<string, string> mapHeaders;
     string strReply;
     int nStatus = ReadHTTP(stream, mapHeaders, strReply);
-    if (nStatus == 401)
+    if (nStatus == HTTP_UNAUTHORIZED)
         throw runtime_error("incorrect rpcuser or rpcpassword (authorization failed)");
-    else if (nStatus >= 400 && nStatus != 400 && nStatus != 404 && nStatus != 500)
+    else if (nStatus >= 400 && nStatus != HTTP_BAD_REQUEST && nStatus != HTTP_NOT_FOUND && nStatus != HTTP_INTERNAL_SERVER_ERROR)
         throw runtime_error(strprintf("server returned HTTP error %d", nStatus));
     else if (strReply.empty())
         throw runtime_error("no response from server");
@@ -1042,15 +1104,19 @@ Object CallRPC(const string& strMethod, const Array& params)
 }
 
 template<typename T>
-void ConvertTo(Value& value)
+void ConvertTo(Value& value, bool fAllowNull=false)
 {
+    if (fAllowNull && value.type() == null_type)
+        return;
     if (value.type() == str_type)
     {
         // reinterpret string as unquoted json value
         Value value2;
-        if (!read_string(value.get_str(), value2))
-            throw runtime_error("type mismatch");
-        value = value2.get_value<T>();
+        string strJSON = value.get_str();
+        if (!read_string(strJSON, value2))
+            throw runtime_error(string("Error parsing JSON:")+strJSON);
+        ConvertTo<T>(value2, fAllowNull);
+        value = value2;
     }
     else
     {
@@ -1070,6 +1136,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     //
     // Special case non-string parameter types
     //
+    if (strMethod == "stop"                   && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "sendtoaddress"          && n > 1) ConvertTo<double>(params[1]);
@@ -1081,8 +1148,10 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "listreceivedbyaccount"  && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "listreceivedbyaccount"  && n > 1) ConvertTo<bool>(params[1]);
     if (strMethod == "getbalance"             && n > 1) ConvertTo<boost::int64_t>(params[1]);
-    if (strMethod == "getblockhash"           && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "getblock"               && n > 1) ConvertTo<bool>(params[1]);
+    if (strMethod == "getblockbynumber"       && n > 0) ConvertTo<boost::int64_t>(params[0]);
+    if (strMethod == "getblockbynumber"       && n > 1) ConvertTo<bool>(params[1]);
+    if (strMethod == "getblockhash"           && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "move"                   && n > 2) ConvertTo<double>(params[2]);
     if (strMethod == "move"                   && n > 3) ConvertTo<boost::int64_t>(params[3]);
     if (strMethod == "sendfrom"               && n > 2) ConvertTo<double>(params[2]);
@@ -1099,33 +1168,20 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "sendalert"              && n > 4) ConvertTo<boost::int64_t>(params[4]);
     if (strMethod == "sendalert"              && n > 5) ConvertTo<boost::int64_t>(params[5]);
     if (strMethod == "sendalert"              && n > 6) ConvertTo<boost::int64_t>(params[6]);
-    if (strMethod == "sendmany"               && n > 1)
-    {
-        string s = params[1].get_str();
-        Value v;
-        if (!read_string(s, v) || v.type() != obj_type)
-            throw runtime_error("type mismatch");
-        params[1] = v.get_obj();
-    }
-    if (strMethod == "sendmany"                && n > 2) ConvertTo<boost::int64_t>(params[2]);
+    if (strMethod == "sendmany"               && n > 1) ConvertTo<Object>(params[1]);
+    if (strMethod == "sendmany"               && n > 2) ConvertTo<boost::int64_t>(params[2]);
     if (strMethod == "reservebalance"          && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "reservebalance"          && n > 1) ConvertTo<double>(params[1]);
     if (strMethod == "addmultisigaddress"      && n > 0) ConvertTo<boost::int64_t>(params[0]);
-    if (strMethod == "addmultisigaddress"      && n > 1)
-    {
-        string s = params[1].get_str();
-        Value v;
-        if (!read_string(s, v) || v.type() != array_type)
-            throw runtime_error("type mismatch "+s);
-        params[1] = v.get_array();
-    }
+    if (strMethod == "addmultisigaddress"     && n > 1) ConvertTo<Array>(params[1]);
     if (strMethod == "listunspent"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "listunspent"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "listunspent"            && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "getrawtransaction"      && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "createrawtransaction"   && n > 0) ConvertTo<Array>(params[0]);
     if (strMethod == "createrawtransaction"   && n > 1) ConvertTo<Object>(params[1]);
-    if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<Array>(params[1]);
-    if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<Array>(params[2]);
+    if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<Array>(params[1], true);
+    if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<Array>(params[2], true);
 
     return params;
 }

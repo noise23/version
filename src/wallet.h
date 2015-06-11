@@ -20,7 +20,7 @@
 #include "walletdb.h"
 
 extern bool fWalletUnlockMintOnly;
-
+class CAccountingEntry;
 class CWalletTx;
 class CReserveKey;
 class COutput;
@@ -103,7 +103,9 @@ public:
         fFileBacked = false;
         nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
-		fSplitBlock = false;
+	fSplitBlock = false;
+        nOrderPosNext = 0;
+
     }
     CWallet(std::string strWalletFileIn)
     {
@@ -113,7 +115,8 @@ public:
         fFileBacked = true;
         nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
-		fSplitBlock = false;
+	fSplitBlock = false;
+        nOrderPosNext = 0;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -130,7 +133,7 @@ public:
 	
     void AvailableCoinsMinConf(std::vector<COutput>& vCoins, int nConf) const;
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL) const;
-	bool SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet) const;
+	bool SelectCoinsMinConf(int64 nTargetValue, unsigned int nSpendTime, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet) const;
 
     // keystore implementation
     // Generate a new key
@@ -156,6 +159,20 @@ public:
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 	
     void GetKeyBirthTimes(std::map<CKeyID, int64> &mapKeyBirth) const;
+
+    /** Increment the next transaction order id
+        @return next transaction order id
+     */
+    int64 IncOrderPosNext(CWalletDB *pwalletdb = NULL);
+
+    typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
+    typedef std::multimap<int64, TxPair > TxItems;
+
+    /** Get the wallet's activity log
+        @return multimap of ordered transactions and accounting entries
+        @warning Returned pointers are *only* valid within the scope of passed acentries
+     */
+    TxItems OrderedTxItems(std::list<CAccountingEntry>& acentries, std::string strAccount = "");
 
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn);
@@ -189,6 +206,9 @@ public:
     bool GetKeyFromPool(CPubKey &key, bool fAllowReuse=true);
     int64 GetOldestKeyPoolTime();
     void GetAllReserveKeys(std::set<CKeyID>& setAddress) const;
+
+    std::set< std::set<CTxDestination> > GetAddressGroupings();
+    std::map<CTxDestination, int64> GetAddressBalances();
 
     bool IsMine(const CTxIn& txin) const;
     int64 GetDebit(const CTxIn& txin) const;
@@ -335,9 +355,7 @@ public:
 typedef std::map<std::string, std::string> mapValue_t;
 
 
-static
-void
-ReadOrderPos(int64& nOrderPos, mapValue_t& mapValue)
+static void ReadOrderPos(int64& nOrderPos, mapValue_t& mapValue)
 {
     if (!mapValue.count("n"))
     {
@@ -348,9 +366,7 @@ ReadOrderPos(int64& nOrderPos, mapValue_t& mapValue)
 }
 
 
-static
-void
-WriteOrderPos(const int64& nOrderPos, mapValue_t& mapValue)
+static void WriteOrderPos(const int64& nOrderPos, mapValue_t& mapValue)
 {
     if (nOrderPos == -1)
         return;
@@ -371,6 +387,7 @@ public:
     std::vector<std::pair<std::string, std::string> > vOrderForm;
     unsigned int fTimeReceivedIsTxTime;
     unsigned int nTimeReceived;  // time received by this node
+    unsigned int nTimeSmart;
     char fFromMe;
     std::string strFromAccount;
     std::vector<char> vfSpent; // which outputs are already spent
@@ -414,6 +431,7 @@ public:
         vOrderForm.clear();
         fTimeReceivedIsTxTime = false;
         nTimeReceived = 0;
+        nTimeSmart = 0;
         fFromMe = false;
         strFromAccount.clear();
         vfSpent.clear();
@@ -449,6 +467,8 @@ public:
             pthis->mapValue["spent"] = str;
 			
             WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
+            if (nTimeSmart)
+                pthis->mapValue["timesmart"] = strprintf("%u", nTimeSmart);
         }
 
         nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion,ser_action);
@@ -469,15 +489,16 @@ public:
                     pthis->vfSpent.push_back(c != '0');
             else
                 pthis->vfSpent.assign(vout.size(), fSpent);
-        }
 
-        if (fRead)
             ReadOrderPos(pthis->nOrderPos, pthis->mapValue);
 
+            pthis->nTimeSmart = mapValue.count("timesmart") ? (unsigned int)atoi64(pthis->mapValue["timesmart"]) : 0;
+        }
         pthis->mapValue.erase("fromaccount");
         pthis->mapValue.erase("version");
         pthis->mapValue.erase("spent");
         pthis->mapValue.erase("n");
+        pthis->mapValue.erase("timesmart");
     )
 
     // marks certain txout's as spent

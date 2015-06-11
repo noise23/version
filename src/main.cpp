@@ -176,7 +176,7 @@ void static Inventory(const uint256& hash)
 }
 
 // ask wallets to resend their transactions
-void static ResendWalletTransactions()
+void ResendWalletTransactions()
 {
     BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
         pwallet->ResendWalletTransactions();

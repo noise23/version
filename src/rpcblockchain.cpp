@@ -10,6 +10,7 @@
 using namespace json_spirit;
 using namespace std;
 
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
 extern enum Checkpoints::CPMode CheckpointsMode;
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -133,15 +134,18 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
 {
     Object result;
     result.push_back(Pair("hash", block.GetHash().GetHex()));
+    CMerkleTx txGen(block.vtx[0]);
+    txGen.SetMerkleBranch(&block);
+    result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
-    result.push_back(Pair("time", DateTimeStrFormat(block.GetBlockTime())));
+    result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
+    result.push_back(Pair("time", (boost::int64_t)block.GetBlockTime()));
     result.push_back(Pair("nonce", (boost::uint64_t)block.nNonce));
     result.push_back(Pair("bits", HexBits(block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
-    result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
     if (blockindex->pprev)
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
     if (blockindex->pnext)
@@ -156,17 +160,18 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     {
         if (fPrintTransactionDetail)
         {
-            txinfo.push_back(tx.ToStringShort());
-            txinfo.push_back(DateTimeStrFormat(tx.nTime));
-            BOOST_FOREACH(const CTxIn& txin, tx.vin)
-                txinfo.push_back(txin.ToStringShort());
-            BOOST_FOREACH(const CTxOut& txout, tx.vout)
-                txinfo.push_back(txout.ToStringShort());
+            Object entry;
+
+            entry.push_back(Pair("txid", tx.GetHash().GetHex()));
+            TxToJSON(tx, 0, entry);
+
+            txinfo.push_back(entry);
         }
         else
             txinfo.push_back(tx.GetHash().GetHex());
     }
     result.push_back(Pair("tx", txinfo));
+    result.push_back(Pair("signature", HexStr(block.vchBlockSig.begin(), block.vchBlockSig.end())));
     return result;
 }
 
@@ -185,7 +190,7 @@ Value getdifficulty(const Array& params, bool fHelp)
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getdifficulty\n"
-            "Returns difficulty as a multiple of the minimum difficulty.");
+            "Returns the difficulty as a multiple of the minimum difficulty.");
 
     Object obj;
     obj.push_back(Pair("proof-of-work",        GetDifficulty()));
@@ -199,11 +204,11 @@ Value settxfee(const Array& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 1 || AmountFromValue(params[0]) < MIN_TX_FEE)
         throw runtime_error(
             "settxfee <amount>\n"
-            "<amount> is a real and is rounded to 0.01 (cent)\n"
-            "Minimum and default transaction fee per KB is 1 cent");
+            "<amount> is a real and is rounded to the nearest 0.01");
 
     nTransactionFee = AmountFromValue(params[0]);
     nTransactionFee = (nTransactionFee / CENT) * CENT;  // round to cent
+
     return true;
 }
 
@@ -223,6 +228,7 @@ Value getrawmempool(const Array& params, bool fHelp)
 
     return a;
 }
+
 Value getblockhash(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -234,10 +240,7 @@ Value getblockhash(const Array& params, bool fHelp)
     if (nHeight < 0 || nHeight > nBestHeight)
         throw runtime_error("Block number out of range.");
 
-    CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
-    while (pblockindex->nHeight > nHeight)
-        pblockindex = pblockindex->pprev;
+    CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
     return pblockindex->phashBlock->GetHex();
 }
 
@@ -253,10 +256,35 @@ Value getblock(const Array& params, bool fHelp)
     uint256 hash(strHash);
 
     if (mapBlockIndex.count(hash) == 0)
-        throw JSONRPCError(-5, "Block not found");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock block;
     CBlockIndex* pblockindex = mapBlockIndex[hash];
+    block.ReadFromDisk(pblockindex, true);
+
+    return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
+}
+
+Value getblockbynumber(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "getblock <number> [txinfo]\n"
+            "txinfo optional to print more detailed tx info\n"
+            "Returns details of a block with given block-number.");
+
+    int nHeight = params[0].get_int();
+    if (nHeight < 0 || nHeight > nBestHeight)
+        throw runtime_error("Block number out of range.");
+
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+    while (pblockindex->nHeight > nHeight)
+        pblockindex = pblockindex->pprev;
+
+    uint256 hash = *pblockindex->phashBlock;
+
+    pblockindex = mapBlockIndex[hash];
     block.ReadFromDisk(pblockindex, true);
 
     return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
@@ -292,8 +320,3 @@ Value getcheckpoint(const Array& params, bool fHelp)
 
     return result;
 }
-
-
-
-
-

@@ -129,7 +129,7 @@ std::string GetWarnings(std::string strFor);
 uint256 WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 void BitcoinMiner(CWallet *pwallet, bool fProofOfStake);
-
+void ResendWalletTransactions();
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock);
 
 bool GetWalletFile(CWallet* pwallet, std::string &strWalletFileOut);
