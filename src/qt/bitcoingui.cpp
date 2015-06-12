@@ -760,17 +760,16 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
                             TransactionTableModel::ToAddress, parent)
                         .data(Qt::DecorationRole));
 
-        notificator->notify(Notificator::Information,
-                            (amount)<0 ? tr("Sent transaction") :
-                                         tr("Incoming transaction"),
-                              tr("Date: %1\n"
-                                 "Amount: %2\n"
-                                 "Type: %3\n"
-                                 "Address: %4\n")
-                              .arg(date)
-                              .arg(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), amount, true))
-                              .arg(type)
-                              .arg(address), icon);
+        message((amount)<0 ? tr("Sent transaction") : tr("Incoming transaction"),
+           tr("Date: %1\n"
+              "Amount: %2\n"
+              "Type: %3\n"
+              "Address: %4\n")
+                .arg(date)
+                .arg(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), amount, true))
+                .arg(type)
+                .arg(address), CClientUIInterface::MSG_INFORMATION);
+
     }
 }
 
@@ -992,9 +991,10 @@ void BitcoinGUI::unlockWalletForMint()
 
         // Only show message if unlock is sucessfull.
         if(walletModel->getEncryptionStatus() == WalletModel::Unlocked)
-          notificator->notify(Notificator::Information, tr("Unlock Wallet Information"),
+          message(tr("Unlock Wallet Information"),
                   tr("Wallet has been unlocked. \n"
-                     "Proof of Stake has started.\n"));
+                     "Proof of Stake has started.\n")
+                  ,CClientUIInterface::MSG_INFORMATION);
     }
 }
 
@@ -1007,9 +1007,10 @@ void BitcoinGUI::lockWallet()
     if(walletModel->getEncryptionStatus() == WalletModel::Unlocked)
          walletModel->setWalletLocked(true,"",true);
 
-     notificator->notify(Notificator::Information, tr("Lock Wallet Information"),
+    message(tr("Lock Wallet Information"),
             tr("Wallet has been locked.\n"
-                  "Proof of Stake has stopped.\n"));
+                  "Proof of Stake has stopped.\n")
+            ,CClientUIInterface::MSG_INFORMATION);
 
 }
 
