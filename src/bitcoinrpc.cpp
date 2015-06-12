@@ -5,7 +5,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "alert.h"
-#include "db.h"
 #include "init.h"
 #include "util.h"
 #include "sync.h"
@@ -252,7 +251,9 @@ static const CRPCCommand vRPCCommands[] =
     { "submitblock",            &submitblock,            false,      false },
     { "listsinceblock",         &listsinceblock,         false,      false },
     { "dumpprivkey",            &dumpprivkey,            false,      false },
+    { "dumpwallet",             &dumpwallet,             true,       false },
     { "importprivkey",          &importprivkey,          false,      false },
+    { "importwallet",           &importwallet,           false,      false },
     { "listunspent",            &listunspent,            false,      false },
     { "getrawtransaction",      &getrawtransaction,      false,      false },
     { "createrawtransaction",   &createrawtransaction,   false,      false },
