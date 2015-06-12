@@ -38,6 +38,11 @@ QWidget:disabled
     background-color: #232938;
 }
 
+QWidget#treeWidget
+{
+    color: #003651;
+}
+
 QLabel:disabled
 {
 	background: #003651;
