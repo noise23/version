@@ -98,6 +98,7 @@ void locking_callback(int mode, int i, const char* file, int line)
                     }
 }
 
+LockedPageManager LockedPageManager::instance;
 // Init
 class CInit
 {
@@ -158,8 +159,8 @@ void RandAddSeedPerfmon()
     if (ret == ERROR_SUCCESS)
     {
         RAND_add(pdata, nSize, nSize/100.0);
-        memset(pdata, 0, nSize);
-        printf("%s RandAddSeed() %lu bytes\n", DateTimeStrFormat(GetTime()).c_str(), nSize);
+        OPENSSL_cleanse(pdata, nSize);
+        printf("RandAddSeed() %lu bytes\n", nSize);
     }
 #endif
 }
@@ -715,7 +716,6 @@ string DecodeBase64(const string& str)
     return string((const char*)&vchRet[0], vchRet.size());
 }
 
-
 bool WildcardMatch(const char* psz, const char* mask)
 {
     while (true)
@@ -1003,7 +1003,7 @@ void ShrinkDebugFile()
 // "Never go to sea with two chronometers; take one or three."
 // Our three time sources are:
 //  - System clock
-//  - Median of other nodes's clocks
+//  - Median of other nodes clocks
 //  - The user (asking the user to fix the system clock if the first two disagree)
 //
 static int64 nMockTime = 0;  // For unit testing

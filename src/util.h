@@ -36,7 +36,6 @@ typedef unsigned long long  uint64;
 static const int64 COIN = 1000000;
 static const int64 CENT = 10000;
 
-// #define loop                for (;;)
 #define BEGIN(a)            ((char*)&(a))
 #define END(a)              ((char*)&((&(a))[1]))
 #define UBEGIN(a)           ((unsigned char*)&(a))
@@ -53,6 +52,15 @@ static const int64 CENT = 10000;
 #define PRI64u  "llu"
 #define PRI64x  "llx"
 #endif
+#endif
+
+#ifndef THROW_WITH_STACKTRACE
+#define THROW_WITH_STACKTRACE(exception)  \
+{                                         \
+    LogStackTrace();                      \
+    throw (exception);                    \
+}
+void LogStackTrace();
 #endif
 
 /* Format characters for (s)size_t and ptrdiff_t */
@@ -120,14 +128,7 @@ inline void Sleep(int64 n)
 #define ATTR_WARN_PRINTF(X,Y)
 #endif
 
-#ifndef THROW_WITH_STACKTRACE
-#define THROW_WITH_STACKTRACE(exception)  \
-{                                         \
-    LogStackTrace();                      \
-    throw (exception);                    \
-}
-void LogStackTrace();
-#endif
+
 
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;

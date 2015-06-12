@@ -8,6 +8,13 @@
 
 #include <boost/foreach.hpp>
 
+#ifdef DEBUG_LOCKCONTENTION
+void PrintLockContention(const char* pszName, const char* pszFile, int nLine)
+{
+    printf("LOCKCONTENTION: %s\n", pszName);
+    printf("Locker: %s:%d\n", pszFile, nLine);
+}
+#endif /* DEBUG_LOCKCONTENTION */
 #ifdef DEBUG_LOCKORDER
 //
 // Early deadlock detection.
@@ -17,7 +24,7 @@
 //     --> may result in deadlock between the two threads, depending on when they run.
 // Solution implemented here:
 // Keep track of pairs of locks: (A before B), (A before C), etc.
-// Complain if any thread trys to lock in a different order.
+// Complain if any thread tries to lock in a different order.
 //
 
 struct CLockLocation

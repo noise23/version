@@ -123,16 +123,24 @@ public:
             return (n > (unsigned long)std::numeric_limits<int>::max() ? std::numeric_limits<int>::min() : -(int)n);
     }
 
-    void setint64(int64 n)
+    void setint64(int64 sn)
     {
-        unsigned char pch[sizeof(n) + 6];
+        unsigned char pch[sizeof(sn) + 6];
         unsigned char* p = pch + 4;
-        bool fNegative = false;
-        if (n < (int64)0)
+        bool fNegative;
+        uint64 n;
+
+        if (sn < (int64)0)
         {
-            n = -n;
+            // Since the minimum signed integer cannot be represented as positive so long as its type is signed, and it's not well-defined what happens if you make it unsigned before negating it, we instead increment the negative integer by 1, convert it, then increment the (now positive) unsigned integer by 1 to compensate
+            n = -(sn + 1);
+            ++n;
             fNegative = true;
+        } else {
+            n = sn;
+            fNegative = false;
         }
+
         bool fLeadingZeroes = true;
         for (int i = 0; i < 8; i++)
         {
@@ -156,6 +164,21 @@ public:
         pch[2] = (nSize >> 8) & 0xff;
         pch[3] = (nSize) & 0xff;
         BN_mpi2bn(pch, p - pch, this);
+    }
+
+    uint64 getuint64()
+    {
+        unsigned int nSize = BN_bn2mpi(this, NULL);
+        if (nSize < 4)
+            return 0;
+        std::vector<unsigned char> vch(nSize);
+        BN_bn2mpi(this, &vch[0]);
+        if (vch.size() > 4)
+            vch[4] &= 0x7f;
+        uint64 n = 0;
+        for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
+            ((unsigned char*)&n)[i] = vch[j];
+        return n;
     }
 
     void setuint64(uint64 n)
@@ -183,21 +206,6 @@ public:
         pch[2] = (nSize >> 8) & 0xff;
         pch[3] = (nSize) & 0xff;
         BN_mpi2bn(pch, p - pch, this);
-    }
-
-	    uint64 getuint64()
-    {
-        unsigned int nSize = BN_bn2mpi(this, NULL);
-        if (nSize < 4)
-            return 0;
-        std::vector<unsigned char> vch(nSize);
-        BN_bn2mpi(this, &vch[0]);
-        if (vch.size() > 4)
-            vch[4] &= 0x7f;
-        uint64 n = 0;
-        for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
-            ((unsigned char*)&n)[i] = vch[j];
-        return n;
     }
 
     void setuint256(uint256 n)

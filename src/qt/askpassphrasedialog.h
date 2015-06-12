@@ -19,6 +19,7 @@ public:
     enum Mode {
         Encrypt,    /**< Ask passphrase twice and encrypt */
         Unlock,     /**< Ask passphrase and unlock */
+        UnlockForMint, /**< Ask passphrase and unlock for minting */
         ChangePass, /**< Ask old passphrase + new passphrase twice */
         Decrypt     /**< Ask passphrase and decrypt wallet */
     };
@@ -39,7 +40,7 @@ private:
 private slots:
     void textChanged();
     bool event(QEvent *event);
-    bool eventFilter(QObject *, QEvent *event);
+    bool eventFilter(QObject *object, QEvent *event);
 };
 
 #endif // ASKPASSPHRASEDIALOG_H

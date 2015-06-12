@@ -28,7 +28,11 @@ void static inline EnterCritical(const char* pszName, const char* pszFile, int n
 void static inline LeaveCritical() {}
 #endif
 
-/** Wrapper around boost::interprocess::scoped_lock */
+#ifdef DEBUG_LOCKCONTENTION
+void PrintLockContention(const char* pszName, const char* pszFile, int nLine);
+#endif
+
+/** Wrapper around boost::unique_lock<Mutex> */
 template<typename Mutex>
 class CMutexLock
 {
@@ -44,8 +48,7 @@ public:
 #ifdef DEBUG_LOCKCONTENTION
             if (!lock.try_lock())
             {
-                printf("LOCKCONTENTION: %s\n", pszName);
-                printf("Locker: %s:%d\n", pszFile, nLine);
+                PrintLockContention(pszName, pszFile, nLine);
 #endif
             lock.lock();
 #ifdef DEBUG_LOCKCONTENTION

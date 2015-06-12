@@ -92,6 +92,7 @@ extern int64 nHPSTimerStart;
 extern int64 nTimeBestReceived;
 extern CCriticalSection cs_setpwalletRegistered;
 extern std::set<CWallet*> setpwalletRegistered;
+extern unsigned char pchMessageStart[4];
 extern std::map<uint256, CBlock*> mapOrphanBlocks;
 
 // Settings
@@ -991,8 +992,6 @@ public:
             return error("CBlock::WriteToDisk() : AppendBlockFile failed");
 
         // Write index header
-        unsigned char pchMessageStart[4];
-        GetMessageStart(pchMessageStart, true);
         unsigned int nSize = fileout.GetSerializeSize(*this);
         fileout << FLATDATA(pchMessageStart) << nSize;
 
@@ -1006,7 +1005,6 @@ public:
         // Flush stdio buffers and commit to disk before returning
         fflush(fileout);
         if (!IsInitialBlockDownload() || (nBestHeight+1) % 500 == 0)
-
 		 FileCommit(fileout);
 
         return true;

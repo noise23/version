@@ -14,11 +14,10 @@ using namespace boost;
 #include "bignum.h"
 #include "key.h"
 #include "main.h"
+#include "sync.h"
 #include "util.h"
 
 bool CheckSig(vector<unsigned char> vchSig, vector<unsigned char> vchPubKey, CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
-
-
 
 static const valtype vchFalse(0);
 static const valtype vchZero(0);
@@ -1126,8 +1125,7 @@ public:
         return false;
     }
 
-    void
-    Set(uint256 hash, const std::vector<unsigned char>& vchSig, const std::vector<unsigned char>& pubKey)
+    void Set(uint256 hash, const std::vector<unsigned char>& vchSig, const std::vector<unsigned char>& pubKey)
     {
         // DoS prevention: limit cache size to less than 10MB
         // (~200 bytes per cache entry times 50,000 entries)
@@ -1271,7 +1269,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
                 if (!script2.GetOp(pc2, opcode2, vch2))
                     break;
                 // Normal situation is to fall through
-                // to other if/else statments
+                // to other if/else statements
             }
 
             if (opcode2 == OP_PUBKEY)
@@ -1344,7 +1342,7 @@ bool SignN(const vector<valtype>& multisigdata, const CKeyStore& keystore, uint2
 // Sign scriptPubKey with private keys stored in keystore, given transaction hash and hash type.
 // Signatures are returned in scriptSigRet (or returns false if scriptPubKey can't be signed),
 // unless whichTypeRet is TX_SCRIPTHASH, in which case scriptSigRet is the redemption script.
-// Returns false if scriptPubKey could not be completely satisified.
+// Returns false if scriptPubKey could not be completely satisfied.
 //
 bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash, int nHashType,
                   CScript& scriptSigRet, txnouttype& whichTypeRet)
@@ -1845,7 +1843,7 @@ unsigned int CScript::GetSigOpCount(const CScript& scriptSig) const
             return 0;
     }
 
-    /// ... and return it's opcount:
+    /// ... and return its opcount:
     CScript subscript(data.begin(), data.end());
     return subscript.GetSigOpCount(true);
 }

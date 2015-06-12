@@ -833,10 +833,6 @@ bool CAddrDB::Write(const CAddrMan& addr)
  std::string tmpfn = strprintf("peers.dat.%04x", randv);
 
  // serialize addresses, checksum data up to that point, then append csum
-    unsigned char pchMessageStart[4];
-    GetMessageStart(pchMessageStart);
-
- 
  CDataStream ssPeers(SER_DISK, CLIENT_VERSION);
  ssPeers << FLATDATA(pchMessageStart);
  ssPeers << addr;
@@ -906,8 +902,6 @@ bool CAddrDB::Read(CAddrMan& addr)
  
   // de-serialize address data
  unsigned char pchMsgTmp[4];
-    unsigned char pchMessageStart[4];
-    GetMessageStart(pchMessageStart);
  try {
         // de-serialize file header (pchMessageStart magic number) and
  ssPeers >> FLATDATA(pchMsgTmp);

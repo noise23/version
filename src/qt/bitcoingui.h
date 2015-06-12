@@ -90,6 +90,8 @@ private:
     QAction *toggleHideAction;
     QAction *exportAction;
     QAction *encryptWalletAction;
+    QAction *unlockWalletAction;
+    QAction *lockWalletAction;
     QAction *backupWalletAction;
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
@@ -180,7 +182,10 @@ private slots:
     void verifyMessage();
     /** Ask for pass phrase to unlock wallet temporarily */
     void unlockWallet();
-
+    /** Ask for passphrase to unlock wallet for the session to mint */
+    void unlockWalletForMint();
+    /** Allow user to lock wallet */
+    void lockWallet();
     /** Show window if hidden, unminimize when minimized */
     void showNormalIfMinimized();
     /** Hide window if visible, show if hidden */

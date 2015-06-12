@@ -16,20 +16,13 @@
 #include <string>
 #include "uint256.h"
 
-#define VOIN_PORT  9988
-#define RPC_PORT     9908
-#define TESTNET_PORT 9989
-#define TESTNET_RPC_PORT 9909
-
 extern bool fTestNet;
-
-void GetMessageStart(unsigned char pchMessageStart[], bool fPersistent = false);
-
 static inline unsigned short GetDefaultPort(const bool testnet = fTestNet)
 {
-    return testnet ? TESTNET_PORT : VOIN_PORT;
+    return testnet ? 9989 : 9988;
 }
 
+extern unsigned char pchMessageStart[4];
 
 /** Message header.
  * (4) message start.
@@ -56,8 +49,16 @@ class CMessageHeader
 
     // TODO: make private (improves encapsulation)
     public:
-        enum { COMMAND_SIZE=12 };
-        unsigned char pchMessageStart[4];
+        enum {
+            MESSAGE_START_SIZE=sizeof(::pchMessageStart),
+            COMMAND_SIZE=12,
+            MESSAGE_SIZE_SIZE=sizeof(int),
+            CHECKSUM_SIZE=sizeof(int),
+
+            MESSAGE_SIZE_OFFSET=MESSAGE_START_SIZE+COMMAND_SIZE,
+            CHECKSUM_OFFSET=MESSAGE_SIZE_OFFSET+MESSAGE_SIZE_SIZE
+        };
+        char pchMessageStart[MESSAGE_START_SIZE];
         char pchCommand[COMMAND_SIZE];
         unsigned int nMessageSize;
         unsigned int nChecksum;

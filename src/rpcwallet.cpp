@@ -29,7 +29,7 @@ void EnsureWalletIsUnlocked()
 {
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-    if (fWalletUnlockMintOnly)
+    if (pwalletMain->fWalletUnlockMintOnly)
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet unlocked for block minting only.");
 }
 
@@ -1381,14 +1381,19 @@ Value walletpassphrase(const Array& params, bool fHelp)
             "Stores the wallet decryption key in memory for <timeout> seconds.");
 			
     NewThread(ThreadTopUpKeyPool, NULL);
-    int64* pnSleepTime = new int64(params[1].get_int64());
-    NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
 
-    // version: if user OS account compromised prevent trivial sendmoney commands
+    // if user OS account compromised prevent trivial sendmoney commands
     if (params.size() > 2)
-        fWalletUnlockMintOnly = params[2].get_bool();
+        pwalletMain->fWalletUnlockMintOnly = params[2].get_bool();
     else
-        fWalletUnlockMintOnly = false;
+        pwalletMain->fWalletUnlockMintOnly = false;
+
+    //Zero unlock time means forever, well 68 years, forever for crypto.
+    int64* nUnlockTime = (params[1].get_int64() == 0)
+        ? new int64(std::numeric_limits<int>::max())
+        : new int64(params[1].get_int64());
+
+    NewThread(ThreadCleanWalletPassphrase, nUnlockTime);
 
     return Value::null;
 }

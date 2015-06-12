@@ -2545,15 +2545,15 @@ bool LoadBlockIndex(bool fAllowNew)
 {
     if (fTestNet)
     {
+        pchMessageStart[0] = 0xf2;
+        pchMessageStart[1] = 0xcb;
+        pchMessageStart[2] = 0xef;
+        pchMessageStart[3] = 0xc0;
         hashGenesisBlock = hashGenesisBlockTestNet;
-        //bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
         nStakeMinAge = 60; //60 * 60 * 24; // test net min age is 1 minute
-        //nCoinbaseMaturity = 10;
         nModifierInterval = 60 * 2; // test net modifier interval is 2 minutes
     }
 
-//    printf("%s Network: genesis=0x%s nBitsLimit=0x%08x nBitsInitial=0x%08x nStakeMinAge=%d nCoinbaseMaturity=%d nModifierInterval=%d\n",
-//           fTestNet? "Test" : "Version", hashGenesisBlock.ToString().substr(0, 20).c_str(), bnProofOfWorkLimit.GetCompact(), nStakeMinAge, nCoinbaseMaturity, nModifierInterval);
 
     //
     // Load block index
@@ -2746,8 +2746,6 @@ bool LoadExternalBlockFile(FILE* fileIn)
 {
     int64 nStart = GetTimeMillis();
     int nLoaded = 0;
-	unsigned char pchMessageStart[4];
-    GetMessageStart(pchMessageStart);
     {
         LOCK(cs_main);
         try {
@@ -2904,6 +2902,11 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
     // Don't know what it is, just say we already got one
     return true;
 }
+
+// The message start string is designed to be unlikely to occur in normal data.
+// The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+// a large 4-byte int at any alignment.
+unsigned char pchMessageStart[4] = { 0xe8, 0xe6, 0xe5, 0xe9 };
 
 bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 {
@@ -3554,19 +3557,13 @@ bool ProcessMessages(CNode* pfrom)
     //  (4) checksum
     //  (x) data
     //
-    unsigned char pchMessageStart[4];
-    GetMessageStart(pchMessageStart);
-    static int64 nTimeLastPrintMessageStart = 0;
-    if (fDebug && GetBoolArg("-printmessagestart") && nTimeLastPrintMessageStart + 30 < GetAdjustedTime())
-    {
-        string strMessageStart((const char *)pchMessageStart, sizeof(pchMessageStart));
-        vector<unsigned char> vchMessageStart(strMessageStart.begin(), strMessageStart.end());
-        printf("ProcessMessages : AdjustedTime=%"PRI64d" MessageStart=%s\n", GetAdjustedTime(), HexStr(vchMessageStart).c_str());
-        nTimeLastPrintMessageStart = GetAdjustedTime();
-    }
 
     while (true)
     {
+        // Don't bother if send buffer is too full to respond anyway
+        if (pfrom->vSend.size() >= SendBufferSize())
+            break;
+
         // Scan for message start
         CDataStream::iterator pstart = search(vRecv.begin(), vRecv.end(), BEGIN(pchMessageStart), END(pchMessageStart));
         int nHeaderSize = vRecv.GetSerializeSize(CMessageHeader());

@@ -12,24 +12,6 @@
 # include <arpa/inet.h>
 #endif
 
-// The message start string is designed to be unlikely to occur in normal data.
-// The characters are rarely used upper ascii, not valid as UTF-8, and produce
-// a large 4-byte int at any alignment.
-
-// Public testnet message start
-static unsigned char pchMessageStartTestnet[4] = { 0xf2, 0xcb, 0xef, 0xc0 };
-
-// Version message start (switch from Bitcoin's in v0.2)
-static unsigned char pchMessageStartVersion[4] = { 0xe8, 0xe6, 0xe5, 0xe9 };
-
-void GetMessageStart(unsigned char pchMessageStart[], bool fPersistent)
-{
-    if (fTestNet)
-        memcpy(pchMessageStart, pchMessageStartTestnet, sizeof(pchMessageStartTestnet));
-    else
-        memcpy(pchMessageStart, pchMessageStartVersion, sizeof(pchMessageStartVersion));
-}
-
 static const char* ppszTypeName[] =
 {
     "ERROR",
@@ -39,7 +21,7 @@ static const char* ppszTypeName[] =
 
 CMessageHeader::CMessageHeader()
 {
-    GetMessageStart(pchMessageStart);
+    memcpy(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart));
     memset(pchCommand, 0, sizeof(pchCommand));
     pchCommand[1] = 1;
     nMessageSize = -1;
@@ -48,7 +30,7 @@ CMessageHeader::CMessageHeader()
 
 CMessageHeader::CMessageHeader(const char* pszCommand, unsigned int nMessageSizeIn)
 {
-    GetMessageStart(pchMessageStart);
+    memcpy(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart));
     strncpy(pchCommand, pszCommand, COMMAND_SIZE);
     nMessageSize = nMessageSizeIn;
     nChecksum = 0;
@@ -65,9 +47,7 @@ std::string CMessageHeader::GetCommand() const
 bool CMessageHeader::IsValid() const
 {
     // Check start string
-    unsigned char pchMessageStartProtocol[4];
-    GetMessageStart(pchMessageStartProtocol);
-    if (memcmp(pchMessageStart, pchMessageStartProtocol, sizeof(pchMessageStart)) != 0)
+    if (memcmp(pchMessageStart, ::pchMessageStart, sizeof(pchMessageStart)) != 0)
         return false;
 
     // Check the command string for errors
