@@ -10,7 +10,6 @@
 #include "util.h"
 #include "main.h"
 #include "kernel.h"
-#include <boost/version.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
@@ -35,19 +34,17 @@ void CDBEnv::EnvShutdown()
         return;
 
     fDbEnvInit = false;
-    try
-    {
-        dbenv.close(0);
-    }
-    catch (const DbException& e)
-    {
-        printf("EnvShutdown exception: %s (%d)\n", e.what(), e.get_errno());
-    }
-    DbEnv(0).remove(GetDataDir().string().c_str(), 0);
+    int ret = dbenv.close(0);
+    if (ret != 0)
+        printf("EnvShutdown exception: %s (%d)\n", DbEnv::strerror(ret), ret);
+    if (!fMockDb)
+        DbEnv(0).remove(strPath.c_str(), 0);
 }
 
-CDBEnv::CDBEnv() : dbenv(0)
+CDBEnv::CDBEnv() : dbenv(DB_CXX_NO_EXCEPTIONS)
 {
+    fDbEnvInit = false;
+    fMockDb = false;
 }
  
 CDBEnv::~CDBEnv() 
@@ -70,6 +67,7 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
  
     pathEnv = pathEnv_; 
     filesystem::path pathDataDir = pathEnv; 
+    strPath = pathDataDir.string();
     filesystem::path pathLogDir = pathDataDir / "database"; 
     filesystem::create_directory(pathLogDir); 
     filesystem::path pathErrorFile = pathDataDir / "db.log"; 
@@ -90,7 +88,7 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
     dbenv.set_flags(DB_AUTO_COMMIT, 1); 
     dbenv.set_flags(DB_TXN_WRITE_NOSYNC, 1); 
     dbenv.log_set_config(DB_LOG_AUTO_REMOVE, 1); 
-    int ret = dbenv.open(pathDataDir.string().c_str(), 
+    int ret = dbenv.open(strPath.c_str(),
                      DB_CREATE     | 
                      DB_INIT_LOCK  | 
                      DB_INIT_LOG   | 
@@ -100,12 +98,47 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
                      DB_RECOVER    | 
                      nEnvFlags, 
                      S_IRUSR | S_IWUSR); 
-    if (ret > 0) 
-        return error("CDB() : error %d opening database environment", ret); 
+    if (ret != 0)
+        return error("CDB() : error %s (%d) opening database environment", DbEnv::strerror(ret), ret);
  
     fDbEnvInit = true; 
-    return true; 
-} 
+    fMockDb = false;
+    return true;
+}
+
+void CDBEnv::MakeMock()
+{
+    if (fDbEnvInit)
+        throw runtime_error("CDBEnv::MakeMock(): already initialized");
+
+    if (fShutdown)
+        throw runtime_error("CDBEnv::MakeMock(): during shutdown");
+
+    printf("CDBEnv::MakeMock()\n");
+
+    dbenv.set_cachesize(1, 0, 1);
+    dbenv.set_lg_bsize(10485760*4);
+    dbenv.set_lg_max(10485760);
+    dbenv.set_lk_max_locks(10000);
+    dbenv.set_lk_max_objects(10000);
+    dbenv.set_flags(DB_AUTO_COMMIT, 1);
+    dbenv.log_set_config(DB_LOG_IN_MEMORY, 1);
+    int ret = dbenv.open(NULL,
+                     DB_CREATE     |
+                     DB_INIT_LOCK  |
+                     DB_INIT_LOG   |
+                     DB_INIT_MPOOL |
+                     DB_INIT_TXN   |
+                     DB_THREAD     |
+                     DB_PRIVATE,
+                     S_IRUSR | S_IWUSR);
+    if (ret > 0)
+        throw runtime_error(strprintf("CDBEnv::MakeMock(): error %d opening database environment", ret));
+
+    fDbEnvInit = true;
+    fMockDb = true;
+}
+
 CDBEnv::VerifyResult CDBEnv::Verify(std::string strFile, bool (*recoverFunc)(CDBEnv& dbenv, std::string strFile))
 {
     LOCK(cs_db);
@@ -171,6 +204,8 @@ bool CDBEnv::Salvage(std::string strFile, bool fAggressive,
 void CDBEnv::CheckpointLSN(std::string strFile) 
 { 
     dbenv.txn_checkpoint(0, 0, 0); 
+    if (fMockDb)
+        return;
     dbenv.lsn_reset(strFile.c_str(), 0); 
 } 
 
@@ -199,21 +234,27 @@ CDB::CDB(const char *pszFile, const char* pszMode) :
         {
             pdb = new Db(&bitdb.dbenv, 0);
 
+            bool fMockDb = bitdb.IsMock();
+            if (fMockDb)
+            {
+                DbMpoolFile*mpf = pdb->get_mpf();
+                ret = mpf->set_flags(DB_MPOOL_NOFILE, 1);
+                if (ret != 0)
+                    throw runtime_error(strprintf("CDB() : failed to configure for no temp file backing for database %s", pszFile));
+            }
+
             ret = pdb->open(NULL,      // Txn pointer
-                            pszFile,   // Filename
+                            fMockDb ? NULL : pszFile,   // Filename
                             "main",    // Logical db name
                             DB_BTREE,  // Database type
                             nFlags,    // Flags
                             0);
 
-            if (ret > 0)
+            if (ret != 0)
             {
                 delete pdb;
                 pdb = NULL;
-                {
-                     LOCK(bitdb.cs_db);
                     --bitdb.mapFileUseCount[strFile];
-                }
                 strFile = "";
                 throw runtime_error(strprintf("CDB() : can't open database file %s, error %d", pszFile, ret));
             }
@@ -406,6 +447,7 @@ void CDBEnv::Flush(bool fShutdown)
                 dbenv.txn_checkpoint(0, 0, 0);
                 if (!IsChainFile(strFile) || fDetachDB) {
                     printf("%s detach\n", strFile.c_str());
+                    if (!fMockDb)
                     dbenv.lsn_reset(strFile.c_str(), 0);
                 }
                 printf("%s closed\n", strFile.c_str());
@@ -771,8 +813,9 @@ bool CTxDB::LoadBlockIndexGuts()
             CDiskBlockIndex diskindex;
             ssValue >> diskindex;
 
+            uint256 blockHash = diskindex.GetBlockHash();
             // Construct block index object
-            CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash());
+            CBlockIndex* pindexNew = InsertBlockIndex(blockHash);
             pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
             pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
             pindexNew->nFile          = diskindex.nFile;
@@ -792,7 +835,7 @@ bool CTxDB::LoadBlockIndexGuts()
             pindexNew->nNonce         = diskindex.nNonce;
 
             // Watch for genesis block
-            if (pindexGenesisBlock == NULL && diskindex.GetBlockHash() == hashGenesisBlock)
+            if (pindexGenesisBlock == NULL && blockHash == hashGenesisBlock)
                 pindexGenesisBlock = pindexNew;
 
             if (!pindexNew->CheckIndex())

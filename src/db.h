@@ -35,7 +35,9 @@ class CDBEnv
 private:
     bool fDetachDB;
     bool fDbEnvInit;
+    bool fMockDb;
     boost::filesystem::path pathEnv;
+    std::string strPath;
 
     void EnvShutdown();
 
@@ -47,6 +49,8 @@ public:
 
     CDBEnv();
     ~CDBEnv();
+    void MakeMock();
+    bool IsMock() { return fMockDb; };
 	
     /*
      * Verify that database file strFile is OK. If it is not,
