@@ -28,6 +28,7 @@ CWallet* pwalletMain;
 CClientUIInterface uiInterface;
 enum Checkpoints::CPMode CheckpointsMode;
 unsigned int nNodeLifespan;
+bool fConfChange;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -279,6 +280,7 @@ std::string HelpMessage()
         "  -rpcallowip=<ip>       " + _("Allow JSON-RPC connections from specified IP address") + "\n" +
         "  -rpcconnect=<ip>       " + _("Send commands to node running on <ip> (default: 127.0.0.1)") + "\n" +
         "  -blocknotify=<cmd>     " + _("Execute command when the best block changes (%s in cmd is replaced by block hash)") + "\n" +
+        "  -confchange            " + _("Require a confirmations for change (default: 0)") + "\n" +
         "  -upgradewallet         " + _("Upgrade wallet to latest format") + "\n" +
         "  -keypool=<n>           " + _("Set key pool size to <n> (default: 100)") + "\n" +
         "  -rescan                " + _("Rescan the block chain for missing wallet transactions") + "\n" +
@@ -432,6 +434,7 @@ bool AppInit2()
         if (nTransactionFee > 0.25 * COIN)
             InitWarning(_("Warning: -paytxfee is set very high. This is the transaction fee you will pay if you send a transaction."));
     }
+    fConfChange = GetBoolArg("-confchange", false);
 	
     if (mapArgs.count("-mininput"))
     {
