@@ -9,7 +9,6 @@
 #include <openssl/obj_mac.h>
 
 #include "key.h"
-#include "util.h"
 
 // Generate a private key from just the secret parameter
 int EC_KEY_regenerate_key(EC_KEY *eckey, BIGNUM *priv_key)
@@ -50,7 +49,7 @@ err:
 
 // Perform ECDSA key recovery (see SEC1 4.1.6) for curves over (mod p)-fields
 // recid selects which key is recovered
-// if check is nonzero, additional checks are performed
+// if check is non-zero, additional checks are performed
 int ECDSA_SIG_recover_key_GFp(EC_KEY *eckey, ECDSA_SIG *ecsig, const unsigned char *msg, int msglen, int recid, int check)
 {
     if (!eckey) return 0;
@@ -131,6 +130,8 @@ void CKey::SetCompressedPubKey()
 void CKey::Reset()
 {
     fCompressedPubKey = false;
+    if (pkey != NULL)
+        EC_KEY_free(pkey);
     pkey = EC_KEY_new_by_curve_name(NID_secp256k1);
     if (pkey == NULL)
         throw key_error("CKey::CKey() : EC_KEY_new_by_curve_name failed");
@@ -139,6 +140,7 @@ void CKey::Reset()
 
 CKey::CKey()
 {
+    pkey = NULL;
     Reset();
 }
 
@@ -327,7 +329,10 @@ bool CKey::SignCompact(uint256 hash, std::vector<unsigned char>& vchSig)
         }
 
         if (nRecId == -1)
+        {
+            ECDSA_SIG_free(sig);
             throw key_error("CKey::SignCompact() : unable to construct recoverable key");
+        }
 
         vchSig[0] = nRecId+27+(fCompressedPubKey ? 4 : 0);
         BN_bn2bin(sig->r,&vchSig[33-(nBitsR+7)/8]);
@@ -366,6 +371,7 @@ bool CKey::SetCompactSignature(uint256 hash, const std::vector<unsigned char>& v
         ECDSA_SIG_free(sig);
         return true;
     }
+    ECDSA_SIG_free(sig);
     return false;
 }
 
