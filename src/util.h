@@ -42,6 +42,11 @@ static const int64 CENT = 10000;
 #define UEND(a)             ((unsigned char*)&((&(a))[1]))
 #define ARRAYLEN(array)     (sizeof(array)/sizeof((array)[0]))
 
+#define UVOIDBEGIN(a)        ((void*)&(a))
+#define CVOIDBEGIN(a)        ((const void*)&(a))
+#define UINTBEGIN(a)        ((uint32_t*)&(a))
+#define CUINTBEGIN(a)        ((const uint32_t*)&(a))
+
 #ifndef PRI64d
 #if defined(_MSC_VER) || defined(__MSVCRT__)
 #define PRI64d  "I64d"
@@ -190,6 +195,10 @@ std::vector<unsigned char> DecodeBase64(const char* p, bool* pfInvalid = NULL);
 std::string DecodeBase64(const std::string& str);
 std::string EncodeBase64(const unsigned char* pch, size_t len);
 std::string EncodeBase64(const std::string& str);
+std::vector<unsigned char> DecodeBase32(const char* p, bool* pfInvalid = NULL);
+std::string DecodeBase32(const std::string& str);
+std::string EncodeBase32(const unsigned char* pch, size_t len);
+std::string EncodeBase32(const std::string& str);
 std::string EncodeDumpTime(int64 nTime);
 int64 DecodeDumpTime(const std::string& s);
 std::string EncodeDumpString(const std::string &str);
