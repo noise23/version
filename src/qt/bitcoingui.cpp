@@ -288,20 +288,20 @@ void BitcoinGUI::createActions()
     encryptWalletAction->setToolTip(tr("Encrypt or decrypt vault"));
     encryptWalletAction->setCheckable(true);
 
-    unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Wallet For PoS..."), this);
-    unlockWalletAction->setStatusTip(tr("Unlock the wallet for PoS"));
+    unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Vault For PoS..."), this);
+    unlockWalletAction->setStatusTip(tr("Unlock the vault for PoS"));
     unlockWalletAction->setCheckable(true);
 
-    lockWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Lock Wallet..."), this);
-    lockWalletAction->setStatusTip(tr("Lock the wallet"));
+    lockWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Lock Vault..."), this);
+    lockWalletAction->setStatusTip(tr("Lock the vault"));
     lockWalletAction->setCheckable(true);
 
     backupWalletAction = new QAction(QIcon(":/icons/filesave"), tr("&Backup Vault"), this);
     backupWalletAction->setToolTip(tr("Backup vault to another location"));
-    dumpWalletAction = new QAction(QIcon(":/icons/tx_output"), tr("&Export Wallet..."), this);
-    dumpWalletAction->setToolTip(tr("Export wallet's keys to a text file"));
-    importWalletAction = new QAction(QIcon(":/icons/tx_input"), tr("&Import Wallet..."), this);
-    importWalletAction->setToolTip(tr("Import a file's keys into a wallet"));
+    dumpWalletAction = new QAction(QIcon(":/icons/tx_output"), tr("&Export Vault..."), this);
+    dumpWalletAction->setToolTip(tr("Export vault's keys to a text file"));
+    importWalletAction = new QAction(QIcon(":/icons/tx_input"), tr("&Import Vault..."), this);
+    importWalletAction->setToolTip(tr("Import a file's keys into the vault"));
     changePassphraseAction = new QAction(QIcon(":/icons/key"), tr("&Change Passphrase"), this);
     changePassphraseAction->setToolTip(tr("Change the passphrase used for vault encryption"));
     openRPCConsoleAction = new QAction(tr("&Debug window"), this);
