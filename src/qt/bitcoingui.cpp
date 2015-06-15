@@ -81,6 +81,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     clientModel(0),
     walletModel(0),
     encryptWalletAction(0),
+    unlockWalletforposAction(0),
     unlockWalletAction(0),
     lockWalletAction(0),
     changePassphraseAction(0),
@@ -287,9 +288,12 @@ void BitcoinGUI::createActions()
     encryptWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Encrypt Vault"), this);
     encryptWalletAction->setToolTip(tr("Encrypt or decrypt vault"));
     encryptWalletAction->setCheckable(true);
-
-    unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Vault For PoS..."), this);
-    unlockWalletAction->setStatusTip(tr("Unlock the vault for PoS"));
+	
+    unlockWalletforposAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Vault For PoS..."), this);
+    unlockWalletforposAction->setStatusTip(tr("Unlock the vault for PoS"));
+    unlockWalletforposAction->setCheckable(true);
+    unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Vault..."), this);
+    unlockWalletAction->setStatusTip(tr("Unlock the vault"));
     unlockWalletAction->setCheckable(true);
 
     lockWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Lock Vault..."), this);
@@ -322,7 +326,8 @@ void BitcoinGUI::createActions()
     connect(importWalletAction, SIGNAL(triggered()), this, SLOT(importWallet()));
     connect(changePassphraseAction, SIGNAL(triggered()), this, SLOT(changePassphrase()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(verifyMessage()));
-    connect(unlockWalletAction, SIGNAL(triggered()), this, SLOT(unlockWalletForMint()));
+    connect(unlockWalletforposAction, SIGNAL(triggered()), this, SLOT(unlockWalletForMint()));
+    connect(unlockWalletAction, SIGNAL(triggered()), this, SLOT(unlockWallet()));
     connect(lockWalletAction, SIGNAL(triggered()), this, SLOT(lockWallet()));
     connect(blockAction, SIGNAL(triggered()), this, SLOT(gotoBlockBrowser()));
 }
@@ -355,6 +360,7 @@ void BitcoinGUI::createMenuBar()
 
     QMenu *settings = appMenuBar->addMenu(tr("&Controls"));
     settings->addAction(encryptWalletAction);
+    settings->addAction(unlockWalletforposAction);
     settings->addAction(unlockWalletAction);
     settings->addAction(lockWalletAction);
     settings->addAction(changePassphraseAction);
@@ -899,9 +905,11 @@ void BitcoinGUI::setEncryptionStatus(int status)
     case WalletModel::Unencrypted:
         labelEncryptionIcon->hide();
         encryptWalletAction->setChecked(false);
+        unlockWalletforposAction->setChecked(false);
         unlockWalletAction->setChecked(false);
         lockWalletAction->setChecked(false);
         changePassphraseAction->setEnabled(false);
+        unlockWalletforposAction->setEnabled(false);
         unlockWalletAction->setEnabled(false);
         lockWalletAction->setEnabled(false);
         encryptWalletAction->setEnabled(true);
@@ -911,10 +919,12 @@ void BitcoinGUI::setEncryptionStatus(int status)
         labelEncryptionIcon->setPixmap(QIcon(":/icons/lock_open").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelEncryptionIcon->setToolTip(pwalletMain->fWalletUnlockMintOnly? tr("Vault is <b>encrypted</b> and currently <b>unlocked for block minting only</b>") : tr("Vault is <b>encrypted</b> and currently <b>unlocked</b>"));
         encryptWalletAction->setChecked(true);
+        unlockWalletforposAction->setChecked(true);
         unlockWalletAction->setChecked(true);
         lockWalletAction->setChecked(true);
         changePassphraseAction->setEnabled(true);
         encryptWalletAction->setEnabled(false); // TODO: decrypt currently not supported
+        unlockWalletforposAction->setEnabled(false);
         unlockWalletAction->setEnabled(false);
         lockWalletAction->setEnabled(true);
         break;
@@ -923,10 +933,12 @@ void BitcoinGUI::setEncryptionStatus(int status)
         labelEncryptionIcon->setPixmap(QIcon(":/icons/lock_closed").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelEncryptionIcon->setToolTip(tr("Wallet is <b>encrypted</b> and currently <b>locked</b>"));
         encryptWalletAction->setChecked(true);
+        unlockWalletforposAction->setChecked(true);
         unlockWalletAction->setChecked(true);
         lockWalletAction->setChecked(true);
         changePassphraseAction->setEnabled(true);
         encryptWalletAction->setEnabled(false); // TODO: decrypt currently not supported
+        unlockWalletforposAction->setEnabled(true);
         unlockWalletAction->setEnabled(true);
         lockWalletAction->setEnabled(false);
         break;
@@ -1051,6 +1063,13 @@ void BitcoinGUI::unlockWallet()
         AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this);
         dlg.setModel(walletModel);
         dlg.exec();
+
+        // Only show message if unlock is sucessfull.
+        if(walletModel->getEncryptionStatus() == WalletModel::Unlocked)
+          message(tr("Unlock Wallet Information"),
+                  tr("Wallet has been unlocked. \n"
+                     "Proof of Stake has started.\n")
+                  ,CClientUIInterface::MSG_INFORMATION);
     }
 }
 
@@ -1069,7 +1088,7 @@ void BitcoinGUI::unlockWalletForMint()
         // Only show message if unlock is sucessfull.
         if(walletModel->getEncryptionStatus() == WalletModel::Unlocked)
           message(tr("Unlock Wallet Information"),
-                  tr("Wallet has been unlocked. \n"
+                  tr("Wallet has been unlocked for staking only. \n"
                      "Proof of Stake has started.\n")
                   ,CClientUIInterface::MSG_INFORMATION);
     }
