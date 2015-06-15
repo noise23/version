@@ -1103,6 +1103,8 @@ void BitcoinGUI::lockWallet()
     if(walletModel->getEncryptionStatus() == WalletModel::Unlocked)
          walletModel->setWalletLocked(true,"",true);
 
+        // Only show message if lock is sucessfull.
+        if(walletModel->getEncryptionStatus() == WalletModel::Locked)
     message(tr("Lock Wallet Information"),
             tr("Wallet has been locked.\n"
                   "Proof of Stake has stopped.\n")
