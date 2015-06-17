@@ -1160,7 +1160,7 @@ void BitcoinGUI::updateStakingIcon()
             labelStakingIcon->setToolTip(tr("Not staking because vault is locked"));
         else if (vNodes.empty())
             labelStakingIcon->setToolTip(tr("Not staking because vault is offline"));
-        else if (clientModel->getNumConnections() < 3 )
+        else if (clientModel->getNumConnections() < 2 )
             labelStakingIcon->setToolTip(tr("Not staking because vault is still acquiring nodes"));
         else if (IsInitialBlockDownload() || clientModel->getNumBlocks() < clientModel->getNumBlocksOfPeers())
             labelStakingIcon->setToolTip(tr("Not staking because vault is syncing"));
