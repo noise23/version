@@ -46,14 +46,14 @@ script: |
   $HOST-strip release/version-qt.exe
   cp release/version-qt.exe $OUTDIR/
   #
-#  cd src
-#  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
-#  export FAKETIME=$REFERENCE_DATETIME
-#  export TZ=UTC
-#  make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING versiond.exe USE_UPNP=0 DEBUGFLAGS="-frandom-seed=version" USE_SSE2=1
-#  $HOST-strip versiond.exe
-#  mkdir $OUTDIR/daemon
-#  cp versiond.exe $OUTDIR/daemon
+  cd src
+  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
+  export FAKETIME=$REFERENCE_DATETIME
+  export TZ=UTC
+  make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING versiond.exe USE_UPNP=0 DEBUGFLAGS="-frandom-seed=version" USE_SSE2=1
+  $HOST-strip versiond.exe
+  mkdir $OUTDIR/daemon
+  cp versiond.exe $OUTDIR/daemon
 # cd ..
 #  mkdir nsis
 #  git archive HEAD | tar -x -C nsis
