@@ -1095,7 +1095,11 @@ void MapPort()
 // The second name should resolve to a list of seed addresses.
 // testnet dns seed begins with 't', all else are version dns seeds.
 static const char *strDNSSeed[][2] = {
-    {" ",   " "},
+    {"versionseed", "dns.seed.version2.org"},
+    {"node1", "node1.version2.org"},
+    {"node2", "node2.version2.org"},
+    {"node3", "node3.version2.org"},
+    {"node4", "node4.version2.org"},
 };
 
 void ThreadDNSAddressSeed(void* parg)
