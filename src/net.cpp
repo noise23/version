@@ -1761,10 +1761,10 @@ void StartNode(void* parg)
         MapPort();
 
     // Get addresses from IRC and advertise ours
-    // if (!NewThread(ThreadIRCSeed, NULL))
-    //     printf("Error: NewThread(ThreadIRCSeed) failed\n");
+    if (!NewThread(ThreadIRCSeed, NULL))
+       printf("Error: NewThread(ThreadIRCSeed) failed\n");
     // IRC disabled with version
-    printf("IRC seeding/communication disabled\n");
+    // printf("IRC seeding/communication disabled\n");
 
     // Send and receive from sockets, accept connections
     if (!NewThread(ThreadSocketHandler, NULL))
