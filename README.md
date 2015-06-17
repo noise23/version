@@ -1,6 +1,4 @@
-Important! Please don't build Version from this repo yet.
-V2 development is in progress, currently this repo will connect to a test chain which will be discarded and reset back several times as development goes.
-This is not a final chain yet.
+Version V2 released, V network is up.
 
  ██▒   █▓▓█████  ██▀███    ██████  ██▓ ▒█████   ███▄    █ 
 ▓██░   █▒▓█   ▀ ▓██ ▒ ██▒▒██    ▒ ▓██▒▒██▒  ██▒ ██ ▀█   █ 
@@ -15,17 +13,16 @@ This is not a final chain yet.
 
 
 
-Version2 Official Development Repo
+Version Crypto New Official Development Repo
 ==================================
 
 ### What is Version (V)?
-[Version](http://www.versioncoin.com/) (abbreviated V), also known as Version and V is a rare [cryptocurrency](https://en.wikipedia.org/wiki/Cryptocurrency) design with [proof-of-stake consensus](http://peercoin.net/bin/peercoin-paper.pdf) as a security model, with a combined [proof-of-stake](http://peercoin.net/bin/peercoin-paper.pdf)/[proof-of-work](https://en.wikipedia.org/wiki/Proof-of-work_system) minting system. Version is based on [Bitcoin](http://bitcoin.org/en/), while containing many important innovations of the cryptocurrency field including new security model, energy efficiency, better minting model and more adaptive response to rapid change in network computation power.
+[Version](http://www.version2.org/) (abbreviated V), also known as Version and V is a rare [cryptocurrency](https://en.wikipedia.org/wiki/Cryptocurrency) design with [proof-of-stake consensus](http://peercoin.net/bin/peercoin-paper.pdf) as a security model, with a combined [proof-of-stake](http://peercoin.net/bin/peercoin-paper.pdf)/[proof-of-work](https://en.wikipedia.org/wiki/Proof-of-work_system) minting system. Version is based on [Bitcoin](http://bitcoin.org/en/), while containing many important innovations of the cryptocurrency field including new security model, energy efficiency, better minting model and more adaptive response to rapid change in network computation power.
 
 ### Version Resources
 * Client and Source:
-[Client Binaries](http://bintray.com),
-[Source Code](https://github.com/staycrypto/versioncoin)
-[Version Wiki](https://github.com/version/version/wiki)
+[Client Binaries](http://version2.org),
+[Source Code](https://github.com/noise23/version)
 * Help: 
 [Reddit](http://www.reddit.com/r/version)
 
