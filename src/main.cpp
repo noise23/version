@@ -1073,7 +1073,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
 
         /* Orbitcoin Super Shield (OSS);
          * retargets every block using two averaging windows of 5 and 20 blocks,
-         * 0.25 damping and +5% to -10% limiting */
+         * 0.25 damping and +5% to -8% limiting */
 
         int64 nIntervalShort = 5, nIntervalLong = 20, nTargetSpacing, nTargetTimespan,
               nActualTimespan, nActualTimespanShort, nActualTimespanLong, nActualTimespanAvg,
@@ -1112,7 +1112,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
         nActualTimespan /= 4;
 
         /* Difficulty limiters */
-        nActualTimespanMax = nTargetTimespan * 110 / 100;
+        nActualTimespanMax = nTargetTimespan * 108 / 100;
         nActualTimespanMin = nTargetTimespan * 100 / 105;
         if(nActualTimespan < nActualTimespanMin) nActualTimespan = nActualTimespanMin;
         if(nActualTimespan > nActualTimespanMax) nActualTimespan = nActualTimespanMax;
