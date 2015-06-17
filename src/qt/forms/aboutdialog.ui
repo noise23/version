@@ -50,7 +50,7 @@
        <item>
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>&lt;b&gt;Version&lt;/b&gt; version</string>
+          <string>&lt;b&gt;Version Vault&lt;/b&gt;</string>
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -85,24 +85,36 @@
        </item>
       </layout>
      </item>
-     <item>
-      <widget class="QLabel" name="label_version_copyright">
-       <property name="text">
-        <string>Copyright © 2011-2015 Version Developers</string>
+<item>
+       <widget class="QLabel" name="label_version_copyright">
+        <property name="cursor">
+         <cursorShape>IBeamCursor</cursorShape>
+        </property>
+        <property name="text">
+         <string>
+Copyright © 2009-2012 Bitcoin Developerss&lt;br/&gt;
+Copyright © 2011-2015 Version Developers&lt;br/&gt;&lt;br/&gt;
+Version Crypto Website: &lt;a href=&quot;http://version2.org&quot;&gt;&lt;span style=&quot;color: #A7FF82&quot;&gt;http://version2.org&lt;/span&gt;&lt;/a&gt;
+       </string>
        </property>
-       <property name="wordWrap">
+       <property name="textFormat">
+        <enum>Qt::RichText</enum>
+       </property>
+       <property name="openExternalLinks">
         <bool>true</bool>
-       </property>
-       <property name="textInteractionFlags">
-        <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>Copyright © 2009-2012 Bitcoin Developers
-
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_2">
+        <property name="cursor">
+         <cursorShape>IBeamCursor</cursorShape>
+        </property>
+        <property name="text">
+         <string>
 This is experimental software.
 
 Distributed under the MIT/X11 software license, see the accompanying file license.txt or http://www.opensource.org/licenses/mit-license.php.
