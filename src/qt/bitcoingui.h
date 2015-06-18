@@ -97,6 +97,7 @@ private:
     QAction *dumpWalletAction;
     QAction *importWalletAction;
     QAction *changePassphraseAction;
+    QAction *stakeMinerToggleAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
     QAction *blockAction;
@@ -198,6 +199,8 @@ private slots:
     void unlockWalletForMint();
     /** Allow user to lock wallet */
     void lockWallet();
+    /** Enable/disable stake mining */
+    void stakeMinerToggle(bool fInitial = false);
     /** Show window if hidden, unminimize when minimized */
     void showNormalIfMinimized();
     /** Hide window if visible, show if hidden */
