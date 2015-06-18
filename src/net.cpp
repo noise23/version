@@ -1558,7 +1558,9 @@ void ThreadMessageHandler2(void* parg)
 // version: stake minter thread
 void static ThreadStakeMinter(void* parg)
 {
+    while(!fShutdown) {
     printf("ThreadStakeMinter started\n");
+        if(fStaking) { 
     CWallet* pwallet = (CWallet*)parg;
     try
     {
@@ -1573,7 +1575,13 @@ void static ThreadStakeMinter(void* parg)
         vnThreadsRunning[THREAD_MINTER]--;
         PrintException(NULL, "ThreadStakeMinter()");
     }
-    printf("ThreadStakeMinter exiting, %d threads remaining\n", vnThreadsRunning[THREAD_MINTER]);
+            if(!fShutdown)
+              printf("ThreadStakeMinter paused, %d threads remaining\n", vnThreadsRunning[THREAD_MINTER]);
+        }
+        while(!fStaking && !fShutdown) Sleep(5000);
+        if(fShutdown)
+          printf("ThreadStakeMinter exited, %d threads remaining\n", vnThreadsRunning[THREAD_MINTER]);
+     }
 }
 
 bool BindListenPort(const CService &addrBind, string& strError)

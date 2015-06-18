@@ -493,7 +493,7 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
     CReserveKey reservekey(pwallet);
     unsigned int nExtraNonce = 0;
 
-    while (fGenerateBitcoins || fProofOfStake)
+    while (fGenerateBitcoins || (fProofOfStake && fStaking))
     {
         if (fShutdown)
             return;

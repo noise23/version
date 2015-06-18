@@ -1127,7 +1127,12 @@ void BitcoinGUI::updateStakingIcon()
     if (pwalletMain)
         pwalletMain->GetStakeWeight(*pwalletMain, nMinWeight, nMaxWeight, nWeight);
 
-    if (nLastCoinStakeSearchInterval && nWeight)
+     if (!fStaking)
+    {
+	labelStakingIcon->setPixmap(QIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelStakingIcon->setToolTip(tr("Not staking because staking is disabled."));
+    }
+else if (nLastCoinStakeSearchInterval && nWeight)
     {
         uint64_t nNetworkWeight = GetPoSKernelPS();
         unsigned nEstimateTime = nStakeTargetSpacing * nNetworkWeight / nWeight;
