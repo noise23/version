@@ -2282,7 +2282,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         if (!mapProofOfStake.count(hash)) // add to mapProofOfStake
             mapProofOfStake.insert(make_pair(hash, hashProofOfStake));
     }
-
+/**
     CBlockIndex* pcheckpoint = Checkpoints::GetLastSyncCheckpoint();
     if (pcheckpoint && pblock->hashPrevBlock != hashBestChain && !Checkpoints::WantedByPendingSyncCheckpoint(hash))
     {
@@ -2301,11 +2301,11 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         if (bnNewBlock > bnRequired && pindexBest->nHeight > 536698)
         {
             if (pfrom)
-  //              pfrom->Misbehaving(100);
+              pfrom->Misbehaving(100);
             return error("ProcessBlock() : block with too little %s", pblock->IsProofOfStake()? "proof-of-stake" : "proof-of-work");
         }
     }
-
+**/
     // version: ask for pending sync-checkpoint if any
     if (!IsInitialBlockDownload())
         Checkpoints::AskForPendingSyncCheckpoint(pfrom);
