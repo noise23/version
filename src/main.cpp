@@ -2301,7 +2301,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         if (bnNewBlock > bnRequired && pindexBest->nHeight > 536698)
         {
             if (pfrom)
-                pfrom->Misbehaving(100);
+  //              pfrom->Misbehaving(100);
             return error("ProcessBlock() : block with too little %s", pblock->IsProofOfStake()? "proof-of-stake" : "proof-of-work");
         }
     }
