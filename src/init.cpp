@@ -448,7 +448,7 @@ bool AppInit2()
 
     // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
 	
-    const char* pszDataDir = GetDataDir().string().c_str();
+    std::string strDataDir = GetDataDir().string();
 
     // Make sure only a single Version process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
@@ -456,7 +456,7 @@ bool AppInit2()
     if (file) fclose(file);
     static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
     if (!lock.try_lock())
-        return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  Version is probably already running."), GetDataDir().string().c_str()));
+        return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  Version is probably already running."), strDataDir.c_str()));
 
 #if !defined(WIN32) && !defined(QT_GUI)
     if (fDaemon)
@@ -501,7 +501,7 @@ bool AppInit2()
     {
         string msg = strprintf(_("Error initializing database environment %s!"
                                  " To recover, BACKUP THAT DIRECTORY, then remove"
-                                 " everything from it except for wallet.dat."), pszDataDir);
+                                 " everything from it except for wallet.dat."), strDataDir.c_str());
         return InitError(msg);
     }
 
@@ -520,7 +520,7 @@ bool AppInit2()
         string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
                                  " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"
                                  " your balance or transactions are incorrect you should"
-                                 " restore from a backup."), pszDataDir);
+                                 " restore from a backup."), strDataDir.c_str());
             uiInterface.ThreadSafeMessageBox(msg, _("Version"), CClientUIInterface::MSG_WARNING);
     }
     if (r == CDBEnv::RECOVER_FAIL)
