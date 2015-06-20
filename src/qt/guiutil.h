@@ -2,6 +2,8 @@
 #define GUIUTIL_H
 
 #include <QString>
+#include <QObject>
+#include <QMessageBox>
 extern bool fUseVTheme;
 
 QT_BEGIN_NAMESPACE
@@ -11,6 +13,7 @@ class QWidget;
 class QDateTime;
 class QUrl;
 class QAbstractItemView;
+class QLabel;
 QT_END_NAMESPACE
 class SendCoinsRecipient;
 
@@ -75,6 +78,26 @@ namespace GUIUtil
 	
 	bool GetStartOnSystemStartup();
     bool SetStartOnSystemStartup(bool fAutoStart);
+	
+    // Help message for Version-Qt, shown with --help. 
+    class HelpMessageBox : public QMessageBox
+    {
+        Q_OBJECT
+
+    public:
+        HelpMessageBox(QWidget *parent = 0);
+
+        /** Show message box or print help message to standard output, based on operating system. */
+        void showOrPrint();
+
+        /** Print help message to console */
+        void printToConsole();
+
+    private:
+        QString header;
+        QString coreOptions;
+        QString uiOptions;
+    };
 
 } // namespace GUIUtil
 
