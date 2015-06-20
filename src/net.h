@@ -25,8 +25,8 @@ class CNode;
 class CBlockIndex;
 extern int nBestHeight;
 
-inline unsigned int ReceiveBufferSize() { return 1000*GetArg("-maxreceivebuffer", 10*1000); }
-inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 10*1000); }
+inline unsigned int ReceiveBufferSize() { return 1000*GetArg("-maxreceivebuffer", 5*1000); }
+inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 1*1000); }
 
 void AddOneShot(std::string strDest);
 bool RecvLine(SOCKET hSocket, std::string& strLine);
@@ -63,6 +63,7 @@ bool SeenLocal(const CService& addr);
 bool IsLocal(const CService& addr);
 bool GetLocal(CService &addr, const CNetAddr *paddrPeer = NULL);
 bool IsReachable(const CNetAddr &addr);
+void SetReachable(enum Network net, bool fFlag = true);
 CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
 
 enum
@@ -168,7 +169,7 @@ public:
     bool fNetworkNode;
     bool fSuccessfullyConnected;
     bool fDisconnect;
-    bool fHasGrant; // whether to call semOutbound.post() at disconnect
+    CSemaphoreGrant grantOutbound;
 protected:
     int nRefCount;
 
@@ -216,7 +217,6 @@ public:
         strSubVer = "";
 		fOneShot = false;
         fClient = false; // set by version message
-        fHasGrant = false;
         fInbound = fInboundIn;
         fNetworkNode = false;
         fSuccessfullyConnected = false;
@@ -363,14 +363,14 @@ public:
 
         // Set the size
         unsigned int nSize = vSend.size() - nMessageStart;
-        memcpy((char*)&vSend[nHeaderStart] + offsetof(CMessageHeader, nMessageSize), &nSize, sizeof(nSize));
+        memcpy((char*)&vSend[nHeaderStart] + CMessageHeader::MESSAGE_SIZE_OFFSET, &nSize, sizeof(nSize));
 
         // Set the checksum
         uint256 hash = Hash(vSend.begin() + nMessageStart, vSend.end());
         unsigned int nChecksum = 0;
         memcpy(&nChecksum, &hash, sizeof(nChecksum));
-        assert(nMessageStart - nHeaderStart >= offsetof(CMessageHeader, nChecksum) + sizeof(nChecksum));
-        memcpy((char*)&vSend[nHeaderStart] + offsetof(CMessageHeader, nChecksum), &nChecksum, sizeof(nChecksum));
+        assert(nMessageStart - nHeaderStart >= CMessageHeader::CHECKSUM_OFFSET + sizeof(nChecksum));
+        memcpy((char*)&vSend[nHeaderStart] + CMessageHeader::CHECKSUM_OFFSET, &nChecksum, sizeof(nChecksum));
 
         if (fDebug) {
             printf("(%d bytes)\n", nSize);
