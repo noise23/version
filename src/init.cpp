@@ -376,7 +376,7 @@ bool AppInit2()
         SoftSetBoolArg("-listen", false);
     }
 
-    if (GetBoolArg("-listen", true)) {
+    if (!GetBoolArg("-listen", true)) {
         // do not map ports or try to retrieve public IP when not listening (pointless)
         SoftSetBoolArg("-upnp", false);
         SoftSetBoolArg("-discover", false);
