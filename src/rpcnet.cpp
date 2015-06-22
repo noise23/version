@@ -84,6 +84,8 @@ Value getpeerinfo(const Array& params, bool fHelp)
         obj.push_back(Pair("releasetime", (boost::int64_t)stats.nReleaseTime));
         obj.push_back(Pair("height", stats.nStartingHeight));
         obj.push_back(Pair("banscore", stats.nMisbehavior));
+        if (stats.fSyncNode)
+            obj.push_back(Pair("syncnode", true));
 
         ret.push_back(obj);
     }

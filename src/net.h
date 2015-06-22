@@ -148,6 +148,7 @@ public:
     int nMisbehavior;
     double dPingTime;
     double dPingWait;
+    bool fSyncNode;
 };
 
 class CNetMessage {
