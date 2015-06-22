@@ -25,6 +25,11 @@ class CNode;
 class CBlockIndex;
 extern int nBestHeight;
 
+/** Time between pings automatically sent out for latency probing and keepalive (in seconds). */
+static const int PING_INTERVAL = 2 * 60;
+/** Time after which to disconnect, after waiting for a ping response (or inactivity). */
+static const int TIMEOUT_INTERVAL = 20 * 60;
+
 inline unsigned int ReceiveFloodSize() { return 1000*GetArg("-maxreceivebuffer", 5*1000); }
 inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 1*1000); }
 
@@ -141,6 +146,8 @@ public:
     int64 nReleaseTime;
     int nStartingHeight;
     int nMisbehavior;
+    double dPingTime;
+    double dPingWait;
 };
 
 class CNetMessage {
@@ -153,12 +160,15 @@ public:
 
     CDataStream vRecv; // received message data
     unsigned int nDataPos;
+	
+    int64 nTime; // time (in microseconds) of message receipt.
 
     CNetMessage(int nTypeIn, int nVersionIn) : hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn) {
         hdrbuf.resize(24);
         in_data = false;
         nHdrPos = 0;
         nDataPos = 0;
+        nTime = 0;
     }
 
     bool complete() const
@@ -197,7 +207,6 @@ public:
 	
     int64 nLastSend;
     int64 nLastRecv;
-    int64 nLastSendEmpty;
     int64 nTimeConnected;
     CAddress addr;
     std::string addrName;
@@ -242,6 +251,16 @@ public:
     std::vector<CInv> vInventoryToSend;
     CCriticalSection cs_inventory;
     std::multimap<int64, CInv> mapAskFor;
+	
+    // Ping time measurement:
+    // The pong reply we're expecting, or 0 if no pong expected.
+    uint64 nPingNonceSent;
+    // Time (in usec) the last ping was sent, or 0 if no ping was ever sent.
+    int64 nPingUsecStart;
+    // Last measured round-trip time.
+    int64 nPingUsecTime;
+    // Whether a ping is requested.
+    bool fPingQueued;
 
     CNode(SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "", bool fInboundIn=false) : ssSend(SER_NETWORK, INIT_PROTO_VERSION)
      {
@@ -250,7 +269,6 @@ public:
         nRecvVersion = INIT_PROTO_VERSION;
         nLastSend = 0;
         nLastRecv = 0;
-        nLastSendEmpty = GetTime();
         nTimeConnected = GetTime();
         addr = addrIn;
         addrName = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
@@ -275,6 +293,10 @@ public:
         nMisbehavior = 0;
         hashCheckpointKnown = 0;
         setInventoryKnown.max_size(SendBufferSize() / 1000);
+        nPingNonceSent = 0;
+        nPingUsecStart = 0;
+        nPingUsecTime = 0;
+        fPingQueued = false;
 
         // Be shy and don't send version until we hear
         if (!fInbound)
