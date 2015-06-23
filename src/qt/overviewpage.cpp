@@ -154,6 +154,7 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     bool showImmature = immatureBalance != 0;
     ui->labelImmature->setVisible(showImmature);
     ui->labelImmatureText->setVisible(showImmature);
+    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, (balance + stake + unconfirmedBalance + immatureBalance)));
 }
 
 void OverviewPage::setNumTransactions(int count)
