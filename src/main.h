@@ -41,6 +41,8 @@ static const int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 static const int STAKE_MIN_AGE = 60 * 60 * 24 * 5; // minimum age for coin age
 static const int STAKE_MAX_AGE = 60 * 60 * 24 * 30; // stake age of full weight
 static const int64 MAX_MINT_PROOF_OF_STAKE = 60 * CENT;	// 60% annual interest
+static const int64 DEF_SPLIT_AMOUNT = 20000 * COIN;  // Split Threshold Default
+static const int64 MAX_SPLIT_AMOUNT = 100000 * COIN;  // Split Threshold Max
 
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
@@ -98,6 +100,7 @@ extern std::map<uint256, CBlock*> mapOrphanBlocks;
 // Settings
 extern int64 nTransactionFee;
 extern int64 nMinimumInputValue;
+extern int64 nSplitThreshold;
 
 class CReserveKey;
 class CTxDB;
