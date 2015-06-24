@@ -85,6 +85,7 @@ private slots:
     void headerSectionClicked(int);
     void buttonBoxClicked(QAbstractButton*);
     void buttonSelectAllClicked();
+	void customSelectCoins();
 };
 
 #endif // COINCONTROLDIALOG_H

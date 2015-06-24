@@ -100,6 +100,9 @@ CoinControlDialog::CoinControlDialog(QWidget *parent) :
     
     // (un)select all
     connect(ui->pushButtonSelectAll, SIGNAL(clicked()), this, SLOT(buttonSelectAllClicked()));
+	
+	// custom Coin Control Selection Button
+    connect(ui->pushButtonCustomCC, SIGNAL(clicked()), this, SLOT(customSelectCoins())); 
     
     ui->treeWidget->setColumnWidth(COLUMN_CHECKBOX, 84);
     ui->treeWidget->setColumnWidth(COLUMN_AMOUNT, 100);
@@ -118,6 +121,14 @@ CoinControlDialog::CoinControlDialog(QWidget *parent) :
    
     // default view is sorted by amount desc
     sortView(COLUMN_CONFIRMATIONS, Qt::DescendingOrder);
+	
+	// combo box to select coin filter 
+	ui->QComboBoxFilterCoins->addItem("Amount <"); 
+	ui->QComboBoxFilterCoins->addItem("Amount >"); 
+	ui->QComboBoxFilterCoins->addItem("Weight <"); 
+	ui->QComboBoxFilterCoins->addItem("Weight >"); 
+	ui->QComboBoxFilterCoins->addItem("Age <"); 
+	ui->QComboBoxFilterCoins->addItem("Age >"); 	
 }
 
 CoinControlDialog::~CoinControlDialog()
@@ -172,6 +183,105 @@ void CoinControlDialog::buttonSelectAllClicked()
     ui->treeWidget->setEnabled(true);
     CoinControlDialog::updateLabels(model, this);
 }
+
+void CoinControlDialog::customSelectCoins() 
+{ 
+	QString strUserAmount = ui->lineEditCustomCC->text(); 
+	QString strComboText = ui->QComboBoxFilterCoins->currentText();
+	double dUserAmount = QString(strUserAmount).toDouble(); 
+	 
+	bool treeMode = ui->radioTreeMode->isChecked(); 
+	 
+	QFlags<Qt::ItemFlag> flgCheckbox=Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable; 
+         
+    map<QString, vector<COutput> > mapCoins; 
+    model->listCoins(mapCoins); 
+ 
+    BOOST_FOREACH(PAIRTYPE(QString, vector<COutput>) coins, mapCoins) 
+    { 
+        QTreeWidgetItem *itemWalletAddress = new QTreeWidgetItem(); 
+		 
+		QTreeWidgetItem *itemOutput; 
+        if (treeMode)    itemOutput = new QTreeWidgetItem(itemWalletAddress); 
+        else             itemOutput = new QTreeWidgetItem(ui->treeWidget); 
+        itemOutput->setFlags(flgCheckbox); 
+        itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Unchecked); 
+		 
+    BOOST_FOREACH(const COutput& out, coins.second) 
+    { 
+    // transaction hash 
+        uint256 txhash = out.tx->GetHash(); 
+
+    //Getting the coin amount 
+    double dCoinAmount = out.tx->vout[out.i].nValue; 
+			
+    //Coin Weight 
+	uint64 nTxWeight = 0; 
+	model->getStakeWeightFromValue(out.tx->GetTxTime(), out.tx->vout[out.i].nValue, nTxWeight); 
+			 
+	//Age 
+	double dAge = (GetTime() - out.tx->GetTxTime()) / (double)(1440 * 60); 
+			 
+	//selecting the coins 
+		if (strComboText == "Amount <") 
+		{ 
+			if (dCoinAmount < dUserAmount * COIN) 
+			{			 
+				COutPoint outpt(txhash, out.i); 
+				coinControl->Select(outpt); 
+				itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Checked); 
+			}
+		} 
+		else if (strComboText == "Amount >") 
+		{ 
+			if (dCoinAmount > dUserAmount * COIN) 
+			{			 
+				COutPoint outpt(txhash, out.i); 
+				coinControl->Select(outpt); 
+				itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Checked); 
+			}
+		} 
+		else if (strComboText == "Weight <") 
+		{ 
+			if (nTxWeight < dUserAmount) 
+			{			 
+				COutPoint outpt(txhash, out.i); 
+				coinControl->Select(outpt); 
+				itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Checked); 
+			}
+		} 
+		else if (strComboText == "Weight >") 
+		{ 
+			if (nTxWeight > dUserAmount) 
+			{			 
+				COutPoint outpt(txhash, out.i); 
+				coinControl->Select(outpt); 
+				itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Checked); 
+			}
+		} 
+		else if (strComboText == "Age <") 
+		{ 
+			if (dAge < dUserAmount) 
+			{			 
+				COutPoint outpt(txhash, out.i); 
+				coinControl->Select(outpt); 
+				itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Checked); 
+			}
+		} 
+		else if (strComboText == "Age >") 
+		{ 
+			if (dAge > dUserAmount) 
+			{			 
+				COutPoint outpt(txhash, out.i); 
+				coinControl->Select(outpt); 
+				itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Checked); 
+			}
+		} 
+	} 
+    } 
+    CoinControlDialog::updateLabels(model, this);
+	updateView(); 
+} 
 
 // context menu
 void CoinControlDialog::showMenu(const QPoint &point)
