@@ -383,7 +383,7 @@ bool GetMyExternalIP(CNetAddr& ipRet)
         }
         else if (nHost == 2)
         {
-            addrConnect = CService("104.193.43.106", 80); // ip.truckcoin.net
+            addrConnect = CService("104.255.67.131", 80); // ip.truckcoin.net
 
             if (nLookup == 1)
             {
