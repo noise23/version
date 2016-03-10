@@ -923,9 +923,13 @@ int64 GetProofOfWorkReward(int nHeight, unsigned int nBits, int64 nFees)
     {
 	nSubsidy = 1 * COIN;
     }
+	else if(nHeight > 536698 && nHeight <= 1101186)
+    {
+	nSubsidy = 2 * COIN;
+    }
     else
     {
-    nSubsidy = 2 * COIN; // 2 V  pow reward forever
+    nSubsidy = 5 * COIN;
     }
 
     if (fDebug && GetBoolArg("-printcreation"))
@@ -1082,8 +1086,10 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
 
         if(fProofOfStake) 
           nTargetSpacing = 1.5 * 60; // 90 sec PoS target spacing 
-        else 
+        else if(nHeight <= 1101186)
 		  nTargetSpacing = 60;  // 60 sec PoW target spacing 
+        else 
+		  nTargetSpacing = 2.5 * 60;  // 150 sec PoW target spacing
         
         nTargetTimespan = nTargetSpacing * nIntervalLong;
 
