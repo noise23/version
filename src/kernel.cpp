@@ -336,10 +336,12 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
 	unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
 
     if (nTimeTx < txPrev.nTime)  // Transaction timestamp violation
-        return error("CheckStakeKernelHash() : nTime violation");
+//        return error("CheckStakeKernelHash() : nTime violation");
+		return false;
 
     if (nTimeBlockFrom + nStakeMinAge > nTimeTx) // Min age requirement
-        return error("CheckStakeKernelHash() : min age violation");
+//        return error("CheckStakeKernelHash() : min age violation");
+		return false;
 
 	//grab difficulty
     CBigNum bnTargetPerCoinDay;
