@@ -1,15 +1,13 @@
 * {
-	background: #003651;
+	background: #070727;
         color: #D5F1FF;
 }
 
 QLabel
 {
-	background: #003651;
+	background: #070727;
         color: #D5F1FF;
 }
-
-
 
 QToolTip
 {
@@ -40,20 +38,18 @@ QWidget:disabled
 
 QWidget#treeWidget
 {
-    color: #003651;
+    color: #070727;
 }
 
 QLabel:disabled
 {
-	background: #003651;
+	background: #070727;
 }
-
-
 
 QActionGroup
 {
     color: #FDCB6F;
-    background-color: #003651;
+    background-color: #070727;
     outline: none;
 }
 
@@ -89,7 +85,7 @@ QToolButton:checked
 
 QToolButton#addressBookButton, QToolButton#pasteButton, QToolButton#deleteButton
 {
-	background: #003651;
+	background: #070727;
 }
 
 QMenuBar::item
@@ -132,12 +128,10 @@ QMenu::separator
     margin-bottom: 1px;
 }
 
-
 QAbstractItemView
 {
     background-color: #DBE2EA;
 }
-
 
 QLineEdit
 {
@@ -354,7 +348,6 @@ QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical
       background: white;
 }
 
-
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical
 {
       background: none;
@@ -383,7 +376,7 @@ QHeaderView::section
 QCheckBox:disabled
 {
 color: #414141;
-background-color: #003651;
+background-color: #070727;
 }
 
 QProgressBar
