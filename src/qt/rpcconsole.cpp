@@ -15,6 +15,8 @@
 #endif
 #include <QScrollBar>
 
+#include <openssl/crypto.h>
+
 // TODO: add a scrollback limit, as there is currently none
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
 // TODO: receive errors and debug messages through ClientModel
@@ -198,6 +200,8 @@ RPCConsole::RPCConsole(QWidget *parent) :
 
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
 
+    // set OpenSSL version label
+    ui->openSSLVersion->setText(SSLeay_version(SSLEAY_VERSION));
     startExecutor();
 
     clear();
