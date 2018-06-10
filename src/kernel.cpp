@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The Version developers
+// Copyright (c) 2013-2018 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 

@@ -3,7 +3,7 @@
  *
  * W.J. van der Laan 2011-2012
  * The Bitcoin Developers 2011-2012
- * The Version Developers 2011-2015
+ * The Version Developers 2013-2018
  */
 #include "bitcoingui.h"
 #include "transactiontablemodel.h"

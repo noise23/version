@@ -1,6 +1,6 @@
 /*
  * W.J. van der Laan 2011-2012
- * The Version Developers 2013
+ * The Version Developers 2018
  */
 #include "bitcoingui.h"
 #include "clientmodel.h"
