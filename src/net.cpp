@@ -1059,12 +1059,12 @@ void ThreadSocketHandler2(void* parg)
                 }
                 else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL)
                 {
-                    printf("socket sending timeout: %"PRI64d"s\n", nTime - pnode->nLastSend);
+                    printf("socket sending timeout: %llds\n", nTime - pnode->nLastSend);
                     pnode->fDisconnect = true;
                 }
                 else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60))
                 {
-                    printf("socket receive timeout: %"PRI64d"s\n", nTime - pnode->nLastRecv);
+                    printf("socket receive timeout: %llds\n", nTime - pnode->nLastRecv);
                     pnode->fDisconnect = true;
                 }
                 else if (pnode->nPingNonceSent && pnode->nPingUsecStart + TIMEOUT_INTERVAL * 1000000 < GetTimeMicros())
@@ -1308,7 +1308,7 @@ void DumpAddresses()
     CAddrDB adb;
     adb.Write(addrman);
   
-    printf("Flushed %d addresses to peers.dat %"PRI64d"ms\n",
+    printf("Flushed %d addresses to peers.dat %lldms\n",
     addrman.size(), GetTimeMillis() - nStart);
 }
 

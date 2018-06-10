@@ -232,7 +232,7 @@ void AddTimeData(const CNetAddr& ip, int64 nTime);
 
 inline std::string i64tostr(int64 n)
 {
-    return strprintf("%"PRI64d, n);
+    return strprintf("%lld", n);
 }
 
 inline std::string itostr(int n)
