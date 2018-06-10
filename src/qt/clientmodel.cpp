@@ -18,10 +18,8 @@ double GetPoWMHashPS(const CBlockIndex* blockindex = NULL);
 double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);
 ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), optionsModel(optionsModel),
-    cachedNumBlocks(0), cachedNumBlocksOfPeers(0), pollTimer(0)
+    cachedNumBlocks(0), cachedNumBlocksOfPeers(0), numBlocksAtStartup(-1), pollTimer(0)
 {
-    numBlocksAtStartup = -1;
-	
     pollTimer = new QTimer();
     pollTimer->setInterval(MODEL_UPDATE_DELAY);
     pollTimer->start();
@@ -73,10 +71,13 @@ void ClientModel::updateTimer()
     int newNumBlocksOfPeers = getNumBlocksOfPeers();
 
     if(cachedNumBlocks != newNumBlocks || cachedNumBlocksOfPeers != newNumBlocksOfPeers)
-        emit numBlocksChanged(newNumBlocks, newNumBlocksOfPeers);
+    {
+        cachedNumBlocks = newNumBlocks;
+        cachedNumBlocksOfPeers = newNumBlocksOfPeers;
 
-    cachedNumBlocks = newNumBlocks;
-    cachedNumBlocksOfPeers = newNumBlocksOfPeers;
+        // ensure we return the maximum of newNumBlocksOfPeers and newNumBlocks to not create weird displays in the GUI
+        emit numBlocksChanged(newNumBlocks, std::max(newNumBlocksOfPeers, newNumBlocks));
+    }
 }
 
 void ClientModel::updateNumConnections(int numConnections)
