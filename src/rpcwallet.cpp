@@ -1217,11 +1217,11 @@ Value gettransaction(const Array& params, bool fHelp)
     if (wtx.IsFromMe())
         entry.push_back(Pair("fee", ValueFromAmount(nFee)));
 
-        WalletTxToJSON(wtx, entry);
+    WalletTxToJSON(wtx, entry);
 
-        Array details;
-        ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
-        entry.push_back(Pair("details", details));
+    Array details;
+    ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
+    entry.push_back(Pair("details", details));
     }
     else
     {
@@ -1279,7 +1279,7 @@ Value keypoolrefill(const Array& params, bool fHelp)
             "Fills the keypool."
             + HelpRequiringPassphrase());
 
-        EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked();
 
     pwalletMain->TopUpKeyPool();
 

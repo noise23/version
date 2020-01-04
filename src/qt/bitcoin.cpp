@@ -80,7 +80,7 @@ static void ThreadSafeHandleURI(const std::string& strURI)
     if(!guiref)
         return;
 
-	QMetaObject::invokeMethod(guiref, "handleURI", GUIUtil::blockingGUIThreadConnection(),
+    QMetaObject::invokeMethod(guiref, "handleURI", GUIUtil::blockingGUIThreadConnection(),
                                Q_ARG(QString, QString::fromStdString(strURI)));
 }
 
