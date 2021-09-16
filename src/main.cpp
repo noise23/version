@@ -2059,6 +2059,8 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
 
 bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
 {
+    uint i;
+
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
 
@@ -2082,9 +2084,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // First transaction must be coinbase, the rest must not be
     if (vtx.empty() || !vtx[0].IsCoinBase())
         return DoS(100, error("CheckBlock() : first tx is not coinbase"));
-    for (unsigned int i = 1; i < vtx.size(); i++)
-        if (vtx[i].IsCoinBase())
-            return DoS(100, error("CheckBlock() : more than one coinbase"));
+    for(i = 1; i < vtx.size(); i++) {
+        if(vtx[i].IsCoinBase())
+          return(DoS(100, error("CheckBlock() : more than one coin base")));
+    }
 
 
     // Check coinbase timestamp
@@ -2100,9 +2103,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         // Second transaction must be coinstake, the rest must not be
         if (vtx.empty() || !vtx[1].IsCoinStake())
             return DoS(100, error("CheckBlock() : second tx is not coinstake"));
-        for (unsigned int i = 2; i < vtx.size(); i++)
-            if (vtx[i].IsCoinStake())
-                return DoS(100, error("CheckBlock() : more than one coinstake"));
+        for(i = 2; i < vtx.size(); i++) {
+            if(vtx[i].IsCoinStake())
+              return(DoS(100, error("CheckBlock() : more than one coin stake")));
+        }
 
     // Check coinstake timestamp
         if (!CheckCoinStakeTimestamp(GetBlockTime(), (int64)vtx[1].nTime))
@@ -2111,9 +2115,16 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         // Check proof-of-stake block signature
         if (fCheckSig && !CheckBlockSignature(true))
             return DoS(100, error("CheckBlock() : bad proof-of-stake block signature"));
-      }
-      else
-      {
+    }
+    else
+    {
+          
+        // No coin stakes in PoW blocks
+        for(i = 1; i < vtx.size(); i++) {
+            if(vtx[i].IsCoinStake() && (vtx[i].nTime > 1626307200))
+              return(DoS(100, error("CheckBlock() : rogue coin stake")));
+        }
+        
         // Check coinbase reward
  
                if (vtx[0].GetValueOut() > (IsProofOfWork()? (GetProofOfWorkReward(0, nBits, 0) - vtx[0].GetMinFee() + MIN_TX_FEE) : 0))
