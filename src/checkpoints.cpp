@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2021 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -48,6 +48,10 @@ namespace Checkpoints
         (1966277, uint256("0x28fd7d077d1a0636c5e1029a055affc69868a403780d3cdbc5c67cc783503b30")) // 2018-06-10 16:09:12 UTC
         (2142663, uint256("0x7d147e0c586609e30f9e629b23b7669f3c8bbade3ae3f1b6b2eec6c8bbed6ce9")) // 2018-10-25 19:19:44 UTC
         (2647643, uint256("0xf5ba20508df72bbd442a62233d5de27686ddfcbab1b4be6d48a38bf678f44abc")) // 2020-01-02 22:48:31 UTC
+        (2819343, uint256("0xfd516d34d8784257ce70d760181e380087969cc9f755287e6d9ee118f4c611c3")) // 2020-05-20 03:05:29 UTC
+        (3000009, uint256("0x53cdc68866515ee840de4421f384b52f993aae69476b60a8e044521aec68bb98")) // 2020-11-08 03:55:15 UTC
+        (3150705, uint256("0xd438384c2a021aa4e883c5224d99abd5270b38778bdd0cc37c88ef0872cf857f")) // 2021-04-08 11:07:32 UTC
+        (3311403, uint256("0x7fe5df3fa792e46189a163074e8e23891f36397a848b88e308fad440636be930")) // 2021-09-18 00:17:20 UTC
         ;
 
     bool CheckHardened(int nHeight, const uint256& hash)

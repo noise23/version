@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2021 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -33,6 +33,10 @@ static std::map<int, unsigned int> mapStakeModifierCheckpoints =
     ( 1966277, 0x95b6a3b4u )
     ( 2142663, 0x0e7bc9c4u )
     ( 2647643, 0x4f9886b0u )
+    ( 2819343, 0x39e155ceu )
+    ( 3000009, 0x2b81e950u )
+    ( 3150705, 0x9f60c6a4u )
+    ( 3311403, 0xd92cdb1au )
     ;
 
 // Get time weight 
