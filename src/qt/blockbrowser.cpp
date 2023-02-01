@@ -93,7 +93,7 @@ double getTxTotalValue(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock))
+    if (!GetTransaction(hash, tx, hashBlock, false))
         return 0;
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -136,7 +136,7 @@ std::string getOutputs(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock))
+    if (!GetTransaction(hash, tx, hashBlock, false))
         return "N/A";
 
     std::string str = "";
@@ -167,7 +167,7 @@ std::string getInputs(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock))
+    if (!GetTransaction(hash, tx, hashBlock, false))
         return "N/A";
 
     std::string str = "";
@@ -175,11 +175,11 @@ std::string getInputs(std::string txid)
     {
         uint256 hash;
         const CTxIn& vin = tx.vin[i];
-		
+
         hash.SetHex(vin.prevout.hash.ToString());
         CTransaction wtxPrev;
         uint256 hashBlock = 0;
-        if (!GetTransaction(hash, wtxPrev, hashBlock))
+        if (!GetTransaction(hash, wtxPrev, hashBlock, false))
              return "N/A";
 
         CTxDestination address;
@@ -205,19 +205,19 @@ double BlockBrowser::getTxFees(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-	CTxDB txdb("r");
-	
-    if (!GetTransaction(hash, tx, hashBlock))
+    CCoinsDB coinsdb("r");
+
+    if (!GetTransaction(hash, tx, hashBlock, false))
         return convertCoins(MIN_TX_FEE);
 
-    MapPrevTx mapInputs;
-    map<uint256, CTxIndex> mapUnused;
-	bool fInvalid;
+    CCoinsViewDB viewDB(coinsdb);
+    CCoinsViewMemPool viewMemPool(viewDB, mempool);
+    CCoinsViewCache view(viewMemPool);
 
-    if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid))
+    if (!tx.HaveInputs(view))
 	      return convertCoins(MIN_TX_FEE);
 		  
-    int64 nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
+    int64 nTxFees = tx.GetValueIn(view)-tx.GetValueOut();
 
     if(tx.IsCoinStake() || tx.IsCoinBase()) {
         ui->feesLabel->setText(QString("Reward:"));
@@ -297,7 +297,7 @@ void BlockBrowser::updateExplorer(bool block)
   
      CTransaction tx; 
      uint256 hashBlock = 0; 
-     if (GetTransaction(hash, tx, hashBlock)) 
+     if (GetTransaction(hash, tx, hashBlock, false)) 
      { 
          CBlockIndex* pblockindex = mapBlockIndex[hashBlock]; 
          if (!pblockindex) 

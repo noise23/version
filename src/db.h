@@ -18,10 +18,8 @@ class CAddress;
 class CAddrMan;
 class CBlockLocator;
 class CDiskBlockIndex;
-class CDiskTxPos;
 class CMasterKey;
 class COutPoint;
-class CTxIndex;
 class CWallet;
 class CWalletTx;
 
@@ -39,7 +37,6 @@ private:
     bool fDbEnvInit;
     bool fMockDb;
     boost::filesystem::path pathEnv;
-    std::string strPath;
 
     void EnvShutdown();
 
@@ -312,37 +309,47 @@ public:
     bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
 };
 
-/** Access to the transaction database (blkindex.dat) */
-class CTxDB : public CDB
+/** Access to the transaction database (coins.dat) */
+class CCoinsDB : public CDB
 {
 public:
-    CTxDB(const char* pszMode="r+") : CDB("blkindex.dat", pszMode) { }
+    CCoinsDB(const char* pszMode="r+") : CDB("coins.dat", pszMode) { }
 private:
-    CTxDB(const CTxDB&);
-    void operator=(const CTxDB&);
+    CCoinsDB(const CCoinsDB&);
+    void operator=(const CCoinsDB&);
 public:
-    bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
-    bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
-    bool AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeight);
-    bool EraseTxIndex(const CTransaction& tx);
-    bool ContainsTx(uint256 hash);
-    bool ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex);
-    bool ReadDiskTx(uint256 hash, CTransaction& tx);
-    bool ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex);
-    bool ReadDiskTx(COutPoint outpoint, CTransaction& tx);
-    bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
+    bool ReadCoins(uint256 hash, CCoins &coins);
+    bool WriteCoins(uint256 hash, const CCoins& coins);
+    bool HaveCoins(uint256 hash);
     bool ReadHashBestChain(uint256& hashBestChain);
     bool WriteHashBestChain(uint256 hashBestChain);
+};
+
+/** Access to the block database (chain.dat) */
+class CChainDB : public CDB
+{
+public:
+    CChainDB(const char* pszMode="r+") : CDB("chain.dat", pszMode) { }
+private:
+    CChainDB(const CChainDB&);
+    void operator=(const CChainDB&);
+public:
+    bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
     bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust);
     bool WriteBestInvalidTrust(CBigNum bnBestInvalidTrust);
+    bool ReadBlockFileInfo(int nFile, CBlockFileInfo &fileinfo);
+    bool WriteBlockFileInfo(int nFile, const CBlockFileInfo &fileinfo);
+    bool ReadLastBlockFile(int &nFile);
+    bool WriteLastBlockFile(int nFile);
     bool ReadSyncCheckpoint(uint256& hashCheckpoint);
     bool WriteSyncCheckpoint(uint256 hashCheckpoint);
     bool ReadCheckpointPubKey(std::string& strPubKey);
     bool WriteCheckpointPubKey(const std::string& strPubKey);
-    bool LoadBlockIndex();
-private:
     bool LoadBlockIndexGuts();
 };
+
+
+bool LoadBlockIndex(CCoinsDB &coinsdb, CChainDB &chaindb);
 
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
