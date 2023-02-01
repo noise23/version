@@ -702,10 +702,7 @@ public:
 
     void AddSupportingTransactions();
 
-    bool AcceptWalletTransaction(CCoinsDB& coinsdb, bool fCheckInputs=true);
-    bool AcceptWalletTransaction();
-
-    void RelayWalletTransaction(CCoinsDB& coinsdb);
+    bool AcceptWalletTransaction(bool fCheckInputs=true);
     void RelayWalletTransaction();
 };
 

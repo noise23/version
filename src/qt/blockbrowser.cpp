@@ -210,13 +210,11 @@ double BlockBrowser::getTxFees(std::string txid)
     if (!GetTransaction(hash, tx, hashBlock, false))
         return convertCoins(MIN_TX_FEE);
 
-    CCoinsViewDB viewDB(coinsdb);
-    CCoinsViewMemPool viewMemPool(viewDB, mempool);
-    CCoinsViewCache view(viewMemPool);
+    CCoinsViewCache &view = *pcoinsTip;
 
     if (!tx.HaveInputs(view))
-	      return convertCoins(MIN_TX_FEE);
-		  
+        return convertCoins(MIN_TX_FEE);
+
     int64 nTxFees = tx.GetValueIn(view)-tx.GetValueOut();
 
     if(tx.IsCoinStake() || tx.IsCoinBase()) {
@@ -225,7 +223,7 @@ double BlockBrowser::getTxFees(std::string txid)
     }
     else
         ui->feesLabel->setText(QString("Fees:"));
-		
+
     return convertCoins(nTxFees);
 }
 

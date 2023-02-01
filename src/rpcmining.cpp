@@ -416,15 +416,13 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Array transactions;
     map<uint256, int64_t> setTxIndex;
     int i = 0;
-    CCoinsDB coindb("r");
-    CCoinsViewDB viewdb(coindb);
-    CCoinsViewCache view(viewdb);
+    CCoinsViewCache &view = *pcoinsTip;
     for (CTransaction& tx : pblock->vtx)
     {
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
-        if (tx.IsCoinBase())
+        if (tx.IsCoinBase() || tx.IsCoinStake())
             continue;
 
         Object entry;
