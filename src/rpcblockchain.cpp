@@ -156,7 +156,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("modifier", strprintf("%016llx", blockindex->nStakeModifier)));
     result.push_back(Pair("modifierchecksum", strprintf("%08x", blockindex->nStakeModifierChecksum)));
     Array txinfo;
-    BOOST_FOREACH (const CTransaction& tx, block.vtx)
+    for (const CTransaction& tx : block.vtx)
     {
         if (fPrintTransactionDetail)
         {
@@ -171,7 +171,15 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
             txinfo.push_back(tx.GetHash().GetHex());
     }
     result.push_back(Pair("tx", txinfo));
-    result.push_back(Pair("signature", HexStr(block.vchBlockSig.begin(), block.vchBlockSig.end())));
+
+    if ( block.IsProofOfStake() )
+    {
+        CKey key;
+        block.GetGenerator(key);
+        result.push_back(Pair("generator", HexStr(key.GetPubKey().Raw())));
+        result.push_back(Pair("signature", HexStr(block.vchBlockSig)));
+    }
+
     return result;
 }
 
@@ -223,7 +231,7 @@ Value getrawmempool(const Array& params, bool fHelp)
     mempool.queryHashes(vtxid);
 
     Array a;
-    BOOST_FOREACH(const uint256& hash, vtxid)
+    for (const uint256& hash : vtxid)
         a.push_back(hash.ToString());
 
     return a;

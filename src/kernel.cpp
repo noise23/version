@@ -431,7 +431,7 @@ bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hash
     CCoins coins;
     CCoinsViewCache &view = *pcoinsTip;
 
-    if (!view.GetCoins(txin.prevout.hash, coins))
+    if (!view.GetCoinsReadOnly(txin.prevout.hash, coins))
         return fDebug? error("CheckProofOfStake() : INFO: read coins for txPrev failed") : false;  // previous transaction not in main chain, may occur during initial download
 
     CBlockIndex* pindex = FindBlockByHeight(coins.nHeight);
@@ -452,10 +452,13 @@ bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hash
         return fDebug? error("CheckProofOfStake() : read block failed") : false; // unable to read block of previous transaction
 
     // Verify signature
-    if (!VerifySignature(coins, tx, 0, true, false, 0))
+    const CTxOut& txout = txPrev.vout[txin.prevout.n];
+
+    // Verify script
+    if (!VerifyScript(txin.scriptSig, txout.scriptPubKey, tx, 0, true, false, 0))
     {
         fFatal = true;
-        return error("CheckProofOfStake() : VerifySignature failed on coinstake %s", tx.GetHash().ToString().c_str());
+        return error("CheckProofOfStake() : VerifyScript failed on coinstake %s", tx.GetHash().ToString().c_str());
     }
 
     unsigned int nInterval = 0;
