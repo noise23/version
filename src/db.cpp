@@ -634,7 +634,10 @@ bool LoadBlockIndex(CChainDB &chaindb)
     {
         CBlockIndex* pindex = item.second;
         pindex->nChainTrust = (pindex->pprev ? pindex->pprev->nChainTrust : 0) + pindex->GetBlockTrust();
-        // NovaCoin: calculate stake modifier checksum
+        pindex->nChainTx = (pindex->pprev ? pindex->pprev->nChainTx : 0) + pindex->nTx;
+        if ((pindex->nStatus & BLOCK_VALID_MASK) >= BLOCK_VALID_TRANSACTIONS && !(pindex->nStatus & BLOCK_FAILED_MASK))
+            setBlockIndexValid.insert(pindex);
+        // Calculate stake modifier checksum
         pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
         if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum))
             return error("CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height=%d, modifier=0x%016" PRIx64, pindex->nHeight, pindex->nStakeModifier);
@@ -753,7 +756,8 @@ bool CChainDB::LoadBlockIndexGuts()
             CBlockIndex* pindexNew = InsertBlockIndex(blockHash);
             pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
             pindexNew->nHeight        = diskindex.nHeight;
-            pindexNew->pos            = diskindex.pos;
+            pindexNew->nFile          = diskindex.nFile;
+            pindexNew->nDataPos       = diskindex.nDataPos;
             pindexNew->nUndoPos       = diskindex.nUndoPos;
             pindexNew->nMint          = diskindex.nMint;
             pindexNew->nMoneySupply   = diskindex.nMoneySupply;
@@ -767,13 +771,15 @@ bool CChainDB::LoadBlockIndexGuts()
             pindexNew->nTime          = diskindex.nTime;
             pindexNew->nBits          = diskindex.nBits;
             pindexNew->nNonce         = diskindex.nNonce;
+            pindexNew->nStatus        = diskindex.nStatus;
+            pindexNew->nTx            = diskindex.nTx;
 
             // Watch for genesis block
             if (pindexGenesisBlock == NULL && blockHash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
                 pindexGenesisBlock = pindexNew;
 
             if (!pindexNew->CheckIndex())
-                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
+                return error("LoadBlockIndex() : CheckIndex failed: %s", pindexNew->ToString().c_str());
 
             // Build setStakeSeen
             if (pindexNew->IsProofOfStake())
