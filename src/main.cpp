@@ -240,13 +240,30 @@ bool CCoinsViewCache::GetCoinsReadOnly(uint256 txid, CCoins &coins) {
     return false;
 }
 
+std::map<uint256,CCoins>::iterator CCoinsViewCache::FetchCoins(uint256 txid) {
+    std::map<uint256,CCoins>::iterator it = cacheCoins.find(txid);
+    if (it != cacheCoins.end())
+        return it;
+    CCoins tmp;
+    if (!base->GetCoins(txid,tmp))
+        return it;
+    std::pair<std::map<uint256,CCoins>::iterator,bool> ret = cacheCoins.insert(std::make_pair(txid, tmp));
+    return ret.first;
+}
+
+CCoins &CCoinsViewCache::GetCoins(uint256 txid) {
+    std::map<uint256,CCoins>::iterator it = FetchCoins(txid);
+    assert(it != cacheCoins.end());
+    return it->second;
+}
+
 bool CCoinsViewCache::SetCoins(uint256 txid, const CCoins &coins) {
     cacheCoins[txid] = coins;
     return true;
 }
 
 bool CCoinsViewCache::HaveCoins(uint256 txid) {
-    return cacheCoins.count(txid) || base->HaveCoins(txid);
+    return FetchCoins(txid) != cacheCoins.end();
 }
 
 CBlockIndex *CCoinsViewCache::GetBestBlock() {
@@ -400,7 +417,7 @@ bool CTransaction::IsStandard() const
 // expensive-to-check-upon-redemption script like:
 //   DUP CHECKSIG DROP ... repeated 100 times... OP_1
 //
-bool CTransaction::AreInputsStandard(CCoinsView& mapInputs) const
+bool CTransaction::AreInputsStandard(CCoinsViewCache& mapInputs) const
 {
     if (IsCoinBase())
         return true; // Coinbases don't use vin normally
@@ -693,6 +710,9 @@ bool CTxMemPool::accept(CTransaction &tx, bool fCheckInputs, bool* pfMissingInpu
                 return false;
             }
         }
+
+        if (!tx.HaveInputs(view))
+            return error("CTxMemPool::accept() : inputs already spent");
 
         // Check for non-standard pay-to-script-hash in inputs
         if (!tx.AreInputsStandard(view) && !fTestNet)
@@ -1307,37 +1327,27 @@ void CBlock::UpdateTime(const CBlockIndex* pindexPrev)
     nTime = max(GetBlockTime(), GetAdjustedTime());
 }
 
-CTxOut CTransaction::GetOutputFor(const CTxIn& input, CCoinsView& view)
+const CTxOut &CTransaction::GetOutputFor(const CTxIn& input, CCoinsViewCache& view)
 {
-    CCoins coins;
-    if (!view.GetCoins(input.prevout.hash, coins))
-        throw std::runtime_error("CTransaction::GetOutputFor() : prevout.hash not found");
-
-    if (input.prevout.n >= coins.vout.size())
-        throw std::runtime_error("CTransaction::GetOutputFor() : prevout.n out of range or already spent");
-
-    const CTxOut &out = coins.vout[input.prevout.n];
-    if (out.IsNull())
-        throw std::runtime_error("CTransaction::GetOutputFor() : already spent");
-
-    return out;
+    const CCoins &coins = view.GetCoins(input.prevout.hash);
+    assert(coins.IsAvailable(input.prevout.n));
+    return coins.vout[input.prevout.n];
 }
 
-int64 CTransaction::GetValueIn(CCoinsView& inputs) const
+int64 CTransaction::GetValueIn(CCoinsViewCache& inputs) const
 {
     if (IsCoinBase())
         return 0;
 
     int64 nResult = 0;
     for (unsigned int i = 0; i < vin.size(); i++)
-    {
         nResult += GetOutputFor(vin[i], inputs).nValue;
-    }
+
     return nResult;
 
 }
 
-unsigned int CTransaction::GetP2SHSigOpCount(CCoinsView& inputs) const
+unsigned int CTransaction::GetP2SHSigOpCount(CCoinsViewCache& inputs) const
 {
     if (IsCoinBase())
         return 0;
@@ -1345,21 +1355,19 @@ unsigned int CTransaction::GetP2SHSigOpCount(CCoinsView& inputs) const
     unsigned int nSigOps = 0;
     for (unsigned int i = 0; i < vin.size(); i++)
     {
-        CTxOut prevout = GetOutputFor(vin[i], inputs);
+        const CTxOut &prevout = GetOutputFor(vin[i], inputs);
         if (prevout.scriptPubKey.IsPayToScriptHash())
             nSigOps += prevout.scriptPubKey.GetSigOpCount(vin[i].scriptSig);
     }
     return nSigOps;
 }
 
-bool CTransaction::UpdateCoins(CCoinsView &inputs, CTxUndo &txundo, int nHeight, unsigned int nTimeStamp, const uint256 &txhash) const
+bool CTransaction::UpdateCoins(CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight, unsigned int nTimeStamp, const uint256 &txhash) const
 {
     // mark inputs spent
     if (!IsCoinBase()) {
         for (const CTxIn &txin : vin) {
-            CCoins coins;
-            if (!inputs.GetCoins(txin.prevout.hash, coins))
-                return error("UpdateCoins() : cannot find prevtx");
+            CCoins &coins = inputs.GetCoins(txin.prevout.hash);
 
             if (coins.nTime > nTimeStamp)
                 return error("UpdateCoins() : timestamp violation");
@@ -1368,8 +1376,6 @@ bool CTransaction::UpdateCoins(CCoinsView &inputs, CTxUndo &txundo, int nHeight,
             if (!coins.Spend(txin.prevout, undo))
                 return error("UpdateCoins() : cannot spend input");
             txundo.vprevout.push_back(undo);
-            if (!inputs.SetCoins(txin.prevout.hash, coins))
-                return error("UpdateCoins() : cannot update input");
         }
     }
 
@@ -1380,9 +1386,9 @@ bool CTransaction::UpdateCoins(CCoinsView &inputs, CTxUndo &txundo, int nHeight,
     return true;
 }
 
-bool CTransaction::HaveInputs(CCoinsView &inputs) const
+bool CTransaction::HaveInputs(CCoinsViewCache &inputs) const
 {
-    if (!IsCoinBase()) { 
+    if (!IsCoinBase()) {
         // first check whether information about the prevout hash is available
         for (unsigned int i = 0; i < vin.size(); i++) {
             const COutPoint &prevout = vin[i].prevout;
@@ -1393,8 +1399,7 @@ bool CTransaction::HaveInputs(CCoinsView &inputs) const
         // then check whether the actual outputs are available
         for (unsigned int i = 0; i < vin.size(); i++) {
             const COutPoint &prevout = vin[i].prevout;
-            CCoins coins;
-            inputs.GetCoins(prevout.hash, coins);
+            const CCoins &coins = inputs.GetCoins(prevout.hash);
             if (!coins.IsAvailable(prevout.n))
                 return false;
         }
@@ -1402,28 +1407,25 @@ bool CTransaction::HaveInputs(CCoinsView &inputs) const
     return true;
 }
 
-bool CTransaction::CheckInputs(CCoinsView &inputs, enum CheckSig_mode csmode, bool fStrictEncodings, CBlock *pblock) const
+bool CTransaction::CheckInputs(CCoinsViewCache &inputs, enum CheckSig_mode csmode, bool fStrictEncodings, CBlock *pblock) const
 {
     if (!IsCoinBase())
     {
+        // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
+        // for an attacker to attempt to split the network.
+        if (!HaveInputs(inputs))
+            return error("CheckInputs() : %s inputs unavailable", GetHash().ToString().substr(0,10).c_str());
+
+        CBlockIndex *pindexBlock = inputs.GetBestBlock();
         int64 nValueIn = 0;
         int64 nFees = 0;
         for (unsigned int i = 0; i < vin.size(); i++)
         {
             const COutPoint &prevout = vin[i].prevout;
-            CCoins coins;
-            if (!inputs.GetCoins(prevout.hash, coins))
-                return error("CheckInputs() : cannot find prevout tx");
-
-            // Check for conflicts (double-spend)
-            // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
-            // for an attacker to attempt to split the network.
-             if (!coins.IsAvailable(prevout.n))
-                return error("CheckInputs() : %s prev tx already used", GetHash().ToString().substr(0,10).c_str());
+            const CCoins &coins = inputs.GetCoins(prevout.hash);
 
             // If prev is coinbase or coinstake, check that it's matured
             if (coins.IsCoinBase() || coins.IsCoinStake()) {
-                CBlockIndex *pindexBlock = inputs.GetBestBlock();
                 if (pindexBlock->nHeight - coins.nHeight < nCoinbaseMaturity)
                     return error("CheckInputs() : tried to spend %s at depth %d", coins.IsCoinBase() ? "coinbase" : "coinstake", pindexBlock->nHeight - coins.nHeight);
             }
@@ -1482,8 +1484,7 @@ bool CTransaction::CheckInputs(CCoinsView &inputs, enum CheckSig_mode csmode, bo
             (csmode == CS_AFTER_CHECKPOINT && inputs.GetBestBlock()->nHeight >= Checkpoints::GetTotalBlocksEstimate())) {
             for (unsigned int i = 0; i < vin.size(); i++) {
                 const COutPoint &prevout = vin[i].prevout;
-                CCoins coins;
-                inputs.GetCoins(prevout.hash, coins);
+                const CCoins &coins = inputs.GetCoins(prevout.hash);
 
                 // Verify signature
     bool fStrictPayToScriptHash = true;
@@ -1551,10 +1552,7 @@ bool CTransaction::ClientCheckInputs() const
     return true;
 }
 
-
-
-
-bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsView &view)
+bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsViewCache &view)
 {
     assert(pindex == view.GetBestBlock());
 
@@ -1583,17 +1581,16 @@ bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsView &view)
             continue;
 
         // check that all outputs are available
-        CCoins outs;
-        if (!view.GetCoins(hash, outs))
+        if (!view.HaveCoins(hash))
             return error("DisconnectBlock() : outputs still spent? database corrupted");
+        CCoins &outs = view.GetCoins(hash);
 
         CCoins outsBlock = CCoins(tx, pindex->nHeight, pindex->nTime);
         if (outs != outsBlock)
             return error("DisconnectBlock() : added transaction mismatch? database corrupted");
 
         // remove outputs
-        if (!view.SetCoins(hash, CCoins()))
-            return error("DisconnectBlock() : cannot delete coin outputs");
+        outs = CCoins();
 
         // restore inputs
         if (i > 0) { // not coinbases
@@ -1636,7 +1633,7 @@ bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsView &view)
 
 bool FindUndoPos(CChainDB &chaindb, int nFile, CDiskBlockPos &pos, unsigned int nAddSize);
 
-bool CBlock::ConnectBlock(CBlockIndex* pindex, CCoinsView &view, bool fJustCheck)
+bool CBlock::ConnectBlock(CBlockIndex* pindex, CCoinsViewCache &view, bool fJustCheck)
 {
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(!fJustCheck, !fJustCheck))
@@ -1660,11 +1657,9 @@ bool CBlock::ConnectBlock(CBlockIndex* pindex, CCoinsView &view, bool fJustCheck
 
         for (unsigned int i=0; i<vtx.size(); i++) {
             uint256 hash = GetTxHash(i);
-            CCoins coins;
-            if (view.GetCoins(hash, coins) && !coins.IsPruned())
+            if (view.HaveCoins(hash) && !view.GetCoins(hash).IsPruned())
                 return error("ConnectBlock() : tried to overwrite transaction");
         }
-
 
     CBlockUndo blockundo;
 
