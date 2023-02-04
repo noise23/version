@@ -1,7 +1,8 @@
+*.idx
+*.pack
 src/*.exe
-src/ppcoin
-src/ppcoind
-src/test_ppcoin
+src/versiond
+src/test_version
 src/build.h
 .*.swp
 *.*~*
@@ -10,11 +11,9 @@ src/build.h
 *.orig
 *.o
 *.patch
-.ppcoin
 #compilation and Qt preprocessor part
 *.qm
-Makefile
-ppcoin-qt
+version-qt
 #resources cpp
 qrc_*.cpp
 #qt creator
