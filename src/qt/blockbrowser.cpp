@@ -205,7 +205,6 @@ double BlockBrowser::getTxFees(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    CCoinsDB coinsdb("r");
 
     if (!GetTransaction(hash, tx, hashBlock, false))
         return convertCoins(MIN_TX_FEE);

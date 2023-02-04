@@ -153,6 +153,7 @@ void ResendWalletTransactions();
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock, bool fAllowSlow);
 bool SetBestChain(CBlockIndex* pindexNew);
 bool ConnectBestBlock();
+CBlockIndex * InsertBlockIndex(uint256 hash);
 
 bool GetWalletFile(CWallet* pwallet, std::string &strWalletFileOut);
 
@@ -2045,6 +2046,16 @@ public:
 
 extern CTxMemPool mempool;
 
+struct CCoinsStats
+{
+    int nHeight;
+    uint64_t nTransactions;
+    uint64_t nTransactionOutputs;
+    uint64_t nSerializedSize;
+
+    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0) {}
+};
+
 /** Abstract view on the open txout dataset. */
 class CCoinsView
 {
@@ -2065,6 +2076,7 @@ public:
     // Modify the currently active block index
     virtual bool SetBestBlock(CBlockIndex *pindex);
     virtual bool BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex);
+    virtual bool GetStats(CCoinsStats &stats);
 };
 
 /** CCoinsView backed by another CCoinsView */
@@ -2082,6 +2094,7 @@ public:
     bool SetBestBlock(CBlockIndex *pindex);
     void SetBackend(CCoinsView &viewIn);
     bool BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex);
+    bool GetStats(CCoinsStats &stats);
 };
 
 /** CCoinsView that adds a memory cache for transactions to another CCoinsView */
