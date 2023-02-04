@@ -1388,8 +1388,14 @@ public:
     // Generate proof-of-stake block signature
     bool SignBlock(const CKeyStore& keystore);
 
-    // Validate header signature
-    bool CheckBlockSignature() const;
+    // Get generator key
+    bool GetGenerator(CKey& GeneratorKey) const;
+
+    // Validate proof-of-stake block signature
+    bool CheckSignature(bool& fFatal, uint256& hashProofOfStake) const;
+
+    // Legacy proof-of-work signature
+    bool CheckLegacySignature() const;
 };
 
 class CBlockFileInfo

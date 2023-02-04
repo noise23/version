@@ -17,8 +17,6 @@
 using namespace std;
 extern int nStakeMaxAge;
 
-extern unsigned int nTransactionsUpdated;
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // mapWallet
@@ -1486,7 +1484,7 @@ bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64& nMinWeight, uint
         CCoins coins;
         {
             LOCK2(cs_main, cs_wallet);
-            if (!view.GetCoins(pcoin.first->GetHash(), coins))
+            if (!view.GetCoinsReadOnly(pcoin.first->GetHash(), coins))
                 continue;
         }
 
@@ -1578,13 +1576,14 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             nTxPos += GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) - (2 * GetSizeOfCompactSize(0)) + GetSizeOfCompactSize(block.vtx.size());
         }
 
+        bool fFatal = false;
         bool fKernelFound = false;
         uint256 hashProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
 		unsigned int txNewTime = txNew.nTime;
 			
 		//HyperStake now iterates each utxo inside of CheckStakeKernelHash()
-		if (CheckStakeKernelHash(nBits, block, nTxPos, *pcoin.first, prevoutStake, txNewTime, nHashDrift, false, hashProofOfStake))
+		if (CheckStakeKernelHash(nBits, block, nTxPos, *pcoin.first, prevoutStake, txNewTime, nHashDrift, false, hashProofOfStake, fFatal))
 		{
                 // Found a kernel
                 if (fDebug && GetBoolArg("-printcoinstake"))
