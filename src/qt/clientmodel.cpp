@@ -7,7 +7,7 @@
 #include "alert.h"
 #include "main.h"
 #include "ui_interface.h"
-static const int64 nClientStartupTime = GetTime();
+static const int64_t nClientStartupTime = GetTime();
 
 #include <QDateTime>
 #include <QTimer>

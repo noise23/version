@@ -10,7 +10,7 @@
 #include <vector>
 #include <openssl/bn.h>
 
-#include "util.h" // for uint64
+#include "util.h"
 
 /** Errors thrown by the bignum class */
 class bignum_error : public std::runtime_error
@@ -98,12 +98,10 @@ public:
     CBigNum(short n) : self(NULL)            { init(); if (n >= 0) setulong(n); else setint64(n); }
     CBigNum(int n) : self(NULL)              { init(); if (n >= 0) setulong(n); else setint64(n); }
     CBigNum(long n) : self(NULL)             { init(); if (n >= 0) setulong(n); else setint64(n); }
-    CBigNum(int64 n) : self(NULL)            { init(); setint64(n); }
     CBigNum(unsigned char n) : self(NULL)    { init(); setulong(n); }
     CBigNum(unsigned short n) : self(NULL)   { init(); setulong(n); }
     CBigNum(unsigned int n) : self(NULL)     { init(); setulong(n); }
     CBigNum(unsigned long n) : self(NULL)    { init(); setulong(n); }
-    CBigNum(uint64 n) : self(NULL)           { init(); setuint64(n); }
     explicit CBigNum(uint256 n) : self(NULL) { init(); setuint256(n); }
 
     explicit CBigNum(const std::vector<unsigned char>& vch) : self(NULL)
@@ -137,14 +135,14 @@ public:
             return (n > (unsigned long)std::numeric_limits<int>::max() ? std::numeric_limits<int>::min() : -(int)n);
     }
 
-    void setint64(int64 sn)
+    void setint64(int64_t sn)
     {
         unsigned char pch[sizeof(sn) + 6];
         unsigned char* p = pch + 4;
         bool fNegative;
-        uint64 n;
+        uint64_t n;
 
-        if (sn < (int64)0)
+        if (sn < (int64_t)0)
         {
             // Since the minimum signed integer cannot be represented as positive so long as its type is signed, and it's not well-defined what happens if you make it unsigned before negating it, we instead increment the negative integer by 1, convert it, then increment the (now positive) unsigned integer by 1 to compensate
             n = -(sn + 1);
@@ -180,7 +178,7 @@ public:
         BN_mpi2bn(pch, p - pch, self);
     }
 
-    void setuint64(uint64 n)
+    void setuint64(uint64_t n)
     {
         unsigned char pch[sizeof(n) + 6];
         unsigned char* p = pch + 4;
@@ -207,7 +205,7 @@ public:
         BN_mpi2bn(pch, p - pch, self);
     }
 
-    uint64 getuint64()
+    uint64_t getuint64()
     {
         unsigned int nSize = BN_bn2mpi(self, NULL);
         if (nSize < 4)
@@ -216,7 +214,7 @@ public:
         BN_bn2mpi(self, &vch[0]);
         if (vch.size() > 4)
             vch[4] &= 0x7f;
-        uint64 n = 0;
+        uint64_t n = 0;
         for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
             ((unsigned char*)&n)[i] = vch[j];
         return n;

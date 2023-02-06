@@ -40,7 +40,7 @@ void AddressCurrentlyConnected(const CService& addr);
 CNode* FindNode(const CNetAddr& ip);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
-CNode* ConnectNode(CAddress addrConnect, const char *strDest = NULL, int64 nTimeout=0);
+CNode* ConnectNode(CAddress addrConnect, const char *strDest = NULL, int64_t nTimeout=0);
 void MapPort();
 unsigned short GetListenPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError=REF(std::string()));
@@ -119,31 +119,31 @@ extern bool fClient;
 extern bool fDiscover;
 extern bool fListen;
 extern bool fUseUPnP;
-extern uint64 nLocalServices;
+extern uint64_t nLocalServices;
 extern CAddress addrSeenByPeer;
-extern uint64 nLocalHostNonce;
+extern uint64_t nLocalHostNonce;
 extern boost::array<int, THREAD_MAX> vnThreadsRunning;
 extern CAddrMan addrman;
 
 extern std::vector<CNode*> vNodes;
 extern CCriticalSection cs_vNodes;
 extern std::map<CInv, CDataStream> mapRelay;
-extern std::deque<std::pair<int64, CInv> > vRelayExpiration;
+extern std::deque<std::pair<int64_t, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
-extern std::map<CInv, int64> mapAlreadyAskedFor;
+extern std::map<CInv, int64_t> mapAlreadyAskedFor;
 
 class CNodeStats
 {
 public:
-    uint64 nServices;
-    int64 nLastSend;
-    int64 nLastRecv;
-    int64 nTimeConnected;
+    uint64_t nServices;
+    int64_t nLastSend;
+    int64_t nLastRecv;
+    int64_t nTimeConnected;
     std::string addrName;
     int nVersion;
     std::string strSubVer;
     bool fInbound;
-    int64 nReleaseTime;
+    int64_t nReleaseTime;
     int nStartingHeight;
     int nMisbehavior;
     double dPingTime;
@@ -162,7 +162,7 @@ public:
     CDataStream vRecv; // received message data
     unsigned int nDataPos;
 	
-    int64 nTime; // time (in microseconds) of message receipt.
+    int64_t nTime; // time (in microseconds) of message receipt.
 
     CNetMessage(int nTypeIn, int nVersionIn) : hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn) {
         hdrbuf.resize(24);
@@ -194,7 +194,7 @@ class CNode
 {
 public:
     // socket
-    uint64 nServices;
+    uint64_t nServices;
     SOCKET hSocket;
     CDataStream ssSend;
     size_t nSendSize; // total size of all vSendMsg entries
@@ -206,9 +206,9 @@ public:
     CCriticalSection cs_vRecvMsg;
     int nRecvVersion;
 	
-    int64 nLastSend;
-    int64 nLastRecv;
-    int64 nTimeConnected;
+    int64_t nLastSend;
+    int64_t nLastRecv;
+    int64_t nTimeConnected;
     CAddress addr;
     std::string addrName;
 	CService addrLocal;
@@ -226,12 +226,12 @@ protected:
 
     // Denial-of-service detection/prevention
     // Key is ip address, value is banned-until-time
-    static std::map<CNetAddr, int64> setBanned;
+    static std::map<CNetAddr, int64_t> setBanned;
     static CCriticalSection cs_setBanned;
     int nMisbehavior;
 
 public:
-    int64 nReleaseTime;
+    int64_t nReleaseTime;
     std::map<uint256, CRequestTracker> mapRequests;
     CCriticalSection cs_mapRequests;
     uint256 hashContinue;
@@ -251,15 +251,15 @@ public:
     mruset<CInv> setInventoryKnown;
     std::vector<CInv> vInventoryToSend;
     CCriticalSection cs_inventory;
-    std::multimap<int64, CInv> mapAskFor;
+    std::multimap<int64_t, CInv> mapAskFor;
 	
     // Ping time measurement:
     // The pong reply we're expecting, or 0 if no pong expected.
-    uint64 nPingNonceSent;
+    uint64_t nPingNonceSent;
     // Time (in usec) the last ping was sent, or 0 if no ping was ever sent.
-    int64 nPingUsecStart;
+    int64_t nPingUsecStart;
     // Last measured round-trip time.
-    int64 nPingUsecTime;
+    int64_t nPingUsecTime;
     // Whether a ping is requested.
     bool fPingQueued;
 
@@ -390,13 +390,13 @@ public:
     {
         // We're using mapAskFor as a priority queue,
         // the key is the earliest time the request can be sent
-        int64& nRequestTime = mapAlreadyAskedFor[inv];
+        int64_t& nRequestTime = mapAlreadyAskedFor[inv];
 	if (fDebug)
-	        printf("askfor %s   %lld\n", inv.ToString().c_str(), nRequestTime);
+	        printf("askfor %s   %" PRId64 "\n", inv.ToString().c_str(), nRequestTime);
 
         // Make sure not to reuse time indexes to keep things in the same order
-        int64 nNow = (GetTime() - 1) * 1000000;
-        static int64 nLastTime;
+        int64_t nNow = (GetTime() - 1) * 1000000;
+        static int64_t nLastTime;
         ++nLastTime;
         nNow = std::max(nNow, nLastTime);
         nLastTime = nNow;

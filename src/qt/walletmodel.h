@@ -101,7 +101,7 @@ public:
     bool dumpWallet(const QString &filename);
     bool importWallet(const QString &filename);
     //PoS Information about value and time
-    void getStakeWeightFromValue(const qint64& nTime, const qint64& nValue, quint64& nWeight);
+    void getStakeWeightFromValue(const int64_t& nTime, const int64_t& nValue, uint64_t& nWeight);
 	
 	void setSplitBlock(bool fSplitBlock); 
 	bool getSplitBlock();

@@ -163,7 +163,7 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
                 return 9050;
         }
         case Fee:
-            return QVariant(nTransactionFee);
+            return QVariant(static_cast<qlonglong>(nTransactionFee));
         case DisplayUnit:
             return QVariant(nDisplayUnit);
         case DisplayAddresses:
@@ -247,7 +247,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         break;
         case Fee: {
             nTransactionFee = value.toLongLong();
-            settings.setValue("nTransactionFee", nTransactionFee);
+            settings.setValue("nTransactionFee", static_cast<qlonglong>(nTransactionFee));
             emit transactionFeeChanged(nTransactionFee);
             }
             break;

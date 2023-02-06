@@ -72,7 +72,7 @@
 #include <iostream>
 
 extern CWallet* pwalletMain;
-extern int64 nLastCoinStakeSearchInterval;
+extern int64_t nLastCoinStakeSearchInterval;
 extern int nStakeTargetSpacing;
 double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);
 
@@ -1153,7 +1153,7 @@ void BitcoinGUI::showNormalIfMinimized()
 
 void BitcoinGUI::updateStakingIcon()
 {
-    uint64 nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
+    uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
     if (pwalletMain)
         pwalletMain->GetStakeWeight(*pwalletMain, nMinWeight, nMaxWeight, nWeight);
 
