@@ -197,7 +197,7 @@ void CoinControlDialog::customSelectCoins()
     map<QString, vector<COutput> > mapCoins; 
     model->listCoins(mapCoins); 
  
-    BOOST_FOREACH(PAIRTYPE(QString, vector<COutput>) coins, mapCoins) 
+    for (auto coins : mapCoins)
     { 
         QTreeWidgetItem *itemWalletAddress = new QTreeWidgetItem(); 
 
@@ -207,7 +207,7 @@ void CoinControlDialog::customSelectCoins()
         itemOutput->setFlags(flgCheckbox); 
         itemOutput->setCheckState(COLUMN_CHECKBOX,Qt::Unchecked); 
 
-    BOOST_FOREACH(const COutput& out, coins.second) 
+    for (const COutput& out : coins.second) 
     { 
     // transaction hash 
         uint256 txhash = out.tx->GetHash(); 
@@ -514,7 +514,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     coinControl->ListSelected(vCoinControl);
     model->getOutputs(vCoinControl, vOutputs);
 
-    BOOST_FOREACH(const COutput& out, vOutputs)
+    for (const COutput& out : vOutputs)
     {
         // Quantity
         nQuantity++;
@@ -660,7 +660,7 @@ void CoinControlDialog::updateView()
     map<QString, vector<COutput> > mapCoins;
     model->listCoins(mapCoins);
 
-    BOOST_FOREACH(PAIRTYPE(QString, vector<COutput>) coins, mapCoins)
+    for (auto coins : mapCoins)
     {
         QTreeWidgetItem *itemWalletAddress = new QTreeWidgetItem();
         QString sWalletAddress = coins.first;
@@ -696,7 +696,7 @@ void CoinControlDialog::updateView()
         GetLastBlockIndex(pindexBest, false); 
         int64_t nBestHeight = pindexBest->nHeight; 
 
-        BOOST_FOREACH(const COutput& out, coins.second)
+        for (const COutput& out : coins.second)
         {
             int nInputSize = 148; // 180 if uncompressed public key
             nSum += out.tx->vout[out.i].nValue;

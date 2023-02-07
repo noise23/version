@@ -4,10 +4,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <boost/tuple/tuple.hpp>
-
 using namespace std;
-using namespace boost;
 
 #include "script.h"
 #include "keystore.h"
@@ -1260,7 +1257,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 
     // Scan templates
     const CScript& script1 = scriptPubKey;
-    for (const PAIRTYPE(txnouttype, CScript)& tplate : mTemplates)
+    for (const auto& tplate : mTemplates)
     {
         const CScript& script2 = tplate.second;
         vSolutionsRet.clear();

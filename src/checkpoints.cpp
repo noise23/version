@@ -4,7 +4,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
-#include <boost/foreach.hpp>
 
 #include "checkpoints.h"
 
@@ -54,35 +53,36 @@ namespace Checkpoints
         (3311403, uint256("0x7fe5df3fa792e46189a163074e8e23891f36397a848b88e308fad440636be930")) // 2021-09-18 00:17:20 UTC
         ;
 
+    // TestNet has no checkpoints
+    static MapCheckpoints mapCheckpointsTestnet =
+    {
+        { 0, hashGenesisBlockTestNet  }
+    };
+
     bool CheckHardened(int nHeight, const uint256& hash)
     {
-        if (fTestNet) return true; // Testnet has no checkpoints
+        MapCheckpoints& checkpoints = (fTestNet ? mapCheckpointsTestnet : mapCheckpoints);
 
-        MapCheckpoints::const_iterator i = mapCheckpoints.find(nHeight);
-        if (i == mapCheckpoints.end()) return true;
+        MapCheckpoints::const_iterator i = checkpoints.find(nHeight);
+        if (i == checkpoints.end()) return true;
         return hash == i->second;
     }
 
     int GetTotalBlocksEstimate()
     {
-        if (fTestNet) return 0;
+        MapCheckpoints& checkpoints = (fTestNet ? mapCheckpointsTestnet : mapCheckpoints);
 
-        return mapCheckpoints.rbegin()->first;
+        return checkpoints.rbegin()->first;
     }
 
     CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex)
     {
-        if (fTestNet) {
-            std::map<uint256, CBlockIndex*>::const_iterator t = mapBlockIndex.find(hashGenesisBlock);
-            if (t != mapBlockIndex.end())
-                return t->second;
-            return NULL;
-        }
+        MapCheckpoints& checkpoints = (fTestNet ? mapCheckpointsTestnet : mapCheckpoints);
 
-        BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, mapCheckpoints)
+        for(auto it = checkpoints.rbegin(); it != checkpoints.rend(); ++it)
         {
-            const uint256& hash = i.second;
-            std::map<uint256, CBlockIndex*>::const_iterator t = mapBlockIndex.find(hash);
+            const uint256& hash = it->second;
+            auto t = mapBlockIndex.find(hash);
             if (t != mapBlockIndex.end())
                 return t->second;
         }
@@ -127,7 +127,7 @@ namespace Checkpoints
             CBlockIndex* pindex = pindexSyncCheckpoint;
             while (pindex->nHeight > pindexCheckpointRecv->nHeight)
                 if (!(pindex = pindex->pprev))
-                    return error("ValidateSyncCheckpoint: pprev1 null - block index structure failure");
+                    return error("ValidateSyncCheckpoint: pprev null - block index structure failure");
             if (pindex->GetBlockHash() != hashCheckpoint)
             {
                 hashInvalidCheckpoint = hashCheckpoint;
@@ -284,9 +284,9 @@ namespace Checkpoints
             printf("ResetSyncCheckpoint: pending for sync-checkpoint %s\n", hashPendingCheckpoint.ToString().c_str());
         }
 
-        BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, mapCheckpoints)
+        for(auto it = mapCheckpoints.rbegin(); it != mapCheckpoints.rend(); ++it)
         {
-            const uint256& hash = i.second;
+            const uint256& hash = it->second;
             if (mapBlockIndex.count(hash) && mapBlockIndex[hash]->IsInMainChain())
             {
                 if (!WriteSyncCheckpoint(hash))

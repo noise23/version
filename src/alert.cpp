@@ -8,7 +8,6 @@
 // Alert system
 //
 
-#include <boost/foreach.hpp>
 #include <map>
 
 #include "alert.h"
@@ -43,10 +42,10 @@ void CUnsignedAlert::SetNull()
 std::string CUnsignedAlert::ToString() const
 {
     std::string strSetCancel;
-    BOOST_FOREACH(int n, setCancel)
+    for (int n : setCancel)
         strSetCancel += strprintf("%d ", n);
     std::string strSetSubVer;
-    BOOST_FOREACH(std::string str, setSubVer)
+    for (const std::string& str : setSubVer)
         strSetSubVer += "\"" + str + "\" ";
     return strprintf(
         "CAlert(\n"
@@ -111,7 +110,7 @@ bool CAlert::Cancels(const CAlert& alert) const
     return (alert.nID <= nCancel || setCancel.count(alert.nID));
 }
 
-bool CAlert::AppliesTo(int nVersion, std::string strSubVerIn) const
+bool CAlert::AppliesTo(int nVersion, const std::string& strSubVerIn) const
 {
     // TODO: rework for client-version-embedded-in-strSubVer ?
     return (IsInEffect() &&
@@ -161,7 +160,7 @@ CAlert CAlert::getAlertByHash(const uint256 &hash)
     CAlert retval;
     {
         LOCK(cs_mapAlerts);
-        map<uint256, CAlert>::iterator mi = mapAlerts.find(hash);
+        auto mi = mapAlerts.find(hash);
         if(mi != mapAlerts.end())
             retval = mi->second;
     }
@@ -200,7 +199,7 @@ bool CAlert::ProcessAlert()
     {
         LOCK(cs_mapAlerts);
         // Cancel previous alerts
-        for (map<uint256, CAlert>::iterator mi = mapAlerts.begin(); mi != mapAlerts.end();)
+        for (auto mi = mapAlerts.begin(); mi != mapAlerts.end();)
         {
             const CAlert& alert = (*mi).second;
             if (Cancels(alert))
@@ -220,7 +219,7 @@ bool CAlert::ProcessAlert()
         }
 
         // Check if this alert has been cancelled
-        BOOST_FOREACH(PAIRTYPE(const uint256, CAlert)& item, mapAlerts)
+        for (auto& item : mapAlerts)
         {
             const CAlert& alert = item.second;
             if (alert.Cancels(*this))

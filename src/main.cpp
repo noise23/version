@@ -19,8 +19,6 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-//#include <boost/foreach.hpp>
-
 
 #include <stdio.h>
 
@@ -1372,7 +1370,7 @@ bool ConnectBestBlock() {
 
             if (pindexTest->pprev == NULL || pindexTest->pnext != NULL) {
                 reverse(vAttach.begin(), vAttach.end());
-                BOOST_FOREACH(CBlockIndex *pindexSwitch, vAttach)
+                for (CBlockIndex *pindexSwitch : vAttach)
                     if (!SetBestChain(pindexSwitch))
                         return false;
                 return true;
