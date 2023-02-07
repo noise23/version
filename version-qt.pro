@@ -148,17 +148,18 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/aboutdialog.h \
     src/qt/editaddressdialog.h \
     src/qt/bitcoinaddressvalidator.h \
-	src/alert.h \
+    src/alert.h \
     src/addrman.h \
     src/base58.h \
     src/bignum.h \
     src/checkpoints.h \
-	src/coincontrol.h \
+    src/coincontrol.h \
     src/compat.h \
     src/sync.h \
     src/util.h \
     src/uint256.h \
     src/serialize.h \
+    src/sha256.h \
     src/strlcpy.h \
     src/main.h \
     src/miner.h \
@@ -225,13 +226,14 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/aboutdialog.cpp \
     src/qt/editaddressdialog.cpp \
     src/qt/bitcoinaddressvalidator.cpp \
-	src/alert.cpp \
+    src/alert.cpp \
     src/version.cpp \
     src/sync.cpp \
     src/util.cpp \
     src/netbase.cpp \
     src/key.cpp \
     src/script.cpp \
+    src/sha256.cpp \
     src/main.cpp \
     src/miner.cpp \
     src/init.cpp \
@@ -262,11 +264,11 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/walletmodel.cpp \
     src/bitcoinrpc.cpp \
     src/rpcdump.cpp \
-	src/rpcnet.cpp \
-	src/rpcmining.cpp \
-	src/rpcwallet.cpp \
-	src/rpcblockchain.cpp \
-	src/rpcrawtransaction.cpp \
+    src/rpcnet.cpp \
+    src/rpcmining.cpp \
+    src/rpcwallet.cpp \
+    src/rpcblockchain.cpp \
+    src/rpcrawtransaction.cpp \
     src/qt/overviewpage.cpp \
     src/qt/csvmodelwriter.cpp \
     src/crypter.cpp \
