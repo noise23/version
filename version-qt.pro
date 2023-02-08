@@ -235,6 +235,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/util.cpp \
     src/netbase.cpp \
     src/key.cpp \
+    src/base58.cpp \
     src/script.cpp \
     src/sha1.cpp \
     src/sha256.cpp \
