@@ -160,6 +160,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/hash.h \
     src/uint256.h \
     src/serialize.h \
+    src/sha1.h \
     src/sha256.h \
     src/ripemd160.h \
     src/strlcpy.h \
@@ -235,6 +236,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/netbase.cpp \
     src/key.cpp \
     src/script.cpp \
+    src/sha1.cpp \
     src/sha256.cpp \
     src/ripemd160.cpp \
     src/main.cpp \

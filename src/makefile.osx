@@ -105,6 +105,7 @@ OBJS= \
     obj/wallet.o \
     obj/walletdb.o \
     obj/sha256.o \
+    obj/sha1.o \
     obj/ripemd160.o \
     obj/noui.o \
     obj/kernel.o
