@@ -706,7 +706,7 @@ bool CTxMemPool::accept(CTransaction &tx, bool fCheckInputs, bool* pfMissingInpu
             return false;
 
         // do all inputs exist?
-        for (const CTxIn txin : tx.vin) {
+        for (const CTxIn& txin : tx.vin) {
             if (!view.HaveCoins(txin.prevout.hash)) {
                 if (pfMissingInputs)
                     *pfMissingInputs = true;
@@ -2678,7 +2678,7 @@ bool CBlock::CheckLegacySignature() const
 
 bool CheckDiskSpace(uint64_t nAdditionalBytes)
 {
-    uint64_t nFreeBytesAvailable = filesystem::space(GetDataDir()).available;
+    uint64_t nFreeBytesAvailable = boost::filesystem::space(GetDataDir()).available;
 
     // Check for 15MB because database could create another 10MB log file at any time
     if (nFreeBytesAvailable < (uint64_t)15000000 + nAdditionalBytes)
