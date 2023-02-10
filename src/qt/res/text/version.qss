@@ -1,11 +1,11 @@
 * {
-	background: #070727;
+	background: #003651;
         color: #D5F1FF;
 }
 
 QLabel
 {
-	background: #070727;
+	background: #003651;
         color: #D5F1FF;
 }
 
@@ -38,18 +38,18 @@ QWidget:disabled
 
 QWidget#treeWidget
 {
-    color: #070727;
+    color: #003651;
 }
 
 QLabel:disabled
 {
-	background: #070727;
+	background: #003651;
 }
 
 QActionGroup
 {
     color: #FDCB6F;
-    background-color: #070727;
+    background-color: #003651;
     outline: none;
 }
 
@@ -85,7 +85,7 @@ QToolButton:checked
 
 QToolButton#addressBookButton, QToolButton#pasteButton, QToolButton#deleteButton
 {
-	background: #070727;
+	background: #003651;
 }
 
 QMenuBar::item
@@ -376,7 +376,7 @@ QHeaderView::section
 QCheckBox:disabled
 {
 color: #414141;
-background-color: #070727;
+background-color: #003651;
 }
 
 QProgressBar

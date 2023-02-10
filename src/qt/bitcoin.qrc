@@ -47,7 +47,7 @@
         <file alias="about">res/images/about2.png</file>
         <file alias="splash">res/images/v_splash_moon.png</file>
         <file alias="qrcode">res/images/qrcode.png</file>
-        <file alias="version2">res/images/version2.png</file>
+        <file alias="version2">res/images/version.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="update_spinner">res/movies/update_spinner.mng</file>
