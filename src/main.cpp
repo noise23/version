@@ -1300,8 +1300,8 @@ bool IsInitialBlockDownload()
         pindexLastBest = pindexBest;
         nLastUpdate = GetTime();
     }
-    return (GetTime() - nLastUpdate < 10 &&
-            pindexBest->GetBlockTime() < GetTime() - 24 * 60 * 60);
+    return(((GetTime() - nLastUpdate) < 10) &&
+      (pindexBest->GetBlockTime() < (GetTime() - 4 * 60 * 60)));
 }
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
@@ -1313,16 +1313,20 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
         uiInterface.NotifyBlocksChanged();
     }
 
- printf("InvalidChainFound: invalid block=%s  height=%d  trust=%s  date=%s\n",
+    uint256 nBestInvalidBlockTrust = pindexNew->nChainTrust - pindexNew->pprev->nChainTrust;
+    uint256 nBestBlockTrust = pindexBest->nHeight != 0 ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust) : pindexBest->nChainTrust;
 
+    printf("InvalidChainFound: invalid block=%s  height=%d  " \
+      "trust=%s  blktrust=%" PRId64 "  date=%s\n",
       pindexNew->GetBlockHash().ToString().substr(0,20).c_str(), pindexNew->nHeight,
-      pindexNew->nChainTrust.ToString().c_str(), DateTimeStrFormat("%x %H:%M:%S",
-      pindexNew->GetBlockTime()).c_str());
-    printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  date=%s\n",
-      hashBestChain.ToString().substr(0,20).c_str(), nBestHeight, nBestChainTrust.ToString().c_str(),
-
-
-      DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
+      CBigNum(pindexNew->nChainTrust).ToString().c_str(), nBestInvalidBlockTrust.Get64(),
+      DateTimeStrFormat(pindexNew->GetBlockTime()).c_str());
+    printf("InvalidChainFound: current best=%s   height=%d  " \
+      "trust=%s  blktrust=%" PRId64 "  date=%s\n",
+      hashBestChain.ToString().substr(0,20).c_str(), nBestHeight,
+      CBigNum(pindexBest->nChainTrust).ToString().c_str(),
+      nBestBlockTrust.Get64(),
+      DateTimeStrFormat(pindexBest->GetBlockTime()).c_str());
 }
 
 void static InvalidBlockFound(CBlockIndex *pindex) {
@@ -1610,9 +1614,11 @@ bool CTransaction::ClientCheckInputs() const
     return true;
 }
 
-bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsViewCache &view)
-{
-    assert(pindex == view.GetBestBlock());
+bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsViewCache &view) {
+
+    if(pindex != view.GetBestBlock())
+      return(error("DisconnectBlock() : block %s initial synchronisation failed",
+        pindex->GetBlockHash().ToString().substr(0,20).c_str()));
 
     CBlockUndo blockUndo;
     {
@@ -1681,12 +1687,17 @@ bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsViewCache &view)
                     return error("DisconnectBlock() : cannot restore coin inputs");
             }
         }
+
+        /* Synchronise with the wallet */
+        SyncWithWallets(vtx[i].GetHash(), vtx[i], this, false, false);
     }
 
-    // move best block pointer to prevout block
-    view.SetBestBlock(pindex->pprev);
+    /* Synchronise with the coins DB */
+    if(!view.SetBestBlock(pindex->pprev))
+      return(error("DisconnectBlock() : block %s final synchronisation failed",
+        pindex->GetBlockHash().ToString().substr(0,20).c_str()));
 
-    return true;
+    return(true);
 }
 
 bool FindUndoPos(int nFile, CDiskBlockPos &pos, unsigned int nAddSize);
@@ -1697,8 +1708,12 @@ bool CBlock::ConnectBlock(CBlockIndex* pindex, CCoinsViewCache &view, bool fJust
     if (!CheckBlock(!fJustCheck, !fJustCheck))
         return false;
 
-    // verify that the view's current state corresponds to the previous block
-    assert(pindex->pprev == view.GetBestBlock());
+    /* Make sure the block index and coins DB are synchronised;
+     * no need to work around the genesis block and its transactions if any
+     * because ConnectBlock() doesn't service them anyway */
+    if(pindex->pprev != view.GetBestBlock())
+      return(error("ConnectBlock() : block %s initial synchronisation failed",
+        pindex->GetBlockHash().ToString().substr(0,20).c_str()));
 
         // Do not allow blocks that contain transactions which 'overwrite' older transactions,
         // unless those are already completely spent.
@@ -1713,6 +1728,7 @@ bool CBlock::ConnectBlock(CBlockIndex* pindex, CCoinsViewCache &view, bool fJust
         // two in the chain that violate it. This prevents exploiting the issue against nodes in their
         // initial block download.
 
+    /* Work around duplicate transactions (BIP30) */
         for (unsigned int i=0; i<vtx.size(); i++) {
             uint256 hash = GetTxHash(i);
             if (view.HaveCoins(hash) && !view.GetCoins(hash).IsPruned())
@@ -1799,15 +1815,12 @@ bool CBlock::ConnectBlock(CBlockIndex* pindex, CCoinsViewCache &view, bool fJust
             return error("ConnectBlock() : WriteBlockIndex failed");
     }
 
-    // add this block to the view's blockchain
-    if (!view.SetBestBlock(pindex))
-        return false;
+    /* Synchronise with the coins DB */
+    if(!view.SetBestBlock(pindex))
+      return(error("ConnectBlock() : block %s final synchronisation failed",
+        pindex->GetBlockHash().ToString().substr(0,20).c_str()));
 
-    // fees are destroyed to compensate the entire network
-    if (fDebug && GetBoolArg("-printcreation"))
-        printf("ConnectBlock() : destroy=%s nFees=%" PRId64 "\n", FormatMoney(nFees).c_str(), nFees);
-
-    // Watch for transactions paying to me
+    /* Synchronise with the wallet */
     for (unsigned int i=0; i<vtx.size(); i++)
         SyncWithWallets(GetTxHash(i), vtx[i], this, true);
 
@@ -2382,13 +2395,14 @@ bool CBlock::AcceptBlock()
 
 uint256 CBlockIndex::GetBlockTrust() const
 {
-    CBigNum bnTarget;
+    CBigNum bnTarget, bnTemp;
     bnTarget.SetCompact(nBits);
 
         if (bnTarget <= 0)
             return 0;
 
-        return ((CBigNum(1)<<256) / (bnTarget+1)).getuint256();
+        bnTemp = (CBigNum(1) << 256) / (bnTarget + 1);
+        return(IsProofOfStake() ? bnTemp.getuint256() : 1);
     }
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired, unsigned int nToCheck)
