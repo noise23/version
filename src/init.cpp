@@ -257,7 +257,7 @@ std::string HelpMessage()
         "  -lang=<lang>           " + _("Set language, for example \"de_DE\" (default: system locale)") + "\n" +
 #endif
         "  -dnsseed               " + _("Find peers using DNS lookup (default: 1)") + "\n" +
-		"  -cppolicy              " + _("Sync checkpoints policy (default: strict)") + "\n" +
+        "  -cppolicy              " + _("Sync checkpoints policy (default: strict)") + "\n" +
         "  -banscore=<n>          " + _("Threshold for disconnecting misbehaving peers (default: 100)") + "\n" +
         "  -bantime=<n>           " + _("Number of seconds to keep misbehaving peers from reconnecting (default: 86400)") + "\n" +
         "  -maxreceivebuffer=<n>  " + _("Maximum per-connection receive buffer, <n>*1000 bytes (default: 10000)") + "\n" +
@@ -295,8 +295,8 @@ std::string HelpMessage()
         "  -upgradewallet         " + _("Upgrade wallet to latest format") + "\n" +
         "  -keypool=<n>           " + _("Set key pool size to <n> (default: 100)") + "\n" +
         "  -rescan                " + _("Rescan the block chain for missing wallet transactions") + "\n" +
-		"  -salvagewallet         " + _("Attempt to recover private keys from a corrupt wallet.dat") + "\n" +
-		"  -splitthreshold=<n>    " + _("Set stake split threshold within range (default: 20000, max: 100000)") + "\n" +
+        "  -salvagewallet         " + _("Attempt to recover private keys from a corrupt wallet.dat") + "\n" +
+        "  -splitthreshold=<n>    " + _("Set stake split threshold within range (default: 20000, max: 100000)") + "\n" +
         "  -checkblocks=<n>       " + _("How many blocks to check at startup (default: 2500, 0 = all)") + "\n" +
         "  -checklevel=<n>        " + _("How thorough the block verification is (0-6, default: 1)") + "\n" +
         "  -loadblock=<file>      " + _("Imports blocks from external blk000?.dat file") + "\n" +
@@ -348,10 +348,10 @@ bool AppInit2()
 #endif
 
     // ********************************************************* Step 2: parameter interactions
-	
-	nNodeLifespan = GetArg("-addrlifespan", 7);
-	
-	CheckpointsMode = Checkpoints::STRICT; 
+
+    nNodeLifespan = GetArg("-addrlifespan", 7);
+
+    CheckpointsMode = Checkpoints::STRICT; 
     std::string strCpMode = GetArg("-cppolicy", "strict"); 
  
     if(strCpMode == "strict") 
@@ -364,7 +364,7 @@ bool AppInit2()
         CheckpointsMode = Checkpoints::PERMISSIVE;
 
     fTestNet = GetBoolArg("-testnet");
-	
+
     if (mapArgs.count("-bind")) {
         // when specifying an explicit binding address, you want to listen on it
         // even when -connect or -proxy is specified
@@ -392,14 +392,14 @@ bool AppInit2()
         // if an explicit public IP is specified, do not try to find others
         SoftSetBoolArg("-discover", false);
     }
-	
+
     if (GetBoolArg("-salvagewallet")) {
         // Rewrite just private keys: rescan to find transactions
         SoftSetBoolArg("-rescan", true);
     }
-	
+
     // ********************************************************* Step 3: parameter-to-internal-flags
-	
+
     fDebug = GetBoolArg("-debug");
     bitdb.SetDetach(GetBoolArg("-detachdb", false));
 
@@ -421,7 +421,7 @@ bool AppInit2()
     fPrintToConsole = GetBoolArg("-printtoconsole");
     fPrintToDebugger = GetBoolArg("-printtodebugger");
     fLogTimestamps = GetBoolArg("-logtimestamps");
-	
+
     if (mapArgs.count("-timeout"))
     {
         int nNewTimeout = GetArg("-timeout", 5000);
@@ -437,21 +437,21 @@ bool AppInit2()
             InitWarning(_("Warning: -paytxfee is set very high. This is the transaction fee you will pay if you send a transaction."));
     }
     fConfChange = GetBoolArg("-confchange", false);
-	
+
     if (mapArgs.count("-mininput"))
     {
         if (!ParseMoney(mapArgs["-mininput"], nMinimumInputValue))
             return InitError(strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mapArgs["-mininput"].c_str()));
     }
-	
+
     // Controls proof-of-stake generation 
     fStaking = GetBoolArg("-staking", true);
 
     // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
-	
+
     std::string strDataDir = GetDataDir().string();
     std::string strWalletFileName = GetArg("-wallet", "wallet.dat");
-	
+
     // strWalletFileName must be a plain filename without a directory
     if (strWalletFileName != boost::filesystem::basename(strWalletFileName) + boost::filesystem::extension(strWalletFileName))
         return InitError(strprintf(_("Wallet %s resides outside data directory %s."), strWalletFileName.c_str(), strDataDir.c_str()));
@@ -490,9 +490,13 @@ bool AppInit2()
         ShrinkDebugFile();
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     printf("Version version %s (%s)\n", FormatFullVersion().c_str(), CLIENT_DATE.c_str());
-	printf("Startup time: %s\n", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
+    printf("Using %s\n", SSLeay_version(SSLEAY_VERSION)); // OpenSSL version
+    printf("Using %s\n", DbEnv::version(0, 0, 0)); // BerkeleyDB version
+    printf("Using LevelDB version %d.%d\n", leveldb::kMajorVersion, leveldb::kMinorVersion);
+    printf("Using Boost v%d.%d.%d\n", BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100);
+    printf("Startup time: %s\n", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
     printf("Default data directory %s\n", GetDefaultDataDir().string().c_str());
-	std::ostringstream strErrors;
+    std::ostringstream strErrors;
 
     if (fDaemon)
         fprintf(stdout, "Version server starting\n");
@@ -641,7 +645,7 @@ bool AppInit2()
         if (!Checkpoints::SetCheckpointPrivKey(GetArg("-checkpointkey", "")))
             InitError(_("Unable to sign checkpoint, wrong checkpointkey?\n"));
     }
-	
+
     for (string strDest : mapMultiArgs["-seednode"])
         AddOneShot(strDest);
 
@@ -673,7 +677,7 @@ bool AppInit2()
         return false;
     }
     printf(" block index %15" PRId64 "ms\n", GetTimeMillis() - nStart);
-	
+
  if (GetBoolArg("-printblockindex") || GetBoolArg("-printblocktree"))
  {
         PrintBlockTree();
@@ -827,7 +831,7 @@ bool AppInit2()
         if (!adb.Read(addrman))
             printf("Invalid or missing peers.dat; recreating\n");
     }
-	
+
     printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n",
            addrman.size(), GetTimeMillis() - nStart);
 
@@ -837,7 +841,7 @@ bool AppInit2()
         return false;
 
     RandAddSeedPerfmon();
-	
+
     //// debug print
     printf("mapBlockIndex.size() = %lu\n", mapBlockIndex.size());
     printf("nBestHeight = %d\n",            nBestHeight);
@@ -850,7 +854,7 @@ bool AppInit2()
 
     if (fServer)
         NewThread(ThreadRPCServer, NULL);
-		
+
     // ********************************************************* Step 12: finished
 
     uiInterface.InitMessage(_("Done loading"));
