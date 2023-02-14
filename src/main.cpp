@@ -21,6 +21,7 @@
 #include <boost/filesystem/fstream.hpp>
 
 #include <stdio.h>
+#include <regex>
 
 using namespace std;
 using namespace boost;
@@ -1138,16 +1139,6 @@ unsigned int ComputeMaxBits(CBigNum bnTargetLimit, unsigned int nBase, int64_t n
         bnResult = bnTargetLimit;
     return bnResult.GetCompact();
 }
-
-//
-// minimum amount of work that could possibly be required nTime after
-// minimum proof-of-work required was nBase
-//
-unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
-{
-    return ComputeMaxBits(bnProofOfWorkLimit, nBase, nTime);
-}
-
 //
 // minimum amount of stake that could possibly be required nTime after
 // minimum proof-of-stake required was nBase
@@ -1165,6 +1156,14 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
     return pindex;
 }
 
+//
+// minimum amount of work that could possibly be required nTime after
+// minimum proof-of-work required was nBase
+//
+unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
+{
+    return ComputeMaxBits(bnProofOfWorkLimit, nBase, nTime);
+}
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake) 
 {
     CBigNum bnTargetLimit, bnNew;
@@ -1320,13 +1319,13 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
       "trust=%s  blktrust=%" PRId64 "  date=%s\n",
       pindexNew->GetBlockHash().ToString().substr(0,20).c_str(), pindexNew->nHeight,
       CBigNum(pindexNew->nChainTrust).ToString().c_str(), nBestInvalidBlockTrust.Get64(),
-      DateTimeStrFormat(pindexNew->GetBlockTime()).c_str());
+      DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()).c_str());
     printf("InvalidChainFound: current best=%s   height=%d  " \
       "trust=%s  blktrust=%" PRId64 "  date=%s\n",
       hashBestChain.ToString().substr(0,20).c_str(), nBestHeight,
       CBigNum(pindexBest->nChainTrust).ToString().c_str(),
       nBestBlockTrust.Get64(),
-      DateTimeStrFormat(pindexBest->GetBlockTime()).c_str());
+      DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 }
 
 void static InvalidBlockFound(CBlockIndex *pindex) {
@@ -1406,7 +1405,6 @@ int64_t CTransaction::GetValueIn(CCoinsViewCache& inputs) const
         nResult += GetOutputFor(vin[i], inputs).nValue;
 
     return nResult;
-
 }
 
 unsigned int CTransaction::GetP2SHSigOpCount(CCoinsViewCache& inputs) const
@@ -1567,7 +1565,6 @@ bool CTransaction::CheckInputs(CCoinsViewCache &inputs, enum CheckSig_mode csmod
     return true;
 }
 
-
 bool CTransaction::ClientCheckInputs() const
 {
     if (IsCoinBase())
@@ -1687,17 +1684,12 @@ bool CBlock::DisconnectBlock(CBlockIndex *pindex, CCoinsViewCache &view) {
                     return error("DisconnectBlock() : cannot restore coin inputs");
             }
         }
-
-        /* Synchronise with the wallet */
-        SyncWithWallets(vtx[i].GetHash(), vtx[i], this, false, false);
     }
 
-    /* Synchronise with the coins DB */
-    if(!view.SetBestBlock(pindex->pprev))
-      return(error("DisconnectBlock() : block %s final synchronisation failed",
-        pindex->GetBlockHash().ToString().substr(0,20).c_str()));
+    // move best block pointer to prevout block
+    view.SetBestBlock(pindex->pprev);
 
-    return(true);
+    return true;
 }
 
 bool FindUndoPos(int nFile, CDiskBlockPos &pos, unsigned int nAddSize);
@@ -1885,6 +1877,8 @@ bool SetBestChain(CBlockIndex* pindexNew)
         CCoinsViewCache viewTemp(view, true);
         if (!block.DisconnectBlock(pindex, viewTemp))
             return error("SetBestBlock() : DisconnectBlock %s failed", pindex->GetBlockHash().ToString().substr(0,20).c_str());
+        if (!viewTemp.Flush())
+            return error("SetBestBlock() : Cache flush failed after disconnect");
 
         // Queue memory transactions to resurrect
         for (const CTransaction& tx : block.vtx)
@@ -1986,10 +1980,8 @@ bool SetBestChain(CBlockIndex* pindexNew)
     std::string strCmd = GetArg("-blocknotify", "");
 
     if (!fIsInitialDownload && !strCmd.empty())
-    {
-        boost::replace_all(strCmd, "%s", hashBestChain.GetHex());
-        boost::thread t(runCommand, strCmd); // thread runs free
-    }
+        // thread runs free
+        boost::thread t(runCommand, regex_replace(strCmd, static_cast<std::regex>("%s"), hashBestChain.GetHex()));
 
     return true;
 }
@@ -2395,14 +2387,13 @@ bool CBlock::AcceptBlock()
 
 uint256 CBlockIndex::GetBlockTrust() const
 {
-    CBigNum bnTarget, bnTemp;
+    CBigNum bnTarget;
     bnTarget.SetCompact(nBits);
 
-        if (bnTarget <= 0)
-            return 0;
+    if (bnTarget <= 0)
+        return 0;
 
-        bnTemp = (CBigNum(1) << 256) / (bnTarget + 1);
-        return(IsProofOfStake() ? bnTemp.getuint256() : 1);
+    return ((CBigNum(1)<<256) / (bnTarget+1)).getuint256();
     }
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired, unsigned int nToCheck)
