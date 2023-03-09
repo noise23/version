@@ -512,7 +512,7 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
             return;
         while (vNodes.empty() || IsInitialBlockDownload() || vNodes.size() < 2 || nBestHeight < GetNumBlocksOfPeers())
         {
-            Sleep(1000);
+            MilliSleep(1000);
             if (fShutdown)
                 return;
             if ((!fGenerateBitcoins) && !fProofOfStake)
@@ -521,16 +521,16 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
 
         while (pwallet->IsLocked())
         {
-            Sleep(1000);
+            MilliSleep(1000);
             if (fShutdown)
                 return;
         }
-		
+
         if(mapHashedBlocks.count(nBestHeight)) //search our map of hashed blocks, see if bestblock has been hashed yet
         {
             if(GetTime() - mapHashedBlocks[nBestHeight] < min((int)(pwallet->nHashDrift  * 0.5), 180)) // wait half of the nHashDrift with max wait of 3 minutes
             {
-				Sleep(2500); // 2.5 second sleep
+                MilliSleep(2500); // 2.5 second sleep
                 continue;
             }
         }
@@ -706,7 +706,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
         {
             if (!NewThread(ThreadBitcoinMiner, pwallet))
                 printf("Error: NewThread(ThreadBitcoinMiner) failed\n");
-            Sleep(10);
+            MilliSleep(10);
         }
     }
 }

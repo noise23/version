@@ -475,8 +475,7 @@ bool CTransaction::AreInputsStandard(CCoinsViewCache& mapInputs) const
     return true;
 }
 
-unsigned int
-CTransaction::GetLegacySigOpCount() const
+unsigned int CTransaction::GetLegacySigOpCount() const
 {
     unsigned int nSigOps = 0;
     for (const CTxIn& txin : vin)

@@ -33,7 +33,7 @@ void ipcThread(void* parg)
         if(mq->timed_receive(&strBuf, sizeof(strBuf), nSize, nPriority, d))
         {
             uiInterface.ThreadSafeHandleURI(std::string(strBuf, nSize));
-            Sleep(1000);
+            MilliSleep(1000);
         }
         if (fShutdown)
         {
