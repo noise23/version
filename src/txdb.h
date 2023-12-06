@@ -3,8 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_LEVELDB_H
-#define BITCOIN_LEVELDB_H
+#ifndef BITCOIN_TXDB_H
+#define BITCOIN_TXDB_H
 
 #include "main.h"
 
@@ -193,8 +193,6 @@ public:
     bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
     bool ReadHashBestChain(uint256& hashBestChain);
     bool WriteHashBestChain(uint256 hashBestChain);
-    bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust);
-    bool WriteBestInvalidTrust(CBigNum bnBestInvalidTrust);
     bool ReadSyncCheckpoint(uint256& hashCheckpoint);
     bool WriteSyncCheckpoint(uint256 hashCheckpoint);
     bool ReadCheckpointPubKey(std::string& strPubKey);
@@ -204,5 +202,4 @@ private:
     bool LoadBlockIndexGuts();
 };
 
-
-#endif // BITCOIN_DB_H
+#endif // BITCOIN_TXDB_H

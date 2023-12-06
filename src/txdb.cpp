@@ -3,6 +3,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
+#include "txdb.h"
+
 #include <map>
 
 #include <boost/version.hpp>
@@ -16,7 +18,6 @@
 
 #include "kernel.h"
 #include "checkpoints.h"
-#include "txdb.h"
 #include "util.h"
 #include "main.h"
 
@@ -274,16 +275,6 @@ bool CTxDB::ReadHashBestChain(uint256& hashBestChain)
 bool CTxDB::WriteHashBestChain(uint256 hashBestChain)
 {
     return Write(string("hashBestChain"), hashBestChain);
-}
-
-bool CTxDB::ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust)
-{
-    return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust);
-}
-
-bool CTxDB::WriteBestInvalidTrust(CBigNum bnBestInvalidTrust)
-{
-    return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust);
 }
 
 bool CTxDB::ReadSyncCheckpoint(uint256& hashCheckpoint)

@@ -47,7 +47,7 @@ CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
 uint256 nBestChainTrust = 0;
-uint256 nBestInvalidTrust = 0;
+CBlockIndex *pindexBestInvalid;
 uint256 hashBestChain = 0;
 CBlockIndex* pindexBest = NULL;
 int64_t nTimeBestReceived = 0;
@@ -1164,10 +1164,9 @@ bool IsInitialBlockDownload()
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
 {
-    if (pindexNew->nChainTrust > nBestInvalidTrust)
+    if (!pindexBestInvalid || pindexNew->nChainTrust > pindexBestInvalid->nChainTrust)
     {
-        nBestInvalidTrust = pindexNew->nChainTrust;
-        CTxDB().WriteBestInvalidTrust(CBigNum(nBestInvalidTrust));
+        pindexBestInvalid = pindexNew;
         uiInterface.NotifyBlocksChanged();
     }
 
