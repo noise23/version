@@ -71,29 +71,34 @@ Value getinfo(const Array& params, bool fHelp)
     GetProxy(NET_IPV4, proxy);
 
     Object obj;
-    obj.push_back(Pair("version",       FormatFullVersion()));
-    obj.push_back(Pair("protocolversion",(int)PROTOCOL_VERSION));
-    obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
-    obj.push_back(Pair("encrypted",     pwalletMain->IsCrypted()));
-    obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
-    obj.push_back(Pair("newmint",       ValueFromAmount(pwalletMain->GetNewMint())));
-    obj.push_back(Pair("stake",         ValueFromAmount(pwalletMain->GetStake())));
-    obj.push_back(Pair("split threshold",   ValueFromAmount(nSplitThreshold)));
-    obj.push_back(Pair("blocks",        (int)nBestHeight));
-    obj.push_back(Pair("moneysupply",   ValueFromAmount(pindexBest->nMoneySupply)));
-    obj.push_back(Pair("connections",   (int)vNodes.size()));
-    obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
-    obj.push_back(Pair("ip",            addrSeenByPeer.ToStringIP()));
-    obj.push_back(Pair("PoW difficulty",    (double)GetDifficulty()));
-    obj.push_back(Pair("PoS difficulty", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    obj.push_back(Pair("testnet",       fTestNet));
-    obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
-    obj.push_back(Pair("keypoolsize",   pwalletMain->GetKeyPoolSize()));
-    obj.push_back(Pair("paytxfee",      ValueFromAmount(nTransactionFee)));
-    obj.push_back(Pair("mininput",      ValueFromAmount(nMinimumInputValue)));
-    if (pwalletMain->IsCrypted())
-        obj.push_back(Pair("unlocked_until", (int64_t)nWalletUnlockTime / 1000));
-    obj.push_back(Pair("errors",        GetWarnings("statusbar")));
+    obj.push_back(Pair("version",            FormatFullVersion()));
+    obj.push_back(Pair("blocks",             (int)nBestHeight));
+    obj.push_back(Pair("connections",        (int)vNodes.size()));
+    obj.push_back(Pair("balance",            ValueFromAmount(pwalletMain->GetBalance())));
+    obj.push_back(Pair("newmint",            ValueFromAmount(pwalletMain->GetNewMint())));
+    obj.push_back(Pair("stake",              ValueFromAmount(pwalletMain->GetStake())));
+    obj.push_back(Pair("PoW difficulty",     (double)GetDifficulty()));
+    obj.push_back(Pair("PoS difficulty",     GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("moneysupply",        ValueFromAmount(pindexBest->nMoneySupply)));
+//    obj.push_back(Pair("testnet",          fTestNet));
+    obj.push_back(Pair("keypoololdest",      DateTimeStrFormat(pwalletMain->GetOldestKeyPoolTime())));
+    obj.push_back(Pair("keypoolsize",        pwalletMain->GetKeyPoolSize()));
+//    obj.push_back(Pair("paytxfee",         ValueFromAmount(nTransactionFee)));
+//    obj.push_back(Pair("mininput",         ValueFromAmount(nMinimumInputValue)));
+    obj.push_back(Pair("split threshold",    ValueFromAmount(nSplitThreshold)));
+    obj.push_back(Pair("protocolversion",    (int)PROTOCOL_VERSION));
+    obj.push_back(Pair("walletversion",      pwalletMain->GetVersion()));
+    obj.push_back(Pair("ip",                 addrSeenByPeer.ToStringIP()));
+    if (GetProxy(NET_IPV4, proxy))
+        obj.push_back(Pair("proxy",          (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
+    obj.push_back(Pair("encrypted",          pwalletMain->IsCrypted()));
+    if (pwalletMain->IsCrypted() && !pwalletMain->IsLocked())
+        obj.push_back(Pair("unlocked_until", DateTimeStrFormat(nWalletUnlockTime / 1000)));
+    else if(pwalletMain->IsCrypted() && pwalletMain->IsLocked())
+        obj.push_back(Pair("unlocked_until", "Locked"));
+    if (!GetWarnings("statusbar").empty())
+        obj.push_back(Pair("errors",         GetWarnings("statusbar")));
+    obj.push_back(Pair("updates",            "http://version2.org"));
     return obj;
 }
 
@@ -1366,7 +1371,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
         throw runtime_error(
             "walletpassphrase <passphrase> <timeout>\n"
             "Stores the wallet decryption key in memory for <timeout> seconds.");
-			
+
     NewThread(ThreadTopUpKeyPool, NULL);
     // Zero unlock time means forever, well 68 years, forever for crypto.
     int64_t* nUnlockTime = (params[1].get_int64() == 0) ? new int64_t(std::numeric_limits<int>::max()) : new int64_t(params[1].get_int64());
@@ -1532,9 +1537,7 @@ Value validateaddress(const Array& params, bool fHelp)
     return ret;
 }
 
-
-
-// version: reserve balance from being staked for network protection
+// reserve balance from being staked for network protection
 Value reservebalance(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
@@ -1574,7 +1577,7 @@ Value reservebalance(const Array& params, bool fHelp)
     result.push_back(Pair("amount", ValueFromAmount(nReserveBalance)));
     return result;
 }
-// version: check wallet integrity
+// check wallet integrity
 Value checkwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 0)
@@ -1596,7 +1599,7 @@ Value checkwallet(const Array& params, bool fHelp)
     return result;
 }
 
-// version: repair wallet
+// repair wallet
 Value repairwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 0)
@@ -1632,7 +1635,7 @@ Value resendtx(const Array& params, bool fHelp)
     return Value::null;
 }
 
-// version: make a public-private key pair
+// make a public-private key pair
 Value makekeypair(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
