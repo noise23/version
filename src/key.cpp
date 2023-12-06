@@ -166,19 +166,18 @@ public:
         BN_clear_free(bn);
     }
 
-    void GetPrivKey(CPrivKey &privkey, bool fCompressed) {
+    int GetPrivKeySize(bool fCompressed) {
         EC_KEY_set_conv_form(pkey, fCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
-        int nSize = i2d_ECPrivateKey(pkey, NULL);
-        assert(nSize);
-        privkey.resize(nSize);
-        unsigned char* pbegin = &privkey[0];
-        int nSize2 = i2d_ECPrivateKey(pkey, &pbegin);
-        assert(nSize == nSize2);
+        return i2d_ECPrivateKey(pkey, NULL);
     }
 
-    bool SetPrivKey(const CPrivKey &privkey) {
-        const unsigned char* pbegin = &privkey[0];
-        if (d2i_ECPrivateKey(&pkey, &pbegin, privkey.size())) {
+    int GetPrivKey(unsigned char* privkey, bool fCompressed) {
+        EC_KEY_set_conv_form(pkey, fCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
+        return i2d_ECPrivateKey(pkey, &privkey);
+    }
+
+    bool SetPrivKey(const unsigned char* privkey, size_t size, bool fSkipCheck=false) {
+        if (d2i_ECPrivateKey(&pkey, &privkey, size)) {
             // d2i_ECPrivateKey returns true if parsing succeeds.
             // This doesn't necessarily mean the key is valid.
             if (EC_KEY_check_key(pkey))
@@ -187,21 +186,20 @@ public:
         return false;
     }
 
-    void GetPubKey(CPubKey &pubkey, bool fCompressed) {
+    void GetPubKey(std::vector<unsigned char> &pubkey, bool fCompressed) {
         EC_KEY_set_conv_form(pkey, fCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
         int nSize = i2o_ECPublicKey(pkey, NULL);
         assert(nSize);
         assert(nSize <= 65);
-        unsigned char c[65];
-        unsigned char *pbegin = c;
+        pubkey.clear();
+        pubkey.resize(nSize);
+        unsigned char *pbegin(begin_ptr(pubkey));
         int nSize2 = i2o_ECPublicKey(pkey, &pbegin);
         assert(nSize == nSize2);
-        pubkey.Set(&c[0], &c[nSize]);
     }
 
-    bool SetPubKey(const CPubKey &pubkey) {
-        const unsigned char* pbegin = pubkey.begin();
-        return o2i_ECPublicKey(&pkey, &pbegin, pubkey.size());
+    bool SetPubKey(const unsigned char* pubkey, size_t size) {
+        return o2i_ECPublicKey(&pkey, &pubkey, size) != NULL;
     }
 
     bool Sign(const uint256 &hash, std::vector<unsigned char>& vchSig) {
@@ -236,12 +234,12 @@ public:
         int nBitsS = BN_num_bits(sig_s);
 #endif
         if (nBitsR <= 256 && nBitsS <= 256) {
-            CPubKey pubkey;
+            std::vector<unsigned char> pubkey;
             GetPubKey(pubkey, true);
             for (int i=0; i<4; i++) {
                 CECKey keyRec;
                 if (ECDSA_SIG_recover_key_GFp(keyRec.pkey, sig, (unsigned char*)&hash, sizeof(hash), i, 1) == 1) {
-                    CPubKey pubkeyRec;
+                    std::vector<unsigned char> pubkeyRec;
                     keyRec.GetPubKey(pubkeyRec, true);
                     if (pubkeyRec == pubkey) {
                         rec = i;
@@ -328,7 +326,7 @@ void CKey::MakeNewKey(bool fCompressedIn) {
 
 bool CKey::SetPrivKey(const CPrivKey &privkey, bool fCompressedIn) {
     CECKey key;
-    if (!key.SetPrivKey(privkey))
+    if (!key.SetPrivKey(&privkey[0], privkey.size()))
         return false;
     key.GetSecretBytes(vch);
     fCompressed = fCompressedIn;
@@ -338,20 +336,28 @@ bool CKey::SetPrivKey(const CPrivKey &privkey, bool fCompressedIn) {
 
 CPrivKey CKey::GetPrivKey() const {
     assert(fValid);
+    CPrivKey privkey;
+    int privkeylen, ret;
     CECKey key;
     key.SetSecretBytes(vch);
-    CPrivKey privkey;
-    key.GetPrivKey(privkey, fCompressed);
+    privkeylen = key.GetPrivKeySize(fCompressed);
+    assert(privkeylen);
+    privkey.resize(privkeylen);
+    ret = key.GetPrivKey(&privkey[0], fCompressed);
+    assert(ret == (int)privkey.size());
     return privkey;
 }
 
 CPubKey CKey::GetPubKey() const {
     assert(fValid);
+    CPubKey result;
+    std::vector<unsigned char> pubkey;
     CECKey key;
     key.SetSecretBytes(vch);
-    CPubKey pubkey;
     key.GetPubKey(pubkey, fCompressed);
-    return pubkey;
+    result.Set(pubkey.begin(), pubkey.end());
+    assert(result.IsValid());
+    return result;
 }
 
 bool CKey::Sign(const uint256 &hash, std::vector<unsigned char>& vchSig) const {
@@ -380,7 +386,7 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
     if (!IsValid())
         return false;
     CECKey key;
-    if (!key.SetPubKey(*this))
+    if (!key.SetPubKey(begin(), size()))
         return false;
     if (!key.Verify(hash, vchSig))
         return false;
@@ -390,10 +396,14 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
 bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
     if (vchSig.size() != 65)
         return false;
+    int recid = (vchSig[0] - 27) & 3;
+    bool fComp = ((vchSig[0] - 27) & 4) != 0;
     CECKey key;
-    if (!key.Recover(hash, &vchSig[1], (vchSig[0] - 27) & ~4))
+    if (!key.Recover(hash, &vchSig[1], recid))
         return false;
-    key.GetPubKey(*this, (vchSig[0] - 27) & 4);
+    std::vector<unsigned char> pubkey;
+    key.GetPubKey(pubkey, fComp);
+    Set(pubkey.begin(), pubkey.end());
     return true;
 }
 
@@ -401,7 +411,7 @@ bool CPubKey::IsFullyValid() const {
     if (!IsValid())
         return false;
     CECKey key;
-    if (!key.SetPubKey(*this))
+    if (!key.SetPubKey(begin(), size()))
         return false;
     return true;
 }
@@ -410,8 +420,10 @@ bool CPubKey::Decompress() {
     if (!IsValid())
         return false;
     CECKey key;
-    if (!key.SetPubKey(*this))
+    if (!key.SetPubKey(begin(), size()))
         return false;
-    key.GetPubKey(*this, false);
+    std::vector<unsigned char> pubkey;
+    key.GetPubKey(pubkey, false);
+    Set(pubkey.begin(), pubkey.end());
     return true;
 }
