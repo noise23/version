@@ -409,6 +409,9 @@ static bool fGenerateBitcoins = false;
 static bool fLimitProcessors = false;
 static int nLimitProcessors = -1;
 
+bool fMintableCoins = false;
+int nMintableLastCheck = 0;
+
 void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
 {
     printf("CPUMiner started for proof-of-%s\n", fProofOfStake? "stake" : "work");
@@ -425,20 +428,20 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
     {
         if (fShutdown)
             return;
-        while (vNodes.empty() || IsInitialBlockDownload() || vNodes.size() < 2 || nBestHeight < GetNumBlocksOfPeers())
-        {
-            MilliSleep(1000);
-            if (fShutdown)
-                return;
-            if ((!fGenerateBitcoins) && !fProofOfStake)
-                return;
-        }
 
-        while (pwallet->IsLocked())
+        while (vNodes.empty() || IsInitialBlockDownload() || vNodes.size() < 2 || nBestHeight < GetNumBlocksOfPeers() || pwallet->IsLocked() || !fMintableCoins)
         {
+            nLastCoinStakeSearchInterval = 0;
             MilliSleep(1000);
             if (fShutdown)
                 return;
+
+            //control the amount of times the client will check for mintable coins
+            if (GetTime() - nMintableLastCheck > 60) //check for mintable coins every 60 seconds
+            {
+                nMintableLastCheck = GetTime();
+                fMintableCoins = pwallet->MintableCoins();
+            }
         }
 
         if(mapHashedBlocks.count(nBestHeight)) //search our map of hashed blocks, see if bestblock has been hashed yet

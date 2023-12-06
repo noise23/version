@@ -1147,6 +1147,19 @@ int64_t CWallet::GetNewMint() const
     return nTotal;
 }
 
+bool CWallet::MintableCoins()
+{
+    vector<COutput> vCoins;
+    AvailableCoins(vCoins, true);
+
+    for (const COutput& out : vCoins)
+    {
+        if (GetTime() - out.tx->GetTxTime() > nStakeMinAge)
+            return true;
+    }
+    return false;
+}
+
 bool CWallet::SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine, int nConfTheirs, vector<COutput> vCoins, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet) const
 {
     setCoinsRet.clear();
