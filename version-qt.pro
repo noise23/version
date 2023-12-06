@@ -211,7 +211,14 @@ HEADERS += src/qt/bitcoingui.h \
     src/ui_interface.h \
     src/qt/rpcconsole.h \
     src/kernel.h \
-    src/qt/verifymessagedialog.h
+    src/qt/verifymessagedialog.h \
+    src/crypto/common.h \
+    src/crypto/aes.h \
+    src/crypto/sha256.h \
+    src/crypto/hmac_sha256.h \
+    src/crypto/sha512.h \
+    src/crypto/ripemd160.h \
+    src/crypto/sha1.h
 
 SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -279,7 +286,13 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/qtipcserver.cpp \
     src/qt/rpcconsole.cpp \
     src/kernel.cpp \
-    src/qt/verifymessagedialog.cpp
+    src/qt/verifymessagedialog.cpp \
+    src/crypto/aes.cpp \
+    src/crypto/sha256.cpp \
+    src/crypto/hmac_sha256.cpp \
+    src/crypto/sha512.cpp \
+    src/crypto/ripemd160.cpp \
+    src/crypto/sha1.cpp
 
 RESOURCES += \
     src/qt/bitcoin.qrc

@@ -1,5 +1,3 @@
-*.idx
-*.pack
 src/*.exe
 src/versiond
 src/test_version
@@ -11,11 +9,10 @@ src/build.h
 *.orig
 *.o
 *.patch
+.version
 #compilation and Qt preprocessor part
 *.qm
 version-qt
-#resources cpp
-qrc_*.cpp
 #qt creator
 *.pro.user
 #mac specific

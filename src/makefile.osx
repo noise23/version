@@ -80,23 +80,29 @@ OBJS= \
     obj/init.o \
     obj/keystore.o \
     obj/main.o \
-	obj/miner.o \
+    obj/miner.o \
     obj/net.o \
     obj/protocol.o \
     obj/bitcoinrpc.o \
     obj/rpcdump.o \
-	obj/rpcnet.o \
-	obj/rpcmining.o \
-	obj/rpcwallet.o \
-	obj/rpcblockchain.o \
+    obj/rpcnet.o \
+    obj/rpcmining.o \
+    obj/rpcwallet.o \
+    obj/rpcblockchain.o \
     obj/rpcrawtransaction.o \
     obj/script.o \
-	obj/sync.o \
+    obj/sync.o \
     obj/util.o \
     obj/wallet.o \
     obj/walletdb.o \
     obj/noui.o \
-    obj/kernel.o
+    obj/kernel.o \
+    obj/crypto/aes.o \
+    obj/crypto/sha256.o \
+    obj/crypto/hmac_sha256.o \
+    obj/crypto/sha512.o \
+    obj/crypto/ripemd160.o \
+    obj/crypto/sha1.o
 
 ifdef USE_UPNP
 	DEFS += -DUSE_UPNP=$(USE_UPNP)
