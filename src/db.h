@@ -35,7 +35,6 @@ bool ImportWallet(CWallet* pwallet, const std::string& strLocation);
 class CDBEnv
 {
 private:
-    bool fDetachDB;
     bool fDbEnvInit;
     bool fMockDb;
     boost::filesystem::path pathEnv;
@@ -53,7 +52,7 @@ public:
     ~CDBEnv();
     void MakeMock();
     bool IsMock() { return fMockDb; };
-	
+
     /*
      * Verify that database file strFile is OK. If it is not,
      * call the callback to try to recover.
@@ -71,16 +70,14 @@ public:
      */
     typedef std::pair<std::vector<unsigned char>, std::vector<unsigned char> > KeyValPair;
     bool Salvage(std::string strFile, bool fAggressive, std::vector<KeyValPair>& vResult);
-	
+
     bool Open(boost::filesystem::path pathEnv_);
     void Close();
     void Flush(bool fShutdown);
     void CheckpointLSN(std::string strFile);
-    void SetDetach(bool fDetachDB_) { fDetachDB = fDetachDB_; }
-	bool GetDetach() { return fDetachDB; }
 
     void CloseDb(const std::string& strFile);
-	bool RemoveDb(const std::string& strFile);
+    bool RemoveDb(const std::string& strFile);
 
     DbTxn *TxnBegin(int flags=DB_TXN_WRITE_NOSYNC)
     {

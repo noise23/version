@@ -60,8 +60,6 @@ void OptionsModel::Init()
         SoftSetArg("-proxy", settings.value("addrProxy").toString().toStdString());
     if (settings.contains("nSocksVersion") && settings.value("fUseProxy").toBool())
         SoftSetArg("-socks", settings.value("nSocksVersion").toString().toStdString());
-    if (settings.contains("detachDB"))
-        SoftSetBoolArg("-detachdb", settings.value("detachDB").toBool());
 }
 
 bool OptionsModel::Upgrade()
@@ -168,9 +166,7 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return QVariant(nDisplayUnit);
         case DisplayAddresses:
             return QVariant(bDisplayAddresses);
-        case DetachDatabases:
-            return QVariant(bitdb.GetDetach());
-          case CoinControlFeatures:
+        case CoinControlFeatures:
             return QVariant(fCoinControlFeatures);
         case UseVTheme:
             return QVariant(fUseVTheme);
@@ -216,9 +212,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             proxy.first = CService("127.0.0.1", 9050);
             GetProxy(NET_IPV4, proxy);
 
-
-
-
             CNetAddr addr(value.toString().toStdString());
             proxy.first.SetIP(addr);
             settings.setValue("addrProxy", proxy.first.ToStringIPPort().c_str());
@@ -263,21 +256,16 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("bDisplayAddresses", bDisplayAddresses);
             }
             break;
-        case DetachDatabases: {
-            bool fDetachDB = value.toBool();
-			bitdb.SetDetach(fDetachDB);
-            settings.setValue("detachDB", fDetachDB);
-            }
-            break;
-          case CoinControlFeatures: {
+        case CoinControlFeatures: {
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             emit coinControlFeaturesChanged(fCoinControlFeatures);
             }
             break;
-          case UseVTheme:
+        case UseVTheme: {
             fUseVTheme = value.toBool();
             settings.setValue("fUseVTheme", fUseVTheme);
+            }
             break;
         default:
             break;
