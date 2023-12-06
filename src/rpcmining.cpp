@@ -24,7 +24,6 @@ Value getgenerate(const Array& params, bool fHelp)
     return GetBoolArg("-gen");
 }
 
-
 Value setgenerate(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
@@ -46,6 +45,7 @@ Value setgenerate(const Array& params, bool fHelp)
     }
     mapArgs["-gen"] = (fGenerate ? "1" : "0");
 
+    assert(pwalletMain != NULL);
     GenerateBitcoins(fGenerate, pwalletMain);
     return Value::null;
 }
@@ -70,19 +70,19 @@ Value getmininginfo(const Array& params, bool fHelp)
             "Returns an object containing mining-related information.");
 
     Object obj;
-    obj.push_back(Pair("blocks",        (int)nBestHeight));
-    obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
-    obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
+    obj.push_back(Pair("blocks",            (int)nBestHeight));
+    obj.push_back(Pair("currentblocksize",  (uint64_t)nLastBlockSize));
+    obj.push_back(Pair("currentblocktx",    (uint64_t)nLastBlockTx));
     obj.push_back(Pair("PoW difficulty",    (double)GetDifficulty()));
-	obj.push_back(Pair("PoS difficulty", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    obj.push_back(Pair("errors",        GetWarnings("statusbar")));
-    obj.push_back(Pair("netmhashps",     GetPoWMHashPS()));
-    obj.push_back(Pair("netstakeweight", GetPoSKernelPS()));
-    obj.push_back(Pair("generate",      GetBoolArg("-gen")));
-    obj.push_back(Pair("genproclimit",  (int)GetArg("-genproclimit", -1)));
-    obj.push_back(Pair("hashespersec",  gethashespersec(params, false)));
-    obj.push_back(Pair("pooledtx",      (uint64_t)mempool.size()));
-    obj.push_back(Pair("testnet",       fTestNet));
+    obj.push_back(Pair("PoS difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("errors",            GetWarnings("statusbar")));
+    obj.push_back(Pair("netmhashps",        GetPoWMHashPS()));
+    obj.push_back(Pair("netstakeweight",    GetPoSKernelPS()));
+    obj.push_back(Pair("generate",          getgenerate(params, false)));
+    obj.push_back(Pair("genproclimit",      (int)GetArg("-genproclimit", -1)));
+    obj.push_back(Pair("hashespersec",      gethashespersec(params, false)));
+    obj.push_back(Pair("pooledtx",          (uint64_t)mempool.size()));
+    obj.push_back(Pair("testnet",           fTestNet));
     return obj;
 }
 
@@ -294,4 +294,3 @@ Value setstaking(const Array& params, bool fHelp) {
 //    return Value::null;
     return fStaking;
 }
-

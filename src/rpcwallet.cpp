@@ -20,7 +20,7 @@ extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spiri
 
 std::string HelpRequiringPassphrase()
 {
-    return pwalletMain->IsCrypted()
+    return pwalletMain && pwalletMain->IsCrypted()
         ? "\nrequires wallet passphrase to be set with walletpassphrase first"
         : "";
 }
@@ -74,9 +74,11 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("version",            FormatFullVersion()));
     obj.push_back(Pair("blocks",             (int)nBestHeight));
     obj.push_back(Pair("connections",        (int)vNodes.size()));
-    obj.push_back(Pair("balance",            ValueFromAmount(pwalletMain->GetBalance())));
-    obj.push_back(Pair("newmint",            ValueFromAmount(pwalletMain->GetNewMint())));
-    obj.push_back(Pair("stake",              ValueFromAmount(pwalletMain->GetStake())));
+    if (pwalletMain) {
+        obj.push_back(Pair("balance",            ValueFromAmount(pwalletMain->GetBalance())));
+        obj.push_back(Pair("newmint",            ValueFromAmount(pwalletMain->GetNewMint())));
+        obj.push_back(Pair("stake",              ValueFromAmount(pwalletMain->GetStake())));
+    }
     obj.push_back(Pair("PoW difficulty",     (double)GetDifficulty()));
     obj.push_back(Pair("PoS difficulty",     GetDifficulty(GetLastBlockIndex(pindexBest, true))));
     obj.push_back(Pair("moneysupply",        ValueFromAmount(pindexBest->nMoneySupply)));
@@ -87,14 +89,18 @@ Value getinfo(const Array& params, bool fHelp)
 //    obj.push_back(Pair("mininput",         ValueFromAmount(nMinimumInputValue)));
     obj.push_back(Pair("split threshold",    ValueFromAmount(nSplitThreshold)));
     obj.push_back(Pair("protocolversion",    (int)PROTOCOL_VERSION));
-    obj.push_back(Pair("walletversion",      pwalletMain->GetVersion()));
+    if (pwalletMain) {
+        obj.push_back(Pair("walletversion",      pwalletMain->GetVersion()));
+    }
     obj.push_back(Pair("ip",                 addrSeenByPeer.ToStringIP()));
     if (GetProxy(NET_IPV4, proxy))
         obj.push_back(Pair("proxy",          (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
-    obj.push_back(Pair("encrypted",          pwalletMain->IsCrypted()));
-    if (pwalletMain->IsCrypted() && !pwalletMain->IsLocked())
+    if (pwalletMain) {
+        obj.push_back(Pair("encrypted",          pwalletMain->IsCrypted()));
+    }
+    if (pwalletMain && pwalletMain->IsCrypted() && !pwalletMain->IsLocked())
         obj.push_back(Pair("unlocked_until", DateTimeStrFormat(nWalletUnlockTime / 1000)));
-    else if(pwalletMain->IsCrypted() && pwalletMain->IsLocked())
+    else if(pwalletMain && pwalletMain->IsCrypted() && pwalletMain->IsLocked())
         obj.push_back(Pair("unlocked_until", "Locked"));
     if (!GetWarnings("statusbar").empty())
         obj.push_back(Pair("errors",         GetWarnings("statusbar")));
@@ -753,7 +759,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
 
         // Case 1: bitcoin address and we have full public key:
         CBitcoinAddress address(ks);
-        if (address.IsValid())
+        if (pwalletMain && address.IsValid())
         {
             CKeyID keyID;
             if (!address.GetKeyID(keyID))

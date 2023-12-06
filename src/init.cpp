@@ -83,11 +83,14 @@ void Shutdown(void* parg)
         fShutdown = true;
         nTransactionsUpdated++;
 //        CTxDB().Close();
-        bitdb.Flush(false);
+        if (pwalletMain)
+            bitdb.Flush(false);
         StopNode();
-        bitdb.Flush(true);
+        if (pwalletMain)
+            bitdb.Flush(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
+            if (pwalletMain)
         delete pwalletMain;
         globalVerifyHandle.reset();
         ECC_Stop();
@@ -878,7 +881,8 @@ bool AppInit2()
         return InitError(strErrors.str());
 
      // Add wallet transactions that aren't already in a block to mapTransactions
-    pwalletMain->ReacceptWalletTransactions();
+    if (pwalletMain)
+        pwalletMain->ReacceptWalletTransactions();
 
 #if !defined(QT_GUI)
     // Loop until process is exit()ed from shutdown() function,
