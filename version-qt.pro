@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
-VERSION = 4.0.0
+VERSION = 4.0.1
 QT += core gui network
 INCLUDEPATH += src src/json src/qt
 QT += network
@@ -102,25 +102,26 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     QTPLUGIN += qcncodecs qjpcodecs qtwcodecs qkrcodecs qtaccessiblewidgets
 }
 
-#INCLUDEPATH += src/leveldb/include src/leveldb/helpers
-#LIBS += $$PWD/src/leveldb/libleveldb.a $$PWD/src/leveldb/libmemenv.a
-#!win32 {
+#Build Leveldb
+INCLUDEPATH += src/leveldb/include src/leveldb/helpers
+LIBS += $$PWD/src/leveldb/out-static/libleveldb.a $$PWD/src/leveldb/out-static/libmemenv.a
+!win32 {
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
-#    genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
-#} else {
+    genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" out-static/libleveldb.a out-static/libmemenv.a
+} else {
     # make an educated guess about what the ranlib command is called
-#    isEmpty(QMAKE_RANLIB) {
-#        QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
-#    }
-#    LIBS += -lshlwapi
-#    genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a && $#$QMAKE_RANLIB $$PWD/src/leveldb/libleveldb.a && $$QMAKE_RANLIB $$PWD/src/leveldb/libmemenv.a
-#}
-#genleveldb.target = $$PWD/src/leveldb/libleveldb.a
-#genleveldb.depends = FORCE
-#PRE_TARGETDEPS += $$PWD/src/leveldb/libleveldb.a
-#QMAKE_EXTRA_TARGETS += genleveldb
+    isEmpty(QMAKE_RANLIB) {
+        QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
+    }
+    genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" out-static/libleveldb.a out-static/libmemenv.a && $$QMAKE_RANLIB $$PWD/src/leveldb/out-static/libleveldb.a && $$QMAKE_RANLIB $$PWD/src/leveldb/out-static/libmemenv.a
+    LIBS += -lshlwapi
+}
+genleveldb.target = $$PWD/src/leveldb/out-static/libleveldb.a
+genleveldb.depends = FORCE
+PRE_TARGETDEPS += $$PWD/src/leveldb/out-static/libleveldb.a
+QMAKE_EXTRA_TARGETS += genleveldb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
-#QMAKE_CLEAN += $$PWD/src/leveldb/libleveldb.a; cd $$PWD/src/leveldb ; $(MAKE) clean
+QMAKE_CLEAN += $$PWD/src/leveldb/out-static/libleveldb.a; cd $$PWD/src/leveldb ; $(MAKE) clean
 
 # regenerate src/build.h
 !win32|contains(USE_BUILD_INFO, 1) {
@@ -153,7 +154,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/base58.h \
     src/bignum.h \
     src/checkpoints.h \
-	src/coincontrol.h \
+    src/coincontrol.h \
     src/compat.h \
     src/sync.h \
     src/util.h \
@@ -164,6 +165,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/miner.h \
     src/net.h \
     src/key.h \
+    src/txdb.h \
     src/db.h \
     src/walletdb.h \
     src/script.h \
@@ -236,6 +238,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/net.cpp \
     src/checkpoints.cpp \
     src/addrman.cpp \
+    src/txdb.cpp \
     src/db.cpp \
     src/walletdb.cpp \
     src/json/json_spirit_writer.cpp \
@@ -258,11 +261,11 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/walletmodel.cpp \
     src/bitcoinrpc.cpp \
     src/rpcdump.cpp \
-	src/rpcnet.cpp \
-	src/rpcmining.cpp \
-	src/rpcwallet.cpp \
-	src/rpcblockchain.cpp \
-	src/rpcrawtransaction.cpp \
+    src/rpcnet.cpp \
+    src/rpcmining.cpp \
+    src/rpcwallet.cpp \
+    src/rpcblockchain.cpp \
+    src/rpcrawtransaction.cpp \
     src/qt/overviewpage.cpp \
     src/qt/csvmodelwriter.cpp \
     src/crypter.cpp \
@@ -283,7 +286,7 @@ RESOURCES += \
 
 FORMS += \
     src/qt/forms/sendcoinsdialog.ui \
-	src/qt/forms/coincontroldialog.ui \
+    src/qt/forms/coincontroldialog.ui \
     src/qt/forms/addressbookpage.ui \
     src/qt/forms/messagepage.ui \
     src/qt/forms/aboutdialog.ui \

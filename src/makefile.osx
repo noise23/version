@@ -25,12 +25,8 @@ USE_IPV6:=1
 
 LIBS= -dead_strip
 
-TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
-
 ifdef STATIC
-# Build STATIC if you are redistributing the bitcoind binary
-TESTLIBS += \
- $(DEPSDIR)/lib/libboost_unit_test_framework-mt.a
+# Build STATIC if you are redistributing the versiond binary
 LIBS += \
  $(DEPSDIR)/lib/db48/libdb_cxx-4.8.a \
  $(DEPSDIR)/lib/libboost_system-mt.a \
@@ -41,8 +37,6 @@ LIBS += \
  $(DEPSDIR)/lib/libcrypto.a \
  -lz
 else
-TESTLIBS += \
- -lboost_unit_test_framework-mt
 LIBS += \
  -ldb_cxx-4.8 \
  -lboost_system-mt \
@@ -52,8 +46,6 @@ LIBS += \
  -lssl \
  -lcrypto \
  -lz
-TESTDEFS += -DBOOST_TEST_DYN_LINK
-endif
 
 DEFS=-DMAC_OSX -DMSG_NOSIGNAL=0 -DBOOST_SPIRIT_THREADSAFE
 
@@ -83,6 +75,7 @@ OBJS= \
     obj/addrman.o \
     obj/crypter.o \
     obj/key.o \
+    obj/txdb.o \
     obj/db.o \
     obj/init.o \
     obj/keystore.o \
@@ -119,6 +112,14 @@ ifneq (${USE_IPV6}, -)
 endif
 
 all: versiond
+
+# build leveldb
+LIBS += $(CURDIR)/leveldb/out-static/libleveldb.a $(CURDIR)/leveldb/out-static/libmemenv.a
+DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
+DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
+leveldb/out-static/libleveldb.a:
+	@echo "Building LevelDB ..."; cd leveldb; make out-static/libleveldb.a out-static/libmemenv.a; cd ..;
+obj/txdb.o: leveldb/out-static/libleveldb.a
 
 # auto-generated dependencies:
 -include obj/*.P

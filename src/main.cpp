@@ -1,12 +1,13 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "alert.h"
 #include "checkpoints.h"
 #include "db.h"
+#include "txdb.h"
 #include "net.h"
 #include "init.h"
 #include "ui_interface.h"
@@ -2026,8 +2027,6 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
         if (!SetBestChain(txdb, pindexNew))
             return false;
 
-    txdb.Close();
-
     if (pindexNew == pindexBest)
     {
         // Notify UI to display prev block's coinbase if it was ours
@@ -2511,11 +2510,17 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
     return true;
 }
 
+static boost::filesystem::path BlockFilePath(unsigned int nFile)
+{
+    string strBlockFn = strprintf("blk%04u.dat", nFile);
+    return GetDataDir() / "blocks" / strBlockFn;
+}
+
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
 {
     if ((nFile < 1) || (nFile == (unsigned int) -1))
         return NULL;
-    FILE* file = fopen((GetDataDir() / strprintf("blk%04d.dat", nFile)).string().c_str(), pszMode);
+    FILE* file = fopen(BlockFilePath(nFile).string().c_str(), pszMode);
     if (!file)
         return NULL;
     if (nBlockPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w'))
@@ -2541,8 +2546,7 @@ FILE* AppendBlockFile(unsigned int& nFileRet)
             return NULL;
         if (fseek(file, 0, SEEK_END) != 0)
             return NULL;
-        // FAT32 filesize max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
-        if (ftell(file) < 0x7F000000 - MAX_SIZE)
+        if (ftell(file) < MAX_BLOCKFILE_SIZE)
         {
             nFileRet = nCurrentBlockFile;
             return file;
@@ -2565,14 +2569,12 @@ bool LoadBlockIndex(bool fAllowNew)
         nModifierInterval = 60 * 2; // test net modifier interval is 2 minutes
     }
 
-
     //
     // Load block index
     //
-    CTxDB txdb("cr");
+    CTxDB txdb("cr+");
     if (!txdb.LoadBlockIndex())
         return false;
-    txdb.Close();
 
     //
     // Init with genesis block
@@ -2633,11 +2635,11 @@ bool LoadBlockIndex(bool fAllowNew)
         if(!fTestNet)
         {
             assert(block.hashMerkleRoot == uint256("0x43745b9e74ed05550a843b4261a2c76689a39a9f1168b196a612bbf0defd523a"));
-        }
-        else
-        {
-            assert(block.hashMerkleRoot == uint256("0x1cb52c986e5c7bd795631b8ffe75ac857d5f54522094a3e6bd8f720c58fb459a"));
-        }
+    }
+    else
+    {
+        assert(block.hashMerkleRoot == uint256("0x1cb52c986e5c7bd795631b8ffe75ac857d5f54522094a3e6bd8f720c58fb459a"));
+    }
 
         block.print();
         assert(block.GetHash() == hashGenesisBlock);
@@ -2655,23 +2657,20 @@ bool LoadBlockIndex(bool fAllowNew)
         if (!Checkpoints::WriteSyncCheckpoint(hashGenesisBlock))
             return error("LoadBlockIndex() : failed to init sync checkpoint");
     }
-    else
+
+    string strPubKey = "";
+
+    // if checkpoint master key changed must reset sync-checkpoint
+    if (!txdb.ReadCheckpointPubKey(strPubKey) || strPubKey != CSyncCheckpoint::strMasterPubKey)
     {
-        // version: if checkpoint master key changed must reset sync-checkpoint
-        CTxDB txdb;
-        string strPubKey = "";
-        if (!txdb.ReadCheckpointPubKey(strPubKey) || strPubKey != CSyncCheckpoint::strMasterPubKey)
-        {
-            // write checkpoint master key to db
-            txdb.TxnBegin();
-            if (!txdb.WriteCheckpointPubKey(CSyncCheckpoint::strMasterPubKey))
-                return error("LoadBlockIndex() : failed to write new checkpoint master key to db");
-            if (!txdb.TxnCommit())
-                return error("LoadBlockIndex() : failed to commit new checkpoint master key to db");
-            if ((!fTestNet) && !Checkpoints::ResetSyncCheckpoint())
-                return error("LoadBlockIndex() : failed to reset sync-checkpoint");
-        }
-        txdb.Close();
+        // write checkpoint master key to db
+        txdb.TxnBegin();
+        if (!txdb.WriteCheckpointPubKey(CSyncCheckpoint::strMasterPubKey))
+            return error("LoadBlockIndex() : failed to write new checkpoint master key to db");
+        if (!txdb.TxnCommit())
+            return error("LoadBlockIndex() : failed to commit new checkpoint master key to db");
+        if ((!fTestNet) && !Checkpoints::ResetSyncCheckpoint())
+            return error("LoadBlockIndex() : failed to reset sync-checkpoint");
     }
 
     return true;

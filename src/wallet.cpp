@@ -6,17 +6,16 @@
 
 #include "wallet.h"
 #include "walletdb.h"
+#include "txdb.h"
 #include "crypter.h"
 #include "ui_interface.h"
 #include "base58.h"
 #include "kernel.h"
 #include "coincontrol.h"
 
-
 #include <boost/algorithm/string/replace.hpp>
 using namespace std;
 extern int nStakeMaxAge;
-
 
 //////////////////////////////////////////////////////////////////////////////
 //

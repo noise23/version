@@ -1,17 +1,17 @@
 # Copyright (c) 2009-2010 Satoshi Nakamoto
-# Copyright (c) 2011-2012 The Version developers
+# Copyright (c) 2011-2024 The Version developers
 # Distributed under the MIT/X11 software license, see the accompanying
 # file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
 USE_UPNP:=0
 USE_IPV6:=1
 
-DEFS=-DBOOST_SPIRIT_THREADSAFE
+LINK:=$(CXX)
+
+DEFS=-DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS
 
 DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH))
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
-
-TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 
 LMODE = dynamic
 LMODE2 = dynamic
@@ -20,8 +20,6 @@ ifdef STATIC
 	ifeq (${STATIC}, all)
 		LMODE2 = static
 	endif
-else
-	TESTDEFS += -DBOOST_TEST_DYN_LINK
 endif
 
 # for boost 1.37, add -mt to the boost libraries
@@ -72,13 +70,14 @@ LIBS+= \
     # Make some important things such as the global offset table read only as soon as
     # the dynamic linker is finished building it. This will prevent overwriting of addresses
     # which would later be jumped to.
-    HARDENING+=-Wl,-z,relro -Wl,-z,now
+    LDHARDENING+=-Wl,-z,relro -Wl,-z,now
 
     # Build position independent code to take advantage of Address Space Layout Randomization
     # offered by some kernels.
     # see doc/build-unix.txt for more information.
     ifdef PIE
-        HARDENING+=-fPIE -pie
+        HARDENING+=-fPIE
+        LDHARDENING+=-pie
     endif
 
     # -D_FORTIFY_SOURCE=2 does some checking for potentially exploitable code patterns in
@@ -100,6 +99,7 @@ OBJS= \
     obj/addrman.o \
     obj/crypter.o \
     obj/key.o \
+    obj/txdb.o \
     obj/db.o \
     obj/init.o \
     obj/keystore.o \
@@ -124,10 +124,16 @@ OBJS= \
 
 
 all: versiond
+# build leveldb
+LIBS += $(CURDIR)/leveldb/out-static/libleveldb.a $(CURDIR)/leveldb/out-static/libmemenv.a
+DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
+DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
+leveldb/out-static/libleveldb.a:
+	@echo "Building LevelDB ..."; cd leveldb; make out-static/libleveldb.a out-static/libmemenv.a; cd ..;
+obj/txdb.o: leveldb/out-static/libleveldb.a
 
 # auto-generated dependencies:
 -include obj/*.P
--include obj-test/*.P
 
 obj/build.h: FORCE
 	/bin/sh ../share/genbuild.sh obj/build.h
@@ -135,7 +141,7 @@ version.cpp: obj/build.h
 DEFS += -DHAVE_BUILD_INFO
 
 obj/%.o: %.cpp
-	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
+	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
@@ -157,11 +163,8 @@ test_version: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
 	$(CXX) $(xCXXFLAGS) -o $@ $(LIBPATHS) $^ -Wl,-B$(LMODE) -lboost_unit_test_framework $(LDFLAGS) $(LIBS)
 
 clean:
-	-rm -f versiond test_version
 	-rm -f obj/*.o
-	-rm -f obj-test/*.o
 	-rm -f obj/*.P
-	-rm -f obj-test/*.P
 	-rm -f src/build.h
 
 FORCE:

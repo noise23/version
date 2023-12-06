@@ -3,7 +3,7 @@
 #include "main.h"
 #include "base58.h"
 #include "clientmodel.h"
-#include "db.h"
+#include "txdb.h"
 #include "wallet.h"
 
 double GetPoSKernelPS(const CBlockIndex* blockindex);

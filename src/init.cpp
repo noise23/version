@@ -5,7 +5,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "init.h"
-#include "db.h"
+#include "txdb.h"
 #include "walletdb.h"
 #include "bitcoinrpc.h"
 #include "net.h"
@@ -28,6 +28,7 @@ using namespace boost;
 CWallet* pwalletMain;
 CClientUIInterface uiInterface;
 enum Checkpoints::CPMode CheckpointsMode;
+bool fUseFastIndex;
 unsigned int nNodeLifespan;
 bool fConfChange;
 std::string strWalletFileName;
@@ -78,6 +79,7 @@ void Shutdown(void* parg)
     {
         fShutdown = true;
         nTransactionsUpdated++;
+//        CTxDB().Close();
         bitdb.Flush(false);
         StopNode();
         bitdb.Flush(true);
@@ -340,6 +342,8 @@ bool AppInit2()
 
     nNodeLifespan = GetArg("-addrlifespan", 7);
 
+    fUseFastIndex = GetBoolArg("-fastindex", true);
+
     CheckpointsMode = Checkpoints::STRICT; 
     std::string strCpMode = GetArg("-cppolicy", "strict"); 
  
@@ -416,13 +420,6 @@ bool AppInit2()
         if (nNewTimeout > 0 && nNewTimeout < 600000)
             nConnectTimeout = nNewTimeout;
     }
-
-    // Continue to put "/P2SH/" in the coinbase to monitor
-    // BIP16 support.
-    // This can be removed eventually...
-    const char* pszP2SH = "/P2SH/";
-    COINBASE_FLAGS << std::vector<unsigned char>(pszP2SH, pszP2SH+strlen(pszP2SH));
-
 
     if (mapArgs.count("-paytxfee"))
     {
@@ -642,6 +639,14 @@ bool AppInit2()
 
     // ********************************************************* Step 7: load blockchain
 
+    if (!bitdb.Open(GetDataDir()))
+    {
+        string msg = strprintf(_("Error initializing database environment %s!"
+                                 " To recover, BACKUP THAT DIRECTORY, then remove"
+                                 " everything from it except for wallet.dat."), strDataDir.c_str());
+        return InitError(msg);
+    }
+
     if (GetBoolArg("-loadblockindextest"))
     {
         CTxDB txdb("r");
@@ -700,7 +705,7 @@ bool AppInit2()
     uiInterface.InitMessage(_("Loading wallet..."));
     printf("Loading wallet...\n");
     nStart = GetTimeMillis();
-    bool fFirstRun;
+    bool fFirstRun = true;
     pwalletMain = new CWallet(strWalletFileName);
     DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK)
@@ -789,6 +794,7 @@ bool AppInit2()
             if (file)
                 LoadExternalBlockFile(file);
                   }
+                exit(0);
             }
 
     boost::filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
