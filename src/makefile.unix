@@ -131,6 +131,13 @@ OBJS= \
     obj/crypto/sha1.o
 
 all: versiond
+
+# build secp256k1
+DEFS += $(addprefix -I,$(CURDIR)/secp256k1/include)
+secp256k1/src/libsecp256k1_la-secp256k1.o:
+	@echo "Building Secp256k1 ..."; cd secp256k1; chmod 755 *; ./autogen.sh; ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental; make; cd ..;
+versiond: secp256k1/src/libsecp256k1_la-secp256k1.o
+
 # build leveldb
 LIBS += $(CURDIR)/leveldb/out-static/libleveldb.a $(CURDIR)/leveldb/out-static/libmemenv.a
 DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
@@ -170,8 +177,11 @@ test_version: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
 	$(CXX) $(xCXXFLAGS) -o $@ $(LIBPATHS) $^ -Wl,-B$(LMODE) -lboost_unit_test_framework $(LDFLAGS) $(LIBS)
 
 clean:
+	-rm -f versiond
 	-rm -f obj/*.o
 	-rm -f obj/*.P
-	-rm -f src/build.h
+	-rm -f obj/crypto/*.o
+	-rm -f obj/crypto/*.P
+	-rm -f obj/build.h
 
 FORCE:
