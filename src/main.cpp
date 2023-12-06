@@ -2034,7 +2034,7 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
 
 bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
 {
-    uint i;
+    unsigned int i;
 
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
