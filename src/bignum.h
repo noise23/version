@@ -98,10 +98,12 @@ public:
     CBigNum(short n) : self(NULL)            { init(); if (n >= 0) setulong(n); else setint64(n); }
     CBigNum(int n) : self(NULL)              { init(); if (n >= 0) setulong(n); else setint64(n); }
     CBigNum(long n) : self(NULL)             { init(); if (n >= 0) setulong(n); else setint64(n); }
+    CBigNum(long long n) : self(NULL)          { init(); setint64(n); }
     CBigNum(unsigned char n) : self(NULL)    { init(); setulong(n); }
     CBigNum(unsigned short n) : self(NULL)   { init(); setulong(n); }
     CBigNum(unsigned int n) : self(NULL)     { init(); setulong(n); }
     CBigNum(unsigned long n) : self(NULL)    { init(); setulong(n); }
+    CBigNum(unsigned long long n) : self(NULL) { init(); setuint64(n); }
     explicit CBigNum(uint256 n) : self(NULL) { init(); setuint256(n); }
 
     explicit CBigNum(const std::vector<unsigned char>& vch) : self(NULL)
