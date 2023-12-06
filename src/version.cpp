@@ -6,7 +6,7 @@
 #include "version.h"
 
 // Name of client reported in the 'version' message. Report the same name
-// for both bitcoind and bitcoin-qt, to make it harder for attackers to
+// for both versiond and version-qt, to make it harder for attackers to
 // target servers or GUI users specifically.
 const std::string CLIENT_NAME("Version");
 
@@ -36,14 +36,14 @@ const std::string CLIENT_NAME("Version");
 // git will put "#define GIT_ARCHIVE 1" on the next line inside archives. 
 #define GIT_ARCHIVE 1
 #ifdef GIT_ARCHIVE
-#    define GIT_COMMIT_ID "c1e4da5"
+#    define GIT_COMMIT_ID ""
 #    define GIT_COMMIT_DATE "$Format:%cD"
 #endif
 
 #define STRINGIFY(s) #s
 
 #define BUILD_DESC_FROM_COMMIT(maj,min,rev,build,commit) \
-    "v" STRINGIFY(maj) "." STRINGIFY(min) "." STRINGIFY(rev) "." STRINGIFY(build) "-g" commit
+    "v" STRINGIFY(maj) "." STRINGIFY(min) "." STRINGIFY(rev) "." STRINGIFY(build) "" commit
 
 #define BUILD_DESC_FROM_UNKNOWN(maj,min,rev,build) \
     "v" STRINGIFY(maj) "." STRINGIFY(min) "." STRINGIFY(rev) "." STRINGIFY(build) 
