@@ -224,6 +224,18 @@ bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) 
     return true;
 }
 
+bool CKey::Load(CPrivKey &privkey, CPubKey &vchPubKey, bool fSkipCheck=false) {
+    if (!ec_privkey_import_der(secp256k1_context_sign, (unsigned char*)begin(), &privkey[0], privkey.size()))
+        return false;
+    fCompressed = vchPubKey.IsCompressed();
+    fValid = true;
+
+    if (fSkipCheck)
+        return true;
+
+    return VerifyPubKey(vchPubKey);
+}
+
 bool ECC_InitSanityCheck() {
     CKey key;
     key.MakeNewKey(true);
