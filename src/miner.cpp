@@ -9,6 +9,8 @@
 #include "kernel.h"
 #include <boost/algorithm/string/replace.hpp>
 
+#include <openssl/sha.h>
+
 using namespace std;
 
 map<unsigned int, unsigned int> mapHashedBlocks;

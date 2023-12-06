@@ -11,11 +11,14 @@ using namespace boost;
 
 #include "script.h"
 #include "keystore.h"
+#include "crypto/sha256.h"
 #include "bignum.h"
 #include "key.h"
 #include "main.h"
 #include "sync.h"
 #include "util.h"
+
+#include <openssl/sha.h>
 
 bool CheckSig(vector<unsigned char> vchSig, vector<unsigned char> vchPubKey, CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
 
@@ -730,16 +733,14 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                     else if (opcode == OP_SHA1)
                         SHA1(&vch[0], vch.size(), &vchHash[0]);
                     else if (opcode == OP_SHA256)
-                        SHA256(&vch[0], vch.size(), &vchHash[0]);
+                        CSHA256().Write(&vch[0], vch.size()).Finalize(&vchHash[0]);
                     else if (opcode == OP_HASH160)
                     {
-                        uint160 hash160 = Hash160(vch);
-                        memcpy(&vchHash[0], &hash160, sizeof(hash160));
+                        CHash160().Write(&vch[0], vch.size()).Finalize(&vchHash[0]);
                     }
                     else if (opcode == OP_HASH256)
                     {
-                        uint256 hash = Hash(vch.begin(), vch.end());
-                        memcpy(&vchHash[0], &hash, sizeof(hash));
+                        CHash256().Write(&vch[0], vch.size()).Finalize(&vchHash[0]);
                     }
                     popstack(stack);
                     stack.push_back(vchHash);
