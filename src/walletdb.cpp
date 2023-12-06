@@ -734,26 +734,15 @@ bool DumpWallet(CWallet* pwallet, const string& strDest)
           const CKeyID &keyid = it->second;
           std::string strTime = EncodeDumpTime(it->first);
           std::string strAddr = CBitcoinAddress(keyid).ToString();
-          bool IsCompressed;
 
-          CKey vchSecret;
-          if (pwallet->GetKey(keyid, vchSecret)) {
+          CKey key;
+          if (pwallet->GetKey(keyid, key)) {
               if (pwallet->mapAddressBook.count(keyid)) {
-                  file << strprintf("%s %s label=%s # addr=%s\n",
-                                    CBitcoinSecret(vchSecret).ToString().c_str(),
-                                    strTime.c_str(),
-                                    EncodeDumpString(pwallet->mapAddressBook[keyid]).c_str(),
-                                    strAddr.c_str());
+                  file << strprintf("%s %s label=%s # addr=%s\n", CBitcoinSecret(key).ToString().c_str(), strTime.c_str(), EncodeDumpString(pwallet->mapAddressBook[keyid]).c_str(), strAddr.c_str());
               } else if (setKeyPool.count(keyid)) {
-                  file << strprintf("%s %s reserve=1 # addr=%s\n",
-                                    CBitcoinSecret(vchSecret).ToString().c_str(),
-                                    strTime.c_str(),
-                                    strAddr.c_str());
+                  file << strprintf("%s %s reserve=1 # addr=%s\n", CBitcoinSecret(key).ToString().c_str(), strTime.c_str(), strAddr.c_str());
               } else {
-                  file << strprintf("%s %s change=1 # addr=%s\n",
-                                    CBitcoinSecret(vchSecret).ToString().c_str(),
-                                    strTime.c_str(),
-                                    strAddr.c_str());
+                  file << strprintf("%s %s change=1 # addr=%s\n", CBitcoinSecret(key).ToString().c_str(), strTime.c_str(), strAddr.c_str());
               }
           }
       }

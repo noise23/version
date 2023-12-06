@@ -55,6 +55,7 @@ Value importprivkey(const Array& params, bool fHelp)
 
     CKey key = vchSecret.GetKey();
     CPubKey pubkey = key.GetPubKey();
+    assert(key.VerifyPubKey(pubkey));
     CKeyID vchAddress = pubkey.GetID();
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);

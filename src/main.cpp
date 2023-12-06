@@ -2088,7 +2088,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
         return DoS(50, error("CheckBlock() : coinstake timestamp violation nTimeBlock=%" PRId64 " nTimeTx=%u", GetBlockTime(), vtx[1].nTime));
 
         // Check proof-of-stake block signature
-        if (fCheckSig && !CheckBlockSignature(true))
+        if (fCheckSig && !CheckBlockSignature())
             return DoS(100, error("CheckBlock() : bad proof-of-stake block signature"));
     }
     else
@@ -2430,51 +2430,23 @@ bool CBlock::SignBlock(const CKeyStore& keystore)
 }
 
 // version: check block signature
-bool CBlock::CheckBlockSignature(bool fProofOfStake) const
+bool CBlock::CheckBlockSignature() const
 {
-    if (GetHash() == hashGenesisBlock)
-        return vchBlockSig.empty();
+    if (vchBlockSig.empty())
+        return false;
 
-    vector<valtype> vSolutions;
     txnouttype whichType;
+    vector<valtype> vSolutions;
+    if (!Solver(vtx[1].vout[1].scriptPubKey, whichType, vSolutions))
+        return false;
 
-    if(fProofOfStake)
+    if (whichType == TX_PUBKEY)
     {
-        const CTxOut& txout = vtx[1].vout[1];
-
-        if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+        valtype& vchPubKey = vSolutions[0];
+        CPubKey key(vchPubKey);
+        if (!key.IsValid())
             return false;
-        if (whichType == TX_PUBKEY)
-        {
-            valtype& vchPubKey = vSolutions[0];
-            CPubKey key;
-            if (vchBlockSig.empty())
-                return false;
-            return CPubKey(vchPubKey).Verify(GetHash(), vchBlockSig);
-        }
-    }
-    else
-    {
-        for(unsigned int i = 0; i < vtx[0].vout.size(); i++)
-        {
-            const CTxOut& txout = vtx[0].vout[i];
-
-            if (!Solver(txout.scriptPubKey, whichType, vSolutions))
-                return false;
-
-            if (whichType == TX_PUBKEY)
-            {
-                // Verify
-                valtype& vchPubKey = vSolutions[0];
-                CPubKey key;
-                if (vchBlockSig.empty())
-                    continue;
-                if (!CPubKey(vchPubKey).Verify(GetHash(), vchBlockSig))
-                    continue;
-
-                return true;
-            }
-        }
+        return key.Verify(GetHash(), vchBlockSig);
     }
     return false;
 }
@@ -3064,7 +3036,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
 
         // Store the new addresses
-		vector<CAddress> vAddrOk;
+        vector<CAddress> vAddrOk;
         int64_t nNow = GetAdjustedTime();
         int64_t nSince = nNow - 10 * 60;
         for (CAddress& addr : vAddr)
@@ -3074,7 +3046,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
                 addr.nTime = nNow - 5 * 24 * 60 * 60;
             pfrom->AddAddressKnown(addr);
-			bool fReachable = IsReachable(addr);
+            bool fReachable = IsReachable(addr);
             if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
             {
                 // Relay to a limited number of other nodes
@@ -3104,7 +3076,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                         ((*mi).second)->PushAddress(addr);
                 }
             }
-			// Do not store addresses outside our network
+            // Do not store addresses outside our network
             if (fReachable)
                    vAddrOk.push_back(addr);
         }
@@ -3541,7 +3513,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     // Update the last seen time for this node's address
     if (fDebug)
-	    printf("Update last seen time\n");
+        printf("Update last seen time\n");
     if (pfrom->fNetworkNode)
         if (strCommand == "version" || strCommand == "addr" || strCommand == "inv" || strCommand == "getdata" || strCommand == "ping")
             AddressCurrentlyConnected(pfrom->addr);
@@ -3565,7 +3537,7 @@ bool ProcessMessages(CNode* pfrom)
     //  (x) data
     //
     bool fOk = true;
-	
+
     std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
     while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
         // Don't bother if send buffer is too full to respond anyway
@@ -3583,7 +3555,7 @@ bool ProcessMessages(CNode* pfrom)
         // end, if an incomplete message is found
         if (!msg.complete())
             break;
-			
+
         // at this point, any failure means we can delete the current message
         it++;
 

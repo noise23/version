@@ -11,7 +11,7 @@
 #include <map>
 
 #include "alert.h"
-#include "key.h"
+#include "pubkey.h"
 #include "net.h"
 #include "sync.h"
 #include "ui_interface.h"

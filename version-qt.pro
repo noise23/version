@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
-VERSION = 4.0.4
+VERSION = 4.0.5
 QT += core gui network
 INCLUDEPATH += src src/json src/qt
 QT += network
@@ -191,6 +191,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/miner.h \
     src/net.h \
     src/key.h \
+    src/pubkey.h \
     src/txdb.h \
     src/db.h \
     src/walletdb.h \
@@ -265,6 +266,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/util.cpp \
     src/netbase.cpp \
     src/key.cpp \
+    src/pubkey.cpp \
     src/script.cpp \
     src/main.cpp \
     src/miner.cpp \
