@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -484,7 +484,7 @@ bool CAddrDB::Write(const CAddrMan& addr)
 {
  // Generate random temporary filename
  unsigned short randv = 0;
- RAND_bytes((unsigned char *)&randv, sizeof(randv));
+ GetRandBytes((unsigned char *)&randv, sizeof(randv));
  std::string tmpfn = strprintf("peers.dat.%04x", randv);
 
  // serialize addresses, checksum data up to that point, then append csum

@@ -83,6 +83,7 @@ OBJS= \
     obj/base58.o \
     obj/script.o \
     obj/sync.o \
+    obj/random.o \
     obj/util.o \
     obj/wallet.o \
     obj/walletdb.o \

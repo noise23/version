@@ -2880,7 +2880,6 @@ unsigned char pchMessageStart[4] = { 0xe8, 0xe6, 0xe5, 0xe9 };
 bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, int64_t nTimeReceived)
 {
     static map<CService, CPubKey> mapReuseKey;
-    RandAddSeedPerfmon();
     if (fDebug) {
         printf("%s ", DateTimeStrFormat(GetTime()).c_str());
         printf("received: %s (%lu bytes)\n", strCommand.c_str(), vRecv.size());
