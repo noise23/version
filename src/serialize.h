@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2012 The Version developers
+// Copyright (c) 2012-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_SERIALIZE_H
@@ -96,11 +96,6 @@ enum
 
 #define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersion, ser_action))
 
-
-
-
-
-
 //
 // Basic types
 //
@@ -114,10 +109,8 @@ inline unsigned int GetSerializeSize(signed short a,   int, int=0) { return size
 inline unsigned int GetSerializeSize(unsigned short a, int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(signed int a,     int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(unsigned int a,   int, int=0) { return sizeof(a); }
-//inline unsigned int GetSerializeSize(signed long a,    int, int=0) { return sizeof(a); }
-//inline unsigned int GetSerializeSize(unsigned long a,  int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(int64_t a,        int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(uint64_t a,       int, int=0) { return sizeof(a); }
+inline unsigned int GetSerializeSize(int64_t a,          int, int=0) { return sizeof(a); }
+inline unsigned int GetSerializeSize(uint64_t a,         int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(float a,          int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(double a,         int, int=0) { return sizeof(a); }
 
@@ -128,10 +121,8 @@ template<typename Stream> inline void Serialize(Stream& s, signed short a,   int
 template<typename Stream> inline void Serialize(Stream& s, unsigned short a, int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, signed int a,     int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, unsigned int a,   int, int=0) { WRITEDATA(s, a); }
-//template<typename Stream> inline void Serialize(Stream& s, signed long a,    int, int=0) { WRITEDATA(s, a); }
-//template<typename Stream> inline void Serialize(Stream& s, unsigned long a,  int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, int64_t a,        int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, uint64_t a,       int, int=0) { WRITEDATA(s, a); }
+template<typename Stream> inline void Serialize(Stream& s, int64_t a,          int, int=0) { WRITEDATA(s, a); }
+template<typename Stream> inline void Serialize(Stream& s, uint64_t a,         int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, float a,          int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, double a,         int, int=0) { WRITEDATA(s, a); }
 
@@ -142,10 +133,8 @@ template<typename Stream> inline void Unserialize(Stream& s, signed short& a,   
 template<typename Stream> inline void Unserialize(Stream& s, unsigned short& a, int, int=0) { READDATA(s, a); }
 template<typename Stream> inline void Unserialize(Stream& s, signed int& a,     int, int=0) { READDATA(s, a); }
 template<typename Stream> inline void Unserialize(Stream& s, unsigned int& a,   int, int=0) { READDATA(s, a); }
-//template<typename Stream> inline void Unserialize(Stream& s, signed long& a,    int, int=0) { READDATA(s, a); }
-//template<typename Stream> inline void Unserialize(Stream& s, unsigned long& a,  int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, int64_t& a,        int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, uint64_t& a,       int, int=0) { READDATA(s, a); }
+template<typename Stream> inline void Unserialize(Stream& s, int64_t& a,          int, int=0) { READDATA(s, a); }
+template<typename Stream> inline void Unserialize(Stream& s, uint64_t& a,         int, int=0) { READDATA(s, a); }
 template<typename Stream> inline void Unserialize(Stream& s, float& a,          int, int=0) { READDATA(s, a); }
 template<typename Stream> inline void Unserialize(Stream& s, double& a,         int, int=0) { READDATA(s, a); }
 
@@ -242,75 +231,9 @@ uint64_t ReadCompactSize(Stream& is)
     return nSizeRet;
 }
 
-// Variable-length integers: bytes are a MSB base-128 encoding of the number.
-// The high bit in each byte signifies whether another digit follows. To make
-// the encoding is one-to-one, one is subtracted from all but the last digit.
-// Thus, the byte sequence a[] with length len, where all but the last byte
-// has bit 128 set, encodes the number:
-//
-//   (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
-//
-// Properties:
-// * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
-// * Every integer has exactly one encoding
-// * Encoding does not depend on size of original integer type
-// * No redundancy: every (infinite) byte sequence corresponds to a list
-//   of encoded integers.
-//
-// 0:         [0x00]  256:        [0x81 0x00]
-// 1:         [0x01]  16383:      [0xFE 0x7F]
-// 127:       [0x7F]  16384:      [0xFF 0x00]
-// 128:  [0x80 0x00]  16511: [0x80 0xFF 0x7F]
-// 255:  [0x80 0x7F]  65535: [0x82 0xFD 0x7F]
-// 2^32:           [0x8E 0xFE 0xFE 0xFF 0x00]
 
-template<typename I>
-inline unsigned int GetSizeOfVarInt(I n)
-{
-    int nRet = 0;
-    while(true) {
-        nRet++;
-        if (n <= 0x7F)
-            break;
-        n = (n >> 7) - 1;
-    }
-    return nRet;
-}
-
-template<typename Stream, typename I>
-void WriteVarInt(Stream& os, I n)
-{
-    unsigned char tmp[(sizeof(n)*8+6)/7];
-    int len=0;
-    while(true) {
-        tmp[len] = (n & 0x7F) | (len ? 0x80 : 0x00);
-        if (n <= 0x7F)
-            break;
-        n = (n >> 7) - 1;
-        len++;
-    }
-    do {
-        WRITEDATA(os, tmp[len]);
-    } while(len--);
-}
-
-template<typename Stream, typename I>
-I ReadVarInt(Stream& is)
-{
-    I n = 0;
-    while(true) {
-        unsigned char chData;
-        READDATA(is, chData);
-        n = (n << 7) | (chData & 0x7F);
-        if (chData & 0x80)
-            n++;
-        else
-            return n;
-    }
-}
 
 #define FLATDATA(obj)   REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
-#define VARINT(obj)     REF(WrapVarInt(REF(obj)))
 
 /** Wrapper for serializing arrays and POD.
  * There's a clever template way to make arrays serialize normally, but MSVC6 doesn't support it.
@@ -344,32 +267,6 @@ public:
         s.read(pbegin, pend - pbegin);
     }
 };
-
-template<typename I>
-class CVarInt
-{
-protected:
-    I &n;
-public:
-    CVarInt(I& nIn) : n(nIn) { }
-
-    unsigned int GetSerializeSize(int, int) const {
-        return GetSizeOfVarInt<I>(n);
-    }
-
-    template<typename Stream>
-    void Serialize(Stream &s, int, int) const {
-        WriteVarInt<Stream,I>(s, n);
-    }
-
-    template<typename Stream>
-    void Unserialize(Stream& s, int, int) {
-        n = ReadVarInt<Stream,I>(s);
-    }
-};
-
-template<typename I>
-CVarInt<I> WrapVarInt(I& n) { return CVarInt<I>(n); }
 
 //
 // Forward declarations
@@ -421,6 +318,10 @@ template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(co
 template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
 
+
+
+
+
 //
 // If none of the specialized versions above matched, default to calling member function.
 // "int nType" is changed to "long nType" to keep from getting an ambiguous overload error.
@@ -444,6 +345,10 @@ inline void Unserialize(Stream& is, T& a, long nType, int nVersion)
 {
     a.Unserialize(is, (int)nType, nVersion);
 }
+
+
+
+
 
 //
 // string
@@ -470,6 +375,8 @@ void Unserialize(Stream& is, std::basic_string<C>& str, int, int)
     if (nSize != 0)
         is.read((char*)&str[0], nSize * sizeof(str[0]));
 }
+
+
 
 //
 // vector
@@ -559,6 +466,8 @@ inline void Unserialize(Stream& is, std::vector<T, A>& v, int nType, int nVersio
     Unserialize_impl(is, v, nType, nVersion, boost::is_fundamental<T>());
 }
 
+
+
 //
 // others derived from vector
 //
@@ -578,6 +487,8 @@ void Unserialize(Stream& is, CScript& v, int nType, int nVersion)
 {
     Unserialize(is, (std::vector<unsigned char>&)v, nType, nVersion);
 }
+
+
 
 //
 // pair
@@ -601,6 +512,8 @@ void Unserialize(Stream& is, std::pair<K, T>& item, int nType, int nVersion)
     Unserialize(is, item.first, nType, nVersion);
     Unserialize(is, item.second, nType, nVersion);
 }
+
+
 
 //
 // 3 tuple
@@ -665,8 +578,6 @@ void Unserialize(Stream& is, boost::tuple<T0, T1, T2, T3>& item, int nType, int 
     Unserialize(is, boost::get<3>(item), nType, nVersion);
 }
 
-
-
 //
 // map
 //
@@ -701,8 +612,6 @@ void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion
     }
 }
 
-
-
 //
 // set
 //
@@ -736,8 +645,6 @@ void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion)
         it = m.insert(it, key);
     }
 }
-
-
 
 //
 // Support for IMPLEMENT_SERIALIZE and READWRITE macro
@@ -971,7 +878,6 @@ public:
         return true;
     }
 
-
     //
     // Stream subset
     //
@@ -1130,7 +1036,6 @@ public:
     FILE** operator&()          { return &file; }
     FILE* operator=(FILE* pnew) { return file = pnew; }
     bool operator!()            { return (file == NULL); }
-
 
     //
     // Stream subset

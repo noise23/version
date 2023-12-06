@@ -12,7 +12,7 @@
 #include "allocators.h"
 #include "serialize.h"
 #include "uint256.h"
-#include "hash.h"
+#include "util.h"
 
 #include <openssl/ec.h> // for EC_KEY definition
 
@@ -64,94 +64,38 @@ public:
 /** An encapsulated public key. */
 class CPubKey {
 private:
-    unsigned char vch[65];
-
-    unsigned int static GetLen(unsigned char chHeader) {
-        if (chHeader == 2 || chHeader == 3)
-            return 33;
-        if (chHeader == 4 || chHeader == 6 || chHeader == 7)
-            return 65;
-        return 0;
-    }
-
-    unsigned char *begin() {
-        return vch;
-    }
+    std::vector<unsigned char> vchPubKey;
     friend class CKey;
 
 public:
-    CPubKey() { vch[0] = 0xFF; }
+    CPubKey() { }
+    CPubKey(const std::vector<unsigned char> &vchPubKeyIn) : vchPubKey(vchPubKeyIn) { }
+    friend bool operator==(const CPubKey &a, const CPubKey &b) { return a.vchPubKey == b.vchPubKey; }
+    friend bool operator!=(const CPubKey &a, const CPubKey &b) { return a.vchPubKey != b.vchPubKey; }
+    friend bool operator<(const CPubKey &a, const CPubKey &b) { return a.vchPubKey < b.vchPubKey; }
 
-    CPubKey(const std::vector<unsigned char> &vchPubKeyIn) {
-        int len = vchPubKeyIn.empty() ? 0 : GetLen(vchPubKeyIn[0]);
-        if (len) {
-            memcpy(vch, &vchPubKeyIn[0], len);
-        } else {
-            vch[0] = 0xFF;
-        }
-    }
-
-    unsigned int size() const {
-        return GetLen(vch[0]);
-    }
-
-    const unsigned char *begin() const {
-        return vch;
-    }
-
-    const unsigned char *end() const {
-        return vch+size();
-    }
-
-    friend bool operator==(const CPubKey &a, const CPubKey &b) { return memcmp(a.vch, b.vch, a.size()) == 0; }
-    friend bool operator!=(const CPubKey &a, const CPubKey &b) { return memcmp(a.vch, b.vch, a.size()) != 0; }
-    friend bool operator<(const CPubKey &a, const CPubKey &b) {
-        return a.vch[0] < b.vch[0] ||
-               (a.vch[0] == b.vch[0] && memcmp(a.vch+1, b.vch+1, a.size() - 1) < 0);
-    }
-
-    unsigned int GetSerializeSize(int nType, int nVersion) const {
-        return size() + 1;
-    }
-
-    template<typename Stream> void Serialize(Stream &s, int nType, int nVersion) const {
-        unsigned int len = size();
-        ::Serialize(s, VARINT(len), nType, nVersion);
-        s.write((char*)vch, len);
-    }
-
-    template<typename Stream> void Unserialize(Stream &s, int nType, int nVersion) {
-        unsigned int len;
-        ::Unserialize(s, VARINT(len), nType, nVersion);
-        if (len <= 65) {
-            s.read((char*)vch, len);
-        } else {
-            // invalid pubkey
-            vch[0] = 0xFF;
-            char dummy;
-            while (len--)
-                s.read(&dummy, 1);
-        }
-    }
+    IMPLEMENT_SERIALIZE(
+        READWRITE(vchPubKey);
+    )
 
     CKeyID GetID() const {
-        return CKeyID(Hash160(vch, vch+size()));
+        return CKeyID(Hash160(vchPubKey));
     }
 
     uint256 GetHash() const {
-        return Hash(vch, vch+size());
+        return Hash(vchPubKey.begin(), vchPubKey.end());
     }
 
     bool IsValid() const {
-        return size() > 0;
+        return vchPubKey.size() == 33 || vchPubKey.size() == 65;
     }
 
     bool IsCompressed() const {
-        return size() == 33;
+        return vchPubKey.size() == 33;
     }
 	
     std::vector<unsigned char> Raw() const {
-        return std::vector<unsigned char>(vch, vch+size());
+        return vchPubKey;
     }
 };
 
@@ -169,9 +113,10 @@ protected:
     bool fSet;
     bool fCompressedPubKey;
 
+    void SetCompressedPubKey();
+
 public:
 
-    void SetCompressedPubKey(bool fCompressed=true);
     void Reset();
 
     CKey();

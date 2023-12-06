@@ -8,12 +8,10 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <string>
 #include <vector>
-
 #include <stdint.h>
-
-inline int Testuint256AdHoc(std::vector<std::string> vArg);
 
 /** Base class without constructors for uint256 and uint160.
  * This makes the compiler let u use it in a union.
@@ -373,7 +371,6 @@ public:
 
     friend class uint160;
     friend class uint256;
-    friend inline int Testuint256AdHoc(std::vector<std::string> vArg);
 };
 
 typedef base_uint<160> base_uint160;
@@ -385,8 +382,6 @@ typedef base_uint<256> base_uint256;
 // uint160 and uint256 could be implemented as templates, but to keep
 // compile errors and debugging cleaner, they're copy and pasted.
 //
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -449,8 +444,8 @@ public:
     }
 };
 
-inline bool operator==(const uint160& a, uint64_t b)                         { return (base_uint160)a == b; }
-inline bool operator!=(const uint160& a, uint64_t b)                         { return (base_uint160)a != b; }
+inline bool operator==(const uint160& a, uint64_t b)                           { return (base_uint160)a == b; }
+inline bool operator!=(const uint160& a, uint64_t b)                           { return (base_uint160)a != b; }
 inline const uint160 operator<<(const base_uint160& a, unsigned int shift)   { return uint160(a) <<= shift; }
 inline const uint160 operator>>(const base_uint160& a, unsigned int shift)   { return uint160(a) >>= shift; }
 inline const uint160 operator<<(const uint160& a, unsigned int shift)        { return uint160(a) <<= shift; }
@@ -564,8 +559,8 @@ public:
     }
 };
 
-inline bool operator==(const uint256& a, uint64_t b)                         { return (base_uint256)a == b; }
-inline bool operator!=(const uint256& a, uint64_t b)                         { return (base_uint256)a != b; }
+inline bool operator==(const uint256& a, uint64_t b)                           { return (base_uint256)a == b; }
+inline bool operator!=(const uint256& a, uint64_t b)                           { return (base_uint256)a != b; }
 inline const uint256 operator<<(const base_uint256& a, unsigned int shift)   { return uint256(a) <<= shift; }
 inline const uint256 operator>>(const base_uint256& a, unsigned int shift)   { return uint256(a) >>= shift; }
 inline const uint256 operator<<(const uint256& a, unsigned int shift)        { return uint256(a) <<= shift; }

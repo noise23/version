@@ -12,7 +12,6 @@ static const int64_t nClientStartupTime = GetTime();
 #include <QDateTime>
 #include <QTimer>
 
-
 double GetDifficulty(const CBlockIndex* blockindex);
 double GetPoWMHashPS(const CBlockIndex* blockindex = NULL);
 double GetPoSKernelPS(const CBlockIndex* blockindex = NULL);

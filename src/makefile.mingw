@@ -68,13 +68,11 @@ INCLUDEPATHS= \
  -I"C:\openssl-1.0.1b-mgw\include"
 
 LIBPATHS= \
- -L"$(CURDIR)\leveldb" \
  -L"C:\boost-1.47.0-mgw\stage\lib" \
  -L"C:\db-4.8.30.NC-mgw\build_unix" \
  -L"C:\openssl-1.0.1b-mgw"
 
 LIBS= \
- -l leveldb \
  -l boost_system-mgw46-mt-s-1_47 \
  -l boost_filesystem-mgw46-mt-s-1_47 \
  -l boost_program_options-mgw46-mt-s-1_47 \
@@ -83,7 +81,7 @@ LIBS= \
  -l ssl \
  -l crypto
 
-DEFS=-DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS
+DEFS=-DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE
 DEBUGFLAGS=-g
 CFLAGS=-mthreads -O2 -w -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 
@@ -106,7 +104,6 @@ LIBS += -l kernel32 -l user32 -l gdi32 -l comdlg32 -l winspool -l winmm -l shell
 HEADERS = $(wildcard *.h)
 
 OBJS= \
-    obj/leveldb.o \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
@@ -115,42 +112,29 @@ OBJS= \
     obj/crypter.o \
     obj/key.o \
     obj/db.o \
-    obj/txdb.o \
     obj/init.o \
     obj/keystore.o \
     obj/main.o \
-    obj/miner.o \
+	obj/miner.o \
     obj/net.o \
     obj/protocol.o \
     obj/bitcoinrpc.o \
     obj/rpcdump.o \
-    obj/rpcnet.o \
-    obj/rpcmining.o \
-    obj/rpcwallet.o \
-    obj/rpcblockchain.o \
+	obj/rpcnet.o \
+	obj/rpcmining.o \
+	obj/rpcwallet.o \
+	obj/rpcblockchain.o \
     obj/rpcrawtransaction.o \
-    obj/base58.o \
     obj/script.o \
-    obj/sync.o \
+	obj/sync.o \
     obj/util.o \
     obj/wallet.o \
     obj/walletdb.o \
-    obj/sha1.o \
-    obj/sha256.o \
-    obj/ripemd160.o \
     obj/noui.o \
     obj/kernel.o
 
 
 all: versiond.exe
-
-LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
-OBJS += obj/leveldb.o
-leveldb/libleveldb.a:
-	cd leveldb; make; cd ..
-obj/leveldb.o: leveldb/libleveldb.a
 
 obj/%.o: %.cpp $(HEADERS)
 	g++ -c $(CFLAGS) -o $@ $<

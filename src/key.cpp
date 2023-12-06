@@ -132,9 +132,9 @@ err:
     return ret;
 }
 
-void CKey::SetCompressedPubKey(bool fCompressed)
+void CKey::SetCompressedPubKey()
 {
-    EC_KEY_set_conv_form(pkey, fCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
+    EC_KEY_set_conv_form(pkey, POINT_CONVERSION_COMPRESSED);
     fCompressedPubKey = true;
 }
 
@@ -270,11 +270,11 @@ CPrivKey CKey::GetPrivKey() const
 
 bool CKey::SetPubKey(const CPubKey& vchPubKey)
 {
-    const unsigned char* pbegin = vchPubKey.begin();
-    if (o2i_ECPublicKey(&pkey, &pbegin, vchPubKey.size()))
+    const unsigned char* pbegin = &vchPubKey.vchPubKey[0];
+    if (o2i_ECPublicKey(&pkey, &pbegin, vchPubKey.vchPubKey.size()))
     {
         fSet = true;
-        if (vchPubKey.size() == 33)
+        if (vchPubKey.vchPubKey.size() == 33)
             SetCompressedPubKey();
         return true;
     }
@@ -288,13 +288,11 @@ CPubKey CKey::GetPubKey() const
     int nSize = i2o_ECPublicKey(pkey, NULL);
     if (!nSize)
         throw key_error("CKey::GetPubKey() : i2o_ECPublicKey failed");
-    assert(nSize <= 65);
-    CPubKey ret;
-    unsigned char *pbegin = ret.begin();
+    std::vector<unsigned char> vchPubKey(nSize, 0);
+    unsigned char* pbegin = &vchPubKey[0];
     if (i2o_ECPublicKey(pkey, &pbegin) != nSize)
         throw key_error("CKey::GetPubKey() : i2o_ECPublicKey returned unexpected size");
-    assert((int)ret.size() == nSize);
-    return ret;
+    return CPubKey(vchPubKey);
 }
 
 bool CKey::Sign(uint256 hash, std::vector<unsigned char>& vchSig)

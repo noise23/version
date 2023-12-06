@@ -523,7 +523,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
     if (wss.nFileVersion < CLIENT_VERSION) // Update
         WriteVersion(CLIENT_VERSION);
-		
+
     if (wss.fAnyUnordered)
         result = ReorderTransactions(pwallet);
 

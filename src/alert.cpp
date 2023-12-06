@@ -45,7 +45,7 @@ std::string CUnsignedAlert::ToString() const
     for (int n : setCancel)
         strSetCancel += strprintf("%d ", n);
     std::string strSetSubVer;
-    for (const std::string& str : setSubVer)
+    for (std::string str : setSubVer)
         strSetSubVer += "\"" + str + "\" ";
     return strprintf(
         "CAlert(\n"
@@ -110,7 +110,7 @@ bool CAlert::Cancels(const CAlert& alert) const
     return (alert.nID <= nCancel || setCancel.count(alert.nID));
 }
 
-bool CAlert::AppliesTo(int nVersion, const std::string& strSubVerIn) const
+bool CAlert::AppliesTo(int nVersion, std::string strSubVerIn) const
 {
     // TODO: rework for client-version-embedded-in-strSubVer ?
     return (IsInEffect() &&
@@ -160,7 +160,7 @@ CAlert CAlert::getAlertByHash(const uint256 &hash)
     CAlert retval;
     {
         LOCK(cs_mapAlerts);
-        auto mi = mapAlerts.find(hash);
+        map<uint256, CAlert>::iterator mi = mapAlerts.find(hash);
         if(mi != mapAlerts.end())
             retval = mi->second;
     }
@@ -199,7 +199,7 @@ bool CAlert::ProcessAlert()
     {
         LOCK(cs_mapAlerts);
         // Cancel previous alerts
-        for (auto mi = mapAlerts.begin(); mi != mapAlerts.end();)
+        for (map<uint256, CAlert>::iterator mi = mapAlerts.begin(); mi != mapAlerts.end();)
         {
             const CAlert& alert = (*mi).second;
             if (Cancels(alert))
@@ -219,7 +219,7 @@ bool CAlert::ProcessAlert()
         }
 
         // Check if this alert has been cancelled
-        for (auto& item : mapAlerts)
+        for (const auto& item : mapAlerts)
         {
             const CAlert& alert = item.second;
             if (alert.Cancels(*this))

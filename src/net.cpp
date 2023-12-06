@@ -6,7 +6,6 @@
 
 #include "db.h"
 #include "net.h"
-#include "util.h"
 #include "init.h"
 #include "strlcpy.h"
 #include "addrman.h"
@@ -26,7 +25,7 @@
 using namespace std;
 using namespace boost;
 
-static const int MAX_OUTBOUND_CONNECTIONS = 16;
+static const int MAX_OUTBOUND_CONNECTIONS = 32;
 
 void ThreadMessageHandler2(void* parg);
 void ThreadSocketHandler2(void* parg);
@@ -224,10 +223,10 @@ bool AddLocal(const CService& addr, int nScore)
         return false;
 
     if (!fDiscover && nScore < LOCAL_MANUAL)
-        return false;
+         return false;
 
-    if (IsLimited(addr))
-        return false;
+     if (IsLimited(addr))
+         return false;
 
     printf("AddLocal(%s,%i)\n", addr.ToString().c_str(), nScore);
 
@@ -241,7 +240,6 @@ bool AddLocal(const CService& addr, int nScore)
         }
         SetReachable(addr.GetNetwork());
     }
-
 
     AdvertizeLocal();
 
@@ -482,8 +480,8 @@ CNode* pnode = FindNode((CService)addrConnect);
     SOCKET hSocket;
     if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, GetDefaultPort()) : ConnectSocket(addrConnect, hSocket))
     {
-	    addrman.Attempt(addrConnect);
-		
+        addrman.Attempt(addrConnect);
+
         /// debug print
         printf("connected %s\n", pszDest ? pszDest : addrConnect.ToString().c_str());
 
@@ -1313,7 +1311,7 @@ void DumpAddresses()
     CAddrDB adb;
     adb.Write(addrman);
   
-    printf("Flushed %d addresses to peers.dat %" PRId64 "ms\n",
+    printf("Flushed %d addresses to peers.dat  %" PRId64 "ms\n",
     addrman.size(), GetTimeMillis() - nStart);
 }
 
@@ -1413,7 +1411,7 @@ void ThreadOpenConnections2(void* parg)
     int64_t nStart = GetTime();
     while (true)
     {
-        ProcessOneShot();
+	    ProcessOneShot();
 
         vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
         MilliSleep(500);
@@ -1487,7 +1485,7 @@ void ThreadOpenConnections2(void* parg)
             if (nTries > 100)
                 break;
 
-            if (IsLimited(addr))
+			if (IsLimited(addr))
             continue;
 
             // only consider very recently tried nodes after 30 failed attempts

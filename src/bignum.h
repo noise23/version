@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_BIGNUM_H
@@ -248,7 +248,7 @@ public:
         BN_mpi2bn(pch, p - pch, self);
     }
 
-    uint256 getuint256() const
+    uint256 getuint256()
     {
         unsigned int nSize = BN_bn2mpi(self, NULL);
         if (nSize < 4)
@@ -476,7 +476,6 @@ public:
         return *this;
     }
 
-
     CBigNum& operator++()
     {
         // prefix operator
@@ -511,13 +510,10 @@ public:
         return ret;
     }
 
-
     friend inline const CBigNum operator-(const CBigNum& a, const CBigNum& b);
     friend inline const CBigNum operator/(const CBigNum& a, const CBigNum& b);
     friend inline const CBigNum operator%(const CBigNum& a, const CBigNum& b);
 };
-
-
 
 inline const CBigNum operator+(const CBigNum& a, const CBigNum& b)
 {

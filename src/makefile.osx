@@ -55,7 +55,7 @@ LIBS += \
 TESTDEFS += -DBOOST_TEST_DYN_LINK
 endif
 
-DEFS=-DMAC_OSX -DMSG_NOSIGNAL=0 -DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS
+DEFS=-DMAC_OSX -DMSG_NOSIGNAL=0 -DBOOST_SPIRIT_THREADSAFE
 
 ifdef RELEASE
 CFLAGS = -mmacosx-version-min=10.5 -O3
@@ -76,7 +76,6 @@ CFLAGS += -Wextra -Wno-sign-compare -Wno-invalid-offsetof -Wformat-security \
     $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 
 OBJS= \
-    obj/leveldb.o \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
@@ -85,29 +84,24 @@ OBJS= \
     obj/crypter.o \
     obj/key.o \
     obj/db.o \
-    obj/txdb.o \
     obj/init.o \
     obj/keystore.o \
     obj/main.o \
-    obj/miner.o \
+	obj/miner.o \
     obj/net.o \
     obj/protocol.o \
     obj/bitcoinrpc.o \
     obj/rpcdump.o \
-    obj/rpcnet.o \
-    obj/rpcmining.o \
-    obj/rpcwallet.o \
-    obj/rpcblockchain.o \
+	obj/rpcnet.o \
+	obj/rpcmining.o \
+	obj/rpcwallet.o \
+	obj/rpcblockchain.o \
     obj/rpcrawtransaction.o \
-    obj/base58.o \
     obj/script.o \
-    obj/sync.o \
+	obj/sync.o \
     obj/util.o \
     obj/wallet.o \
     obj/walletdb.o \
-    obj/sha256.o \
-    obj/sha1.o \
-    obj/ripemd160.o \
     obj/noui.o \
     obj/kernel.o
 
@@ -125,14 +119,6 @@ ifneq (${USE_IPV6}, -)
 endif
 
 all: versiond
-
-LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
-OBJS += obj/leveldb.o
-leveldb/libleveldb.a:
-	@echo "Building LevelDB ..."; cd leveldb; make libleveldb.a libmemenv.a; cd ..
-obj/leveldb.o: leveldb/libleveldb.a
 
 # auto-generated dependencies:
 -include obj/*.P

@@ -19,7 +19,7 @@ using namespace boost;
 using namespace boost::assign;
 using namespace json_spirit;
 
-void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex)
+void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out)
 {
     txnouttype type;
     vector<CTxDestination> addresses;
@@ -76,7 +76,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("n", (int64_t)i));
         Object o;
-        ScriptPubKeyToJSON(txout.scriptPubKey, o, false);
+        ScriptPubKeyToJSON(txout.scriptPubKey, o);
         out.push_back(Pair("scriptPubKey", o));
         vout.push_back(out);
     }
@@ -120,7 +120,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock, true))
+    if (!GetTransaction(hash, tx, hashBlock))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -202,29 +202,6 @@ Value listunspent(const Array& params, bool fHelp)
     }
 
     return results;
-}
-
-Value decodescript(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "decodescript <hex string>\n"
-            "Decode a hex-encoded script.");
-
-    RPCTypeCheck(params, list_of(str_type));
-
-    Object r;
-    CScript script;
-    if (params[0].get_str().size() > 0){
-        vector<unsigned char> scriptData(ParseHexV(params[0], "argument"));
-        script = CScript(scriptData.begin(), scriptData.end());
-    } else {
-        // Empty scripts are valid
-    }
-    ScriptPubKeyToJSON(script, r, false);
-
-    r.push_back(Pair("p2sh", CBitcoinAddress(script.GetID()).ToString()));
-    return r;
 }
 
 Value createrawtransaction(const Array& params, bool fHelp)
@@ -360,21 +337,26 @@ Value signrawtransaction(const Array& params, bool fHelp)
     bool fComplete = true;
 
     // Fetch previous transactions (inputs):
-    CCoinsView viewDummy;
-    CCoinsViewCache view(viewDummy);
+    map<COutPoint, CScript> mapPrevOut;
+	for (unsigned int i = 0; i < mergedTx.vin.size(); i++)
     {
-        LOCK(mempool.cs);
-        CCoinsViewCache &viewChain = *pcoinsTip;
-        CCoinsViewMemPool viewMempool(viewChain, mempool);
-        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
+	    CTransaction tempTx;
+        MapPrevTx mapPrevTx;
+        CTxDB txdb("r");
+        map<uint256, CTxIndex> unused;
+        bool fInvalid;
+		
+        // FetchInputs aborts on failure, so we go one at a time.
+        tempTx.vin.push_back(mergedTx.vin[i]);
+        tempTx.FetchInputs(txdb, unused, false, false, mapPrevTx, fInvalid);
 
-        for (const CTxIn& txin : mergedTx.vin) {
+        // Copy results into mapPrevOut:
+        for (const CTxIn& txin : tempTx.vin)
+        {
             const uint256& prevHash = txin.prevout.hash;
-            CCoins coins;
-            view.GetCoins(prevHash, coins); // this is certainly allowed to fail
+            if (mapPrevTx.count(prevHash) && mapPrevTx[prevHash].second.vout.size()>txin.prevout.n)
+                mapPrevOut[txin.prevout] = mapPrevTx[prevHash].second.vout[txin.prevout.n].scriptPubKey;
         }
-
-        view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
     }
 
     // Add previous txouts given in the RPC call:
@@ -406,19 +388,20 @@ Value signrawtransaction(const Array& params, bool fHelp)
             vector<unsigned char> pkData(ParseHex(pkHex));
             CScript scriptPubKey(pkData.begin(), pkData.end());
 
-            CCoins coins;
-            if (view.GetCoins(txid, coins)) {
-                if (coins.IsAvailable(nOut) && coins.vout[nOut].scriptPubKey != scriptPubKey) {
+            COutPoint outpoint(txid, nOut);
+            if (mapPrevOut.count(outpoint))
+            {
+                // Complain if scriptPubKey doesn't match
+                if (mapPrevOut[outpoint] != scriptPubKey)
+                {
                     string err("Previous output scriptPubKey mismatch:\n");
-                    err = err + coins.vout[nOut].scriptPubKey.ToString() + "\nvs:\n"+
+                    err = err + mapPrevOut[outpoint].ToString() + "\nvs:\n"+
                         scriptPubKey.ToString();
                     throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
-                // what todo if txid is known, but the actual output isn't?
             }
-            coins.vout[nOut].scriptPubKey = scriptPubKey;
-            coins.vout[nOut].nValue = 0; // we don't know the actual output value
-            view.SetCoins(txid, coins);
+            else
+                mapPrevOut[outpoint] = scriptPubKey;
         }
     }
     bool fGivenKeys = false;
@@ -470,13 +453,12 @@ Value signrawtransaction(const Array& params, bool fHelp)
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++)
     {
         CTxIn& txin = mergedTx.vin[i];
-        CCoins coins;
-        if (!view.GetCoins(txin.prevout.hash, coins) || !coins.IsAvailable(txin.prevout.n))
+        if (mapPrevOut.count(txin.prevout) == 0)
         {
             fComplete = false;
             continue;
         }
-        const CScript& prevPubKey = coins.vout[txin.prevout.n].scriptPubKey;
+        const CScript& prevPubKey = mapPrevOut[txin.prevout];
 
         txin.scriptSig.clear();
         // Only sign SIGHASH_SINGLE if there's a corresponding output:
@@ -488,7 +470,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
         {
             txin.scriptSig = CombineSignatures(prevPubKey, mergedTx, i, txin.scriptSig, txv.vin[i].scriptSig);
         }
-        if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, true, 0))
+        if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, 0))
             fComplete = false;
     }
 
@@ -526,24 +508,23 @@ Value sendrawtransaction(const Array& params, bool fHelp)
 	
     // See if the transaction is already in a block
     // or in the memory pool:
-    bool fHave = false;
-    CCoinsViewCache &view = *pcoinsTip;
-    CCoins existingCoins;
+    CTransaction existingTx;
+    uint256 hashBlock = 0;
+    if (GetTransaction(hashTx, existingTx, hashBlock))
     {
-        fHave = view.GetCoins(hashTx, existingCoins);
-        if (!fHave) {
-            // push to local node
-            if (!tx.AcceptToMemoryPool())
-                throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
-        }
-    }
-    if (fHave) {
-        if (existingCoins.nHeight < 1000000000)
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "transaction already in block chain");
+        if (hashBlock != 0)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("transaction already in block ")+hashBlock.GetHex());
         // Not in block, but already in the memory pool; will drop
         // through to re-relay it.
-    } else {
-        SyncWithWallets(hashTx, tx, NULL, true);
+    }
+    else
+    {
+        // push to local node
+        CTxDB txdb("r");
+        if (!tx.AcceptToMemoryPool(txdb))
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
+
+        SyncWithWallets(tx, NULL, true);
     }
     RelayTransaction(tx, hashTx);
 

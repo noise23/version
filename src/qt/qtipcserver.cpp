@@ -9,7 +9,6 @@
 
 #include "ui_interface.h"
 #include "qtipcserver.h"
-#include "util.h"
 
 using namespace boost::interprocess;
 using namespace boost::posix_time;

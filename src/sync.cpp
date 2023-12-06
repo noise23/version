@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
@@ -13,6 +13,7 @@ void PrintLockContention(const char* pszName, const char* pszFile, int nLine)
     printf("Locker: %s:%d\n", pszFile, nLine);
 }
 #endif /* DEBUG_LOCKCONTENTION */
+
 #ifdef DEBUG_LOCKORDER
 //
 // Early deadlock detection.

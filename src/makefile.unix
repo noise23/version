@@ -6,7 +6,7 @@
 USE_UPNP:=0
 USE_IPV6:=1
 
-DEFS=-DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS
+DEFS=-DBOOST_SPIRIT_THREADSAFE
 
 DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH))
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
@@ -93,7 +93,6 @@ xCXXFLAGS=-pthread -Wall -Wextra -Wno-sign-compare -Wno-invalid-offsetof -Wno-un
     $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
 
 OBJS= \
-    obj/leveldb.o \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
@@ -102,41 +101,29 @@ OBJS= \
     obj/crypter.o \
     obj/key.o \
     obj/db.o \
-    obj/txdb.o \
     obj/init.o \
     obj/keystore.o \
     obj/main.o \
-    obj/miner.o \
+	obj/miner.o \
     obj/net.o \
     obj/protocol.o \
     obj/bitcoinrpc.o \
     obj/rpcdump.o \
-    obj/rpcnet.o \
-    obj/rpcmining.o \
-    obj/rpcwallet.o \
-    obj/rpcblockchain.o \
+	obj/rpcnet.o \
+	obj/rpcmining.o \
+	obj/rpcwallet.o \
+	obj/rpcblockchain.o \
     obj/rpcrawtransaction.o \
-    obj/base58.o \
     obj/script.o \
-    obj/sync.o \
+	obj/sync.o \
     obj/util.o \
     obj/wallet.o \
     obj/walletdb.o \
-    obj/sha1.o \
-    obj/sha256.o \
-    obj/ripemd160.o \
     obj/noui.o \
     obj/kernel.o
 
 
 all: versiond
-
-LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
-leveldb/libleveldb.a:
-	@echo "Building LevelDB ..."; cd leveldb; make libleveldb.a libmemenv.a; cd ..;
-obj/leveldb.o: leveldb/libleveldb.a
 
 # auto-generated dependencies:
 -include obj/*.P

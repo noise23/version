@@ -1,12 +1,12 @@
 * {
-	background: #003651;
-        color: #D5F1FF;
+     background: #003651;
+     color: #D5F1FF;
 }
 
 QLabel
 {
-	background: #003651;
-        color: #D5F1FF;
+     background: #003651;
+     color: #D5F1FF;
 }
 
 QToolTip
@@ -43,7 +43,7 @@ QWidget#treeWidget
 
 QLabel:disabled
 {
-	background: #003651;
+     background: #003651;
 }
 
 QActionGroup
@@ -85,7 +85,7 @@ QToolButton:checked
 
 QToolButton#addressBookButton, QToolButton#pasteButton, QToolButton#deleteButton
 {
-	background: #003651;
+     background: #003651;
 }
 
 QMenuBar::item

@@ -93,7 +93,7 @@ double getTxTotalValue(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock, false))
+    if (!GetTransaction(hash, tx, hashBlock))
         return 0;
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -136,21 +136,21 @@ std::string getOutputs(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock, false))
+    if (!GetTransaction(hash, tx, hashBlock))
         return "N/A";
 
     std::string str = "";
     for (unsigned int i = (tx.IsCoinStake() ? 1 : 0); i < tx.vout.size(); i++)
     {
         const CTxOut& txout = tx.vout[i];
-
+		
         CTxDestination address;
         if (!ExtractDestination(txout.scriptPubKey, address) )
             address = CNoDestination();
-
+			
         double buffer = convertCoins(txout.nValue);
         std::string amount = boost::to_string(buffer);
-        str.append(CBitcoinAddress(address).ToString());
+		str.append(CBitcoinAddress(address).ToString());
         str.append(": ");
         str.append(amount);
         str.append(" V");
@@ -167,7 +167,7 @@ std::string getInputs(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock, false))
+    if (!GetTransaction(hash, tx, hashBlock))
         return "N/A";
 
     std::string str = "";
@@ -175,11 +175,11 @@ std::string getInputs(std::string txid)
     {
         uint256 hash;
         const CTxIn& vin = tx.vin[i];
-
+		
         hash.SetHex(vin.prevout.hash.ToString());
         CTransaction wtxPrev;
         uint256 hashBlock = 0;
-        if (!GetTransaction(hash, wtxPrev, hashBlock, false))
+        if (!GetTransaction(hash, wtxPrev, hashBlock))
              return "N/A";
 
         CTxDestination address;
@@ -205,16 +205,19 @@ double BlockBrowser::getTxFees(std::string txid)
 
     CTransaction tx;
     uint256 hashBlock = 0;
-
-    if (!GetTransaction(hash, tx, hashBlock, false))
+	CTxDB txdb("r");
+	
+    if (!GetTransaction(hash, tx, hashBlock))
         return convertCoins(MIN_TX_FEE);
 
-    CCoinsViewCache &view = *pcoinsTip;
+    MapPrevTx mapInputs;
+    map<uint256, CTxIndex> mapUnused;
+	bool fInvalid;
 
-    if (!tx.HaveInputs(view))
-        return convertCoins(MIN_TX_FEE);
-
-    int64_t nTxFees = tx.GetValueIn(view)-tx.GetValueOut();
+    if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid))
+	      return convertCoins(MIN_TX_FEE);
+		  
+    int64_t nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
 
     if(tx.IsCoinStake() || tx.IsCoinBase()) {
         ui->feesLabel->setText(QString("Reward:"));
@@ -222,7 +225,7 @@ double BlockBrowser::getTxFees(std::string txid)
     }
     else
         ui->feesLabel->setText(QString("Fees:"));
-
+		
     return convertCoins(nTxFees);
 }
 
@@ -242,8 +245,8 @@ BlockBrowser::BlockBrowser(QWidget *parent) :
 void BlockBrowser::updateExplorer(bool block)
 {    
     if(block)
-    {
-        int64_t height = ui->heightBox->value(); 
+	{
+	    int64_t height = ui->heightBox->value(); 
         if (height > pindexBest->nHeight) 
         { 
             ui->heightBox->setValue(pindexBest->nHeight); 
@@ -251,7 +254,7 @@ void BlockBrowser::updateExplorer(bool block)
         } 
  
         const CBlockIndex* pindex = getBlockIndex(height);
-
+	
         ui->heightLabelBE1->setText(QString::number(height)); 
         ui->hashBox->setText(QString::fromUtf8(getBlockHash(height).c_str())); 
         ui->merkleBox->setText(QString::fromUtf8(getBlockMerkle(height).c_str())); 
@@ -294,7 +297,7 @@ void BlockBrowser::updateExplorer(bool block)
   
      CTransaction tx; 
      uint256 hashBlock = 0; 
-     if (GetTransaction(hash, tx, hashBlock, false)) 
+     if (GetTransaction(hash, tx, hashBlock)) 
      { 
          CBlockIndex* pblockindex = mapBlockIndex[hashBlock]; 
          if (!pblockindex) 

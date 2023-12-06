@@ -143,7 +143,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
-    result.push_back(Pair("nonce", (uint64_t)block.nNonce));
+    result.push_back(Pair("nonce", (boost::uint64_t)block.nNonce));
     result.push_back(Pair("bits", HexBits(block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     if (blockindex->pprev)
@@ -171,15 +171,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
             txinfo.push_back(tx.GetHash().GetHex());
     }
     result.push_back(Pair("tx", txinfo));
-
-    if ( block.IsProofOfStake() )
-    {
-        CKey key;
-        block.GetGenerator(key);
-        result.push_back(Pair("generator", HexStr(key.GetPubKey().Raw())));
-        result.push_back(Pair("signature", HexStr(block.vchBlockSig)));
-    }
-
+    result.push_back(Pair("signature", HexStr(block.vchBlockSig.begin(), block.vchBlockSig.end())));
     return result;
 }
 

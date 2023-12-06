@@ -220,7 +220,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
     foreach(const SendCoinsRecipient &rcp, recipients)
     {
         std::string strAddress = rcp.address.toStdString();
-		CTxDestination dest = CBitcoinAddress(strAddress).Get();
+        CTxDestination dest = CBitcoinAddress(strAddress).Get();
         std::string strLabel = rcp.label.toStdString();
         {
             LOCK(wallet->cs_wallet);
@@ -332,17 +332,17 @@ bool WalletModel::importWallet(const QString &filename)
 
 void WalletModel::getStakeWeightFromValue(const int64_t& nTime, const int64_t& nValue, uint64_t& nWeight)
 {
-	wallet->GetStakeWeightFromValue(nTime, nValue, nWeight);
+    wallet->GetStakeWeightFromValue(nTime, nValue, nWeight);
 }
 
 void WalletModel::setSplitBlock(bool fSplitBlock) 
  { 
-	wallet->fSplitBlock = fSplitBlock; 
+    wallet->fSplitBlock = fSplitBlock; 
  } 
   
 bool WalletModel::getSplitBlock() 
  { 
-	return wallet->fSplitBlock; 
+    return wallet->fSplitBlock; 
  }
 
 // Handlers for core signals

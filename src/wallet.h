@@ -79,7 +79,7 @@ private:
     // the current wallet version: clients below this version are not able to load the wallet
     int nWalletVersion;
 
-    // the maxmimum wallet format version: memory-only variable that specifies to what version this wallet may be upgraded
+    // the maximum wallet format version: memory-only variable that specifies to what version this wallet may be upgraded
     int nWalletMaxVersion;
 
 public:
@@ -108,7 +108,7 @@ public:
 	fSplitBlock = false;
         nOrderPosNext = 0;
         fWalletUnlockMintOnly = false;
-		nHashDrift = 40;
+        nHashDrift = 40;
 
     }
     CWallet(std::string strWalletFileIn)
@@ -122,7 +122,7 @@ public:
 	fSplitBlock = false;
         nOrderPosNext = 0;
         fWalletUnlockMintOnly = false;
-		nHashDrift = 40;
+        nHashDrift = 40;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -182,10 +182,11 @@ public:
 
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn);
-    bool AddToWalletIfInvolvingMe(const uint256 &hash, const CTransaction& tx, const CBlock* pblock, bool fUpdate = false, bool fFindBlock = false);
+    bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate = false, bool fFindBlock = false);
     bool EraseFromWallet(uint256 hash);
     void WalletUpdateSpent(const CTransaction& prevout);
     int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
+    int ScanForWalletTransaction(const uint256& hashTx);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions();
     int64_t GetBalance() const;
@@ -700,9 +701,12 @@ public:
     int64_t GetTxTime() const;
     int GetRequestCount() const;
 
-    void AddSupportingTransactions();
+    void AddSupportingTransactions(CTxDB& txdb);
 
-    bool AcceptWalletTransaction(bool fCheckInputs=true);
+    bool AcceptWalletTransaction(CTxDB& txdb, bool fCheckInputs=true);
+    bool AcceptWalletTransaction();
+
+    void RelayWalletTransaction(CTxDB& txdb);
     void RelayWalletTransaction();
 };
 

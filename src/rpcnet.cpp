@@ -35,7 +35,7 @@ Value ping(const Array& params, bool fHelp)
 
     // Request that each node send a ping during next message processing pass
     LOCK(cs_vNodes);
-    for (CNode* pNode : vNodes) {
+    for (CNode* pNode :  vNodes) {
         pNode->fPingQueued = true;
     }
 

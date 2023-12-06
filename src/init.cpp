@@ -1,13 +1,14 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include "txdb.h"
+
+#include "init.h"
+#include "db.h"
 #include "walletdb.h"
 #include "bitcoinrpc.h"
 #include "net.h"
-#include "init.h"
 #include "util.h"
 #include "ui_interface.h"
 #include "checkpoints.h"
@@ -55,8 +56,6 @@ void StartShutdown()
 #endif
 }
 
-static CCoinsViewDB *pcoinsdbview;
-
 void Shutdown(void* parg)
 {
     static CCriticalSection cs_Shutdown;
@@ -81,13 +80,6 @@ void Shutdown(void* parg)
         nTransactionsUpdated++;
         bitdb.Flush(false);
         StopNode();
-        {
-            LOCK(cs_main);
-            pcoinsTip->Flush();
-            pblocktree->Flush();
-            delete pcoinsTip;
-            delete pcoinsdbview;
-        }
         bitdb.Flush(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
@@ -282,9 +274,6 @@ std::string HelpMessage()
         "  -debug                 " + _("Output extra debugging information") + "\n" +
         "  -logtimestamps         " + _("Prepend debug output with timestamp") + "\n" +
         "  -printtoconsole        " + _("Send trace/debug info to console instead of debug.log file") + "\n" +
-#ifdef WIN32
-        "  -printtodebugger       " + _("Send trace/debug info to debugger") + "\n" +
-#endif
         "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n" +
         "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n" +
         "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 9908)") + "\n" +
@@ -318,7 +307,7 @@ std::string HelpMessage()
 bool AppInit2()
 {
     // ********************************************************* Step 1: setup
-	
+
 #ifdef _MSC_VER
     // Turn off microsoft heap dump noise
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
@@ -419,7 +408,6 @@ bool AppInit2()
     fServer = true;
 #endif
     fPrintToConsole = GetBoolArg("-printtoconsole");
-    fPrintToDebugger = GetBoolArg("-printtodebugger");
     fLogTimestamps = GetBoolArg("-logtimestamps");
 
     if (mapArgs.count("-timeout"))
@@ -428,6 +416,13 @@ bool AppInit2()
         if (nNewTimeout > 0 && nNewTimeout < 600000)
             nConnectTimeout = nNewTimeout;
     }
+
+    // Continue to put "/P2SH/" in the coinbase to monitor
+    // BIP16 support.
+    // This can be removed eventually...
+    const char* pszP2SH = "/P2SH/";
+    COINBASE_FLAGS << std::vector<unsigned char>(pszP2SH, pszP2SH+strlen(pszP2SH));
+
 
     if (mapArgs.count("-paytxfee"))
     {
@@ -490,10 +485,6 @@ bool AppInit2()
         ShrinkDebugFile();
     printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     printf("Version version %s (%s)\n", FormatFullVersion().c_str(), CLIENT_DATE.c_str());
-    printf("Using %s\n", SSLeay_version(SSLEAY_VERSION)); // OpenSSL version
-    printf("Using %s\n", DbEnv::version(0, 0, 0)); // BerkeleyDB version
-    printf("Using LevelDB version %d.%d\n", leveldb::kMajorVersion, leveldb::kMinorVersion);
-    printf("Using Boost v%d.%d.%d\n", BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100);
     printf("Startup time: %s\n", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
     printf("Default data directory %s\n", GetDefaultDataDir().string().c_str());
     std::ostringstream strErrors;
@@ -536,9 +527,9 @@ bool AppInit2()
     if (r == CDBEnv::RECOVER_FAIL)
         return InitError(_("wallet.dat corrupt, salvage failed"));
     }
-	
+
         // Split threshold
-	    if (mapArgs.count("-splitthreshold")) 
+        if (mapArgs.count("-splitthreshold")) 
     { 
        if (!ParseMoney(mapArgs["-splitthreshold"], nSplitThreshold)) 
            return InitError(strprintf(_("Invalid amount for -splitthreshold=<amount>: '%s'"), mapArgs["-splitthreshold"].c_str())); 
@@ -546,9 +537,9 @@ bool AppInit2()
            if (nSplitThreshold > MAX_SPLIT_AMOUNT) 
                nSplitThreshold = MAX_SPLIT_AMOUNT; 
        } 
-       printf("splitthreshold set to %" PRId64 "\n",nSplitThreshold); 
+       printf("splitthreshold set to %" PRId64 "\n", nSplitThreshold / 1000000);
     } 
-	
+
     // ********************************************************* Step 6: network initialization
 
     int nSocksVersion = GetArg("-socks", 5);
@@ -651,22 +642,19 @@ bool AppInit2()
 
     // ********************************************************* Step 7: load blockchain
 
-    if (!bitdb.Open(GetDataDir()))
+    if (GetBoolArg("-loadblockindextest"))
     {
-        string msg = strprintf(_("Error initializing database environment %s!"
-                                 " To recover, BACKUP THAT DIRECTORY, then remove"
-                                 " everything from it except for wallet.dat."), strDataDir.c_str());
-        return InitError(msg);
+        CTxDB txdb("r");
+        txdb.LoadBlockIndex();
+        PrintBlockTree();
+        return false;
     }
+
     uiInterface.InitMessage(_("Loading block index..."));
     printf("Loading block index...\n");
     nStart = GetTimeMillis();
-    pblocktree = new CBlockTreeDB();
-    pcoinsdbview = new CCoinsViewDB();
-    pcoinsTip = new CCoinsViewCache(*pcoinsdbview);
-
     if (!LoadBlockIndex())
-        strErrors << _("Error loading blkindex.dat") << "\n";
+        strErrors << _("Error loading block index") << "\n";
 
     // as LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill version-qt during the last operation. If so, exit.
@@ -677,7 +665,7 @@ bool AppInit2()
         return false;
     }
     printf(" block index %15" PRId64 "ms\n", GetTimeMillis() - nStart);
-
+	
  if (GetBoolArg("-printblockindex") || GetBoolArg("-printblocktree"))
  {
         PrintBlockTree();
@@ -792,11 +780,6 @@ bool AppInit2()
 
     // ********************************************************* Step 9: import blocks
 
-    // scan for better chains in the block chain database, that are not yet connected in the active best chain
-    uiInterface.InitMessage(_("Importing blocks from block database..."));
-    if (!ConnectBestBlock())
-        strErrors << "Failed to connect best block";
-
     if (mapArgs.count("-loadblock"))
     {
         uiInterface.InitMessage(_("Importing blockchain data file."));
@@ -819,9 +802,9 @@ bool AppInit2()
             RenameOver(pathBootstrap, pathBootstrapOld);
         }
     }
-	
+
     // ********************************************************* Step 10: load peers
-	
+
     uiInterface.InitMessage(_("Loading addresses..."));
     printf("Loading addresses...\n");
     nStart = GetTimeMillis();

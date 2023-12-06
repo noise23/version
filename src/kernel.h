@@ -21,15 +21,15 @@ static const int MODIFIER_INTERVAL_RATIO = 3;
 bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeModifier, bool& fGeneratedStakeModifier);
 
 // Check whether stake kernel meets hash target
-// Sets hashProofOfStake and targetProofOfStake on success return
+// Sets hashProofOfStake on success return
 bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset, const CTransaction& txPrev, 
-const COutPoint& prevout, unsigned int nTimeTx, unsigned int nInterval, bool fCheck, uint256& hashProofOfStake, bool& fFatal, bool fPrintProofOfStake=false);
+const COutPoint& prevout, unsigned int& nTimeTx, unsigned int nInterval, bool fCheck, uint256& hashProofOfStake, bool fPrintProofOfStake=false);
 uint256 stakeHash(unsigned int nTimeTx, unsigned int nTxPrevTime, CDataStream ss, unsigned int prevoutIndex, unsigned int nTxPrevOffset, unsigned int nTimeBlockFrom);
 bool stakeTargetHit(uint256 hashProofOfStake, unsigned int nAge, int64_t nValueIn, CBigNum bnTargetPerCoinDay);
 
 // Check kernel hash target and coinstake signature
-// Sets hashProofOfStake and targetProofOfStake on success return
-bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hashProofOfStake, uint256& targetProofOfStake, bool& fFatal);
+// Sets hashProofOfStake on success return
+bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hashProofOfStake, uint256& targetProofOfStake);
 
 // Check whether the coinstake timestamp meets protocol
 bool CheckCoinStakeTimestamp(int64_t nTimeBlock, int64_t nTimeTx);

@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,7 +8,6 @@
 #include "walletdb.h"
 #include "bitcoinrpc.h"
 #include "init.h"
-#include "util.h"
 #include "base58.h"
 
 using namespace json_spirit;
@@ -44,11 +43,11 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
-        entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
+		entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
     }
     entry.push_back(Pair("txid", wtx.GetHash().GetHex()));
     entry.push_back(Pair("time", (int64_t)wtx.GetTxTime()));
-    entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
+	entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
     for (const auto& item : wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
 }
@@ -67,7 +66,7 @@ Value getinfo(const Array& params, bool fHelp)
         throw runtime_error(
             "getinfo\n"
             "Returns an object containing various state info.");
-
+			
     proxyType proxy;
     GetProxy(NET_IPV4, proxy);
 
@@ -350,7 +349,6 @@ Value signmessage(const Array& params, bool fHelp)
     return EncodeBase64(&vchSig[0], vchSig.size());
 }
 
-
 Value verifymessage(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
@@ -545,7 +543,7 @@ Value getbalance(const Array& params, bool fHelp)
                     nBalance += r.second;
             }
             for (const auto& r : listSent)
-                nBalance -= r.second;
+            nBalance -= r.second;
             nBalance -= allFee;
         }
         return  ValueFromAmount(nBalance);
@@ -1118,7 +1116,7 @@ Value listaccounts(const Array& params, bool fHelp)
 
     list<CAccountingEntry> acentries;
     CWalletDB(pwalletMain->strWalletFile).ListAccountCreditDebit("*", acentries);
-    for (const CAccountingEntry& entry : acentries)
+    for (const auto& entry : acentries)
         mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
 
     Object ret;
@@ -1228,7 +1226,7 @@ Value gettransaction(const Array& params, bool fHelp)
     {
         CTransaction tx;
         uint256 hashBlock = 0;
-        if (GetTransaction(hash, tx, hashBlock, true))
+        if (GetTransaction(hash, tx, hashBlock))
         {
             TxToJSON(tx, 0, entry);
             if (hashBlock == 0)
@@ -1357,7 +1355,6 @@ Value walletpassphrase(const Array& params, bool fHelp)
 
     if (!pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_ALREADY_UNLOCKED, "Error: Wallet is already unlocked, use walletlock first if need to change unlock settings.");
-
     // Note that the walletpassphrase is stored in params[0] which is not mlock()ed
     SecureString strWalletPass;
     strWalletPass.reserve(100);
@@ -1376,6 +1373,9 @@ Value walletpassphrase(const Array& params, bool fHelp)
             "Stores the wallet decryption key in memory for <timeout> seconds.");
 			
     NewThread(ThreadTopUpKeyPool, NULL);
+    // Zero unlock time means forever, well 68 years, forever for crypto.
+    int64_t* nUnlockTime = (params[1].get_int64() == 0) ? new int64_t(std::numeric_limits<int>::max()) : new int64_t(params[1].get_int64());
+    NewThread(ThreadCleanWalletPassphrase, nUnlockTime);
 
     // if user OS account compromised prevent trivial sendmoney commands
     if (params.size() > 2)
@@ -1383,16 +1383,8 @@ Value walletpassphrase(const Array& params, bool fHelp)
     else
         pwalletMain->fWalletUnlockMintOnly = false;
 
-    //Zero unlock time means forever, well 68 years, forever for crypto.
-    int64_t* nUnlockTime = (params[1].get_int64() == 0)
-        ? new int64_t(std::numeric_limits<int>::max())
-        : new int64_t(params[1].get_int64());
-
-    NewThread(ThreadCleanWalletPassphrase, nUnlockTime);
-
     return Value::null;
 }
-
 
 Value walletpassphrasechange(const Array& params, bool fHelp)
 {
@@ -1491,7 +1483,7 @@ public:
         CPubKey vchPubKey;
         pwalletMain->GetPubKey(keyID, vchPubKey);
         obj.push_back(Pair("isscript", false));
-        obj.push_back(Pair("pubkey", HexStr(vchPubKey)));
+        obj.push_back(Pair("pubkey", HexStr(vchPubKey.Raw())));
         obj.push_back(Pair("iscompressed", vchPubKey.IsCompressed()));
         return obj;
     }
@@ -1533,7 +1525,6 @@ Value validateaddress(const Array& params, bool fHelp)
         CTxDestination dest = address.Get();
         string currentAddress = address.ToString();
         ret.push_back(Pair("address", currentAddress));
-
         bool fMine = IsMine(*pwalletMain, dest);
         ret.push_back(Pair("ismine", fMine));
         if (fMine) {

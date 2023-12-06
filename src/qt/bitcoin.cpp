@@ -88,7 +88,7 @@ static void InitMessage(const std::string &message)
 {
     if(splashref)
     {
-		splashref->showMessage("Personal Vault "  + QString::fromStdString(FormatFullVersion().c_str()) + " : " + QString::fromStdString(message), Qt::AlignTop|Qt::AlignHCenter, QColor(213,241,255));
+        splashref->showMessage("Personal Vault "  + QString::fromStdString(FormatFullVersion().c_str()) + " : " + QString::fromStdString(message), Qt::AlignTop|Qt::AlignHCenter, QColor(213,241,255));
         QApplication::instance()->processEvents();
     }
 }
@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
                 {
                     window.show();
                 }
-				
+
 #if !defined(MAC_OSX) && !defined(WIN32)
 // TODO: implement qtipcserver.cpp for Mac and Windows
 
