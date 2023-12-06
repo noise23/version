@@ -1,5 +1,5 @@
 // Copyright (c) 2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_VERSION_H
@@ -15,7 +15,7 @@
 #define CLIENT_VERSION_MAJOR       4
 #define CLIENT_VERSION_MINOR       0
 #define CLIENT_VERSION_REVISION    4
-#define CLIENT_VERSION_BUILD       1
+#define CLIENT_VERSION_BUILD       2
 
 static const int CLIENT_VERSION =
                            1000000 * CLIENT_VERSION_MAJOR
