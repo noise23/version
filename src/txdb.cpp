@@ -41,11 +41,11 @@ void init_blockindex(leveldb::Options& options, bool fRemoveOld = false) {
     if (fRemoveOld) {
         boost::filesystem::remove_all(directory); // remove directory
         boost::filesystem::remove_all(blocksdirectory); // remove directory
-        unsigned int nFile = 1;
+        unsigned int nFile = 0;
 
         while (true)
         {
-            boost::filesystem::path strBlockFile = GetDataDir() / "blocks" / strprintf("blk%04u.dat", nFile);
+            boost::filesystem::path strBlockFile = GetDataDir() / "blocks" / strprintf("blk%05u.dat", nFile);
 
             // Break if no such file
             if( !boost::filesystem::exists( strBlockFile ) )

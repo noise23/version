@@ -34,7 +34,7 @@ static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 /** The maximum number of orphan transactions kept in memory */
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
-/** The maximum size for blkxxxx.dat files */
+/** The maximum size for blkxxxxx.dat files */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 static const int64_t MIN_TX_FEE = CENT / 1000;
 static const int64_t MIN_RELAY_TX_FEE = CENT / 1000;
@@ -832,7 +832,7 @@ public:
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
  *
- * Blocks are appended to blk0001.dat files on disk.  Their location on disk
+ * Blocks are appended to blk00000.dat files on disk.  Their location on disk
  * is indexed by CBlockIndex objects in memory.
  */
 class CBlock

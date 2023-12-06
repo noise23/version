@@ -235,7 +235,7 @@ std::string HelpMessage()
         "  -gen=0                 " + _("Don't generate coins") + "\n" +
         "  -min                   " + _("Start minimized") + "\n" +
         "  -splash                " + _("Show splash screen on startup (default: 1)") + "\n" +
-        "  -staking=<n>          " + _("Generate coin stakes (default: 1 = enabled)") + "\n" +
+        "  -staking=<n>           " + _("Generate coin stakes (default: 1 = enabled)") + "\n" +
         "  -datadir=<dir>         " + _("Specify data directory") + "\n" +
         "  -wallet=<file>         " + _("Specify wallet file (within data directory)") + "\n" +
         "  -dbcache=<n>           " + _("Set database cache size in megabytes (default: 25)") + "\n" +
@@ -298,7 +298,7 @@ std::string HelpMessage()
         "  -splitthreshold=<n>    " + _("Set stake split threshold within range (default: 20000, max: 100000)") + "\n" +
         "  -checkblocks=<n>       " + _("How many blocks to check at startup (default: 2500, 0 = all)") + "\n" +
         "  -checklevel=<n>        " + _("How thorough the block verification is (0-6, default: 1)") + "\n" +
-        "  -loadblock=<file>      " + _("Imports blocks from external blk000?.dat file") + "\n" +
+        "  -loadblock=<file>      " + _("Imports blocks from external blk0000?.dat file") + "\n" +
         "  -?                     " + _("This help message") + "\n";
 
     strUsage += string() +
