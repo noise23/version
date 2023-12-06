@@ -286,8 +286,6 @@ public:
         return (!(a == b));
     }
 
-
-
     std::string GetHex() const
     {
         char psz[sizeof(pn)*2 + 1];
@@ -348,7 +346,17 @@ public:
         return (unsigned char*)&pn[WIDTH];
     }
 
-    unsigned int size()
+    const unsigned char* begin() const
+    {
+        return (unsigned char*)&pn[0];
+    }
+
+    const unsigned char* end() const
+    {
+        return (unsigned char*)&pn[WIDTH];
+    }
+
+    unsigned int size() const
     {
         return sizeof(pn);
     }
