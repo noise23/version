@@ -894,32 +894,19 @@ uint256 WantedByOrphan(const CBlock* pblockOrphan)
 // miner's coin base reward
 int64_t GetProofOfWorkReward(int nHeight, unsigned int nBits, int64_t nFees)
 {
-
     int64_t nSubsidy = MAX_MINT_PROOF_OF_WORK;
     if(nHeight <= 10000)
-    {
-	nSubsidy = 25 * COIN;
-    }
+        nSubsidy = 25 * COIN;
     else if(nHeight > 10000 && nHeight <= 260000)
-    {
-	nSubsidy = 4 * COIN;
-    }
+        nSubsidy = 4 * COIN;
     else if(nHeight > 260000 && nHeight <= 510000)
-    {
-	nSubsidy = 2 * COIN;
-    }
-	else if(nHeight > 510000 && nHeight <= 536698)
-    {
-	nSubsidy = 1 * COIN;
-    }
-	else if(nHeight > 536698 && nHeight <= 1101186)
-    {
-	nSubsidy = 2 * COIN;
-    }
+        nSubsidy = 2 * COIN;
+    else if(nHeight > 510000 && nHeight <= 536698)
+        nSubsidy = 1 * COIN;
+    else if(nHeight > 536698 && nHeight <= 1101186)
+        nSubsidy = 2 * COIN;
     else
-    {
-    nSubsidy = 5 * COIN;
-    }
+        nSubsidy = 5 * COIN;
 
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfWorkReward() : create=%s nSubsidy=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nSubsidy);
@@ -930,14 +917,13 @@ int64_t GetProofOfWorkReward(int nHeight, unsigned int nBits, int64_t nFees)
 // version: miner's coin stake is rewarded based on coin age spent (coin-days)
 
 int64_t GetProofOfStakeReward(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, int nHeight, bool bCoinYearOnly)
+{
+    int64_t nSubsidy = 0;
 
- {
- int64_t nSubsidy = 0;
-
- if ( nHeight <= 536698 )
- nSubsidy = GetProofOfStakeRewardV1(nCoinAge);
- else
- nSubsidy = GetProofOfStakeRewardV2(nCoinAge, nBits, nTime, nHeight, bCoinYearOnly);
+    if ( nHeight <= 536698 )
+        nSubsidy = GetProofOfStakeRewardV1(nCoinAge);
+    else
+        nSubsidy = GetProofOfStakeRewardV2(nCoinAge, nBits, nTime, nHeight, bCoinYearOnly);
 
  return nSubsidy;
 }
@@ -960,13 +946,11 @@ int64_t GetProofOfStakeRewardV2(int64_t nCoinAge, unsigned int nBits, unsigned i
 
 // miner's coin stake reward based on nBits and coin age spent (coin-days)
 // simple algorithm, not depend on the diff
-	
-  int64_t nSubsidy = (nCoinAge * 33 * nRewardCoinYear) / (365 * 33 + 8);
-	
+    int64_t nSubsidy = (nCoinAge * 33 * nRewardCoinYear) / (365 * 33 + 8);
     if(bCoinYearOnly)
-    return nRewardCoinYear / CENT;
+        return nRewardCoinYear / CENT;
 
-	if (fDebug && GetBoolArg("-printcreation"))
+    if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfStakeReward(): create=%s nCoinAge=%" PRId64 " nBits=%d\n", FormatMoney(nSubsidy).c_str(), nCoinAge, nBits);
 
     nSubsidy = min(nSubsidy, nSubsidyLimit);
@@ -1028,17 +1012,22 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
     CBigNum bnTargetLimit, bnNew;
 
     /* Separate range limits */
-        if(fProofOfStake) bnTargetLimit = bnProofOfStakeLimit;
-        else bnTargetLimit = bnProofOfWorkLimit;
+    if(fProofOfStake)
+        bnTargetLimit = bnProofOfStakeLimit;
+    else
+        bnTargetLimit = bnProofOfWorkLimit;
 
     /* The genesis block */
-    if(pindexLast == NULL) return bnTargetLimit.GetCompact();
+    if(pindexLast == NULL)
+        return bnTargetLimit.GetCompact();
     const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
     /* The 1st block */
-    if(pindexPrev->pprev == NULL) return bnTargetLimit.GetCompact();
+    if(pindexPrev->pprev == NULL)
+        return bnTargetLimit.GetCompact();
     const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
     /* The 2nd block */
-    if(pindexPrevPrev->pprev == NULL) return bnTargetLimit.GetCompact();
+    if(pindexPrevPrev->pprev == NULL) 
+        return bnTargetLimit.GetCompact();
     /* The next block */
     int nHeight = pindexLast->nHeight + 1;
 
@@ -1076,9 +1065,9 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
         if(fProofOfStake) 
           nTargetSpacing = 1.5 * 60; // 90 sec PoS target spacing 
         else if(nHeight <= 1101186)
-		  nTargetSpacing = 60;  // 60 sec PoW target spacing 
+          nTargetSpacing = 60;  // 60 sec PoW target spacing 
         else 
-		  nTargetSpacing = 2.5 * 60;  // 150 sec PoW target spacing
+          nTargetSpacing = 2.5 * 60;  // 150 sec PoW target spacing
         
         nTargetTimespan = nTargetSpacing * nIntervalLong;
 
@@ -2151,13 +2140,15 @@ bool CBlock::AcceptBlock()
         return error("AcceptBlock() : block already in mapBlockIndex");
 
     // Get prev block index
-    
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
     if (mi == mapBlockIndex.end())
         return DoS(10, error("AcceptBlock() : prev block not found"));
     CBlockIndex* pindexPrev = (*mi).second;
     int nHeight = pindexPrev->nHeight+1;
-    
+
+    // No ProofOfWork blocks after POW end
+    if (IsProofOfWork() && nHeight > LAST_POW_BLOCK)
+        return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));
 
     // Check proof-of-work or proof-of-stake
 //    if (nBits != GetNextTargetRequired(pindexPrev, IsProofOfStake()))
