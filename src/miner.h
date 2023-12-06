@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,8 +10,10 @@
 #include "main.h"
 #include "wallet.h"
 
+struct CBlockTemplate;
+
 /** Generate a new block, without valid proof-of-work */
-CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake=false);
+CBlockTemplate* CreateNewBlock(CWallet* pwallet, bool fProofOfStake=false);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
@@ -27,5 +29,12 @@ bool CheckStake(CBlock* pblock, CWallet& wallet);
 
 /** Base sha256 mining transform */
 void SHA256Transform(void* pstate, void* pinput, const void* pinit);
+
+struct CBlockTemplate
+{
+    CBlock block;
+    std::vector<int64_t> vTxFees;
+    std::vector<int64_t> vTxSigOps;
+};
 
 #endif //MINER_H

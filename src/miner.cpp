@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -121,12 +121,16 @@ int64_t nLastCoinStakeSearchInterval = 0;
 
 // CreateNewBlock:
 //   fProofOfStake: try (best effort) to make a proof-of-stake block
-CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
+CBlockTemplate* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
 {
     // Create new block
-    std::unique_ptr<CBlock> pblock(new CBlock());
-    if (!pblock.get())
+    std::unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    if (!pblocktemplate.get())
+    {
+        error("CreateNewBlock() : Out of memory");
         return NULL;
+    }
+    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
     // Create coinbase tx
     CTransaction txNew;
@@ -143,6 +147,8 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
 
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
+    pblocktemplate->vTxFees.push_back(-1); // updated at end
+    pblocktemplate->vTxSigOps.push_back(-1); // updated at end
 
     // version: if coinstake available add coinstake tx
     static int64_t nLastCoinStakeSearchTime = GetAdjustedTime();  // only initialized at startup
@@ -287,6 +293,8 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
 
             // Added
             pblock->vtx.push_back(tx);
+            pblocktemplate->vTxFees.push_back(nTxFees);
+            pblocktemplate->vTxSigOps.push_back(nTxSigOps);
             nBlockSize += nTxSize;
             ++nBlockTx;
             nBlockSigOps += nTxSigOps;
@@ -322,7 +330,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
     int nHeight = pindexPrevious->nHeight+1;
     if (pblock->IsProofOfWork())
         pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nHeight, pblock->nBits, nFees);
-
+    pblocktemplate->vTxFees[0] = -nFees;
     
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -334,8 +342,9 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake)
     if (pblock->IsProofOfWork())
         pblock->UpdateTime(pindexPrev);
     pblock->nNonce         = 0;
+    pblocktemplate->vTxSigOps[0] = pblock->vtx[0].GetLegacySigOpCount();
 
-    return pblock.release();
+    return pblocktemplate.release();
 }
 
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
@@ -532,15 +541,16 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrev = pindexBest;
 
-        std::unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, fProofOfStake));
-        if (!pblock.get())
+        std::unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(pwallet, fProofOfStake));
+        if (!pblocktemplate.get())
             return;
 
-        IncrementExtraNonce(pblock.get(), pindexPrev, nExtraNonce);
+        CBlock *pblock = &pblocktemplate->block;
+        IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
         if (fProofOfStake)
         {
-            // version: if proof-of-stake block found then process block
+            // if proof-of-stake block found then process block
             if (pblock->IsProofOfStake())
             {
                 if (!pblock->SignBlock(*pwallet))
@@ -551,7 +561,7 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
                 strMintWarning = "";
                 printf("CPUMiner : proof-of-stake block found %s\n", pblock->GetHash().ToString().c_str()); 
                 SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                CheckStake(pblock.get(), *pwallet);
+                CheckStake(pblock, *pwallet);
                 SetThreadPriority(THREAD_PRIORITY_LOWEST);
             }
             continue;
@@ -568,7 +578,7 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
         char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
         char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
 
-        FormatHashBuffers(pblock.get(), pmidstate, pdata, phash1);
+        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
         unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
         unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
@@ -608,7 +618,7 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
                     }
                     strMintWarning = "";
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                    CheckWork(pblock.get(), *pwallet, reservekey);
+                    CheckWork(pblock, *pwallet, reservekey);
                     SetThreadPriority(THREAD_PRIORITY_LOWEST);
                     break;
                 }

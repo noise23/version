@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -138,7 +138,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
     static int64_t nStart;
-    static CBlock* pblock;
+    static CBlockTemplate* pblocktemplate;
     if (pindexPrev != pindexBest ||
         (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 5))
     {
@@ -151,18 +151,19 @@ Value getblocktemplate(const Array& params, bool fHelp)
         nStart = GetTime();
 
         // Create new block
-        if(pblock)
+        if(pblocktemplate)
         {
-            delete pblock;
-            pblock = NULL;
+            delete pblocktemplate;
+            pblocktemplate = NULL;
         }
-        pblock = CreateNewBlock(pwalletMain);
-        if (!pblock)
+        pblocktemplate = CreateNewBlock(pwalletMain);
+        if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
         // Need to update only after we know CreateNewBlock succeeded
         pindexPrev = pindexPrevNew;
     }
+    CBlock* pblock = &pblocktemplate->block; // pointer for convenience
 
     // Update nTime
     pblock->UpdateTime(pindexPrev);
