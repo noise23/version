@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2012 Bitcoin Developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -72,9 +72,14 @@ Value getpeerinfo(const Array& params, bool fHelp)
 
         obj.push_back(Pair("addr", stats.addrName));
         obj.push_back(Pair("services", strprintf("%08" PRIx64, stats.nServices)));
-        obj.push_back(Pair("lastsend", (int64_t)stats.nLastSend));
-        obj.push_back(Pair("lastrecv", (int64_t)stats.nLastRecv));
-        obj.push_back(Pair("conntime", (int64_t)stats.nTimeConnected));
+        obj.push_back(Pair("lastsend", DateTimeStrFormat(stats.nLastSend)));
+        obj.push_back(Pair("lastrecv", DateTimeStrFormat(stats.nLastRecv)));
+        obj.push_back(Pair("conntime", DateTimeStrFormat(stats.nTimeConnected)));
+        if(stats.nPingTime < (~0U - 1U)) {
+            obj.push_back(Pair("pingtime", strprintf("%u ms", stats.nPingTime)));
+        } else {
+            obj.push_back(Pair("pingtime", "invalid"));
+        }
         obj.push_back(Pair("pingtime", stats.dPingTime));
         if (stats.dPingWait > 0.0)
             obj.push_back(Pair("pingwait", stats.dPingWait));

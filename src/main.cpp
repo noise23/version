@@ -446,7 +446,7 @@ bool CTransaction::CheckTransaction() const
         const CTxOut& txout = vout[i];
         if (txout.IsEmpty() && (!IsCoinBase()) && (!IsCoinStake()))
             return DoS(100, error("CTransaction::CheckTransaction() : txout empty for user transaction"));
-        // version: enforce minimum output amount
+        // enforce minimum output amount
         if ((!txout.IsEmpty()) && txout.nValue < MIN_TXOUT_AMOUNT)
             return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue below minimum"));
         if (txout.nValue > MAX_MONEY)
@@ -522,13 +522,10 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
         return tx.DoS(100, error("CTxMemPool::accept() : coinbase as individual tx"));
-    // version: coinstake is also only valid in a block, not as a loose transaction
+
+    // coinstake is also only valid in a block, not as a loose transaction
     if (tx.IsCoinStake())
         return tx.DoS(100, error("CTxMemPool::accept() : coinstake as individual tx"));
-
-    // To help v0.1.5 clients who would see it as a negative number
-    if ((int64_t)tx.nLockTime > std::numeric_limits<int>::max())
-        return error("CTxMemPool::accept() : not accepting nLockTime beyond 2038 yet");
 
     // Rather not work on nonstandard transactions (unless -testnet)
     if (!fTestNet && !tx.IsStandard())
@@ -700,6 +697,7 @@ void CTxMemPool::clear()
     mapNextTx.clear();
     ++nTransactionsUpdated;
 }
+
 void CTxMemPool::queryHashes(std::vector<uint256>& vtxid)
 {
     vtxid.clear();
@@ -1216,7 +1214,7 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
     // Remove transaction from index
     // This can fail if a duplicate of this transaction was in a chain that got
     // reorganized away. This is only possible if this transaction was completely
-    // spent, so erasing it would be a no-op anway.
+    // spent, so erasing it would be a no-op anyway.
     txdb.EraseTxIndex(*this);
 
     return true;
@@ -1366,7 +1364,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
                     if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
                         return error("ConnectInputs() : tried to spend coinbase/coinstake at depth %d", pindexBlock->nHeight - pindex->nHeight);
 
-            // version: check transaction timestamp
+            // check transaction timestamp
             if (txPrev.nTime > nTime)
                 return DoS(100, error("ConnectInputs() : transaction timestamp earlier than input transaction"));
 
@@ -1398,10 +1396,8 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate())))
             {
                 // Verify signature
-
-                if (!VerifySignature(txPrev, *this, i, false, 0))
+                if (!VerifySignature(txPrev, *this, i, true, 0))
                 {
-
                     return DoS(100,error("ConnectInputs() : %s VerifySignature failed", GetHash().ToString().substr(0,10).c_str()));
                 }
             }
@@ -1418,7 +1414,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
 
         if (IsCoinStake())
         {
-            // version: coin stake tx earns reward instead of paying fee
+            // coin stake tx earns reward instead of paying fee
             uint64_t nCoinAge;
             if (!GetCoinAge(txdb, nCoinAge))
                 return error("ConnectInputs() : %s unable to get coin age for coinstake", GetHash().ToString().substr(0,10).c_str());
@@ -1448,7 +1444,6 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
     return true;
 }
 
-
 bool CTransaction::ClientConnectInputs()
 {
     if (IsCoinBase())
@@ -1470,7 +1465,7 @@ bool CTransaction::ClientConnectInputs()
                 return false;
 
             // Verify signature
-            if (!VerifySignature(txPrev, *this, i, false, 0))
+            if (!VerifySignature(txPrev, *this, i, true, 0))
                 return error("ConnectInputs() : VerifySignature failed");
 
             ///// this is redundant with the mempool.mapNextTx stuff,
@@ -1512,7 +1507,7 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
             return error("DisconnectBlock() : WriteBlockIndex failed");
     }
 
-    // version: clean up wallet after disconnecting coinstake
+    // clean up wallet after disconnecting coinstake
     for (CTransaction& tx : vtx)
         SyncWithWallets(tx, this, false, false);
 
@@ -1556,7 +1551,6 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
         // two in the chain that violate it. This prevents exploiting the issue against nodes in their
         // initial block download.
 
-
         CTxIndex txindexOld;
         if (txdb.ReadTxIndex(hashTx, txindexOld)) {
             for (CDiskTxPos &pos : txindexOld.vSpent)
@@ -1595,7 +1589,6 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
             if (!tx.IsCoinStake())
                 nFees += nTxValueIn - nTxValueOut;
 
-
             if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false))
                 return false;
         }
@@ -1603,8 +1596,7 @@ bool CBlock::ConnectBlock(int nHeight, CTxDB& txdb, CBlockIndex* pindex, bool fJ
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
 
-
-    // version: track money supply and mint amount info
+    // track money supply and mint amount info
     pindex->nMint = nValueOut - nValueIn + nFees;
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))
@@ -2261,66 +2253,44 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().substr(0,20).c_str());
+
     if (mapOrphanBlocks.count(hash))
         return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().substr(0,20).c_str());
-
-    // version: check proof-of-stake
-    // Limited duplicity on stake: prevents block flood attack
-    // Duplicate stake allowed only when there is orphan child block
-    if (pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash) && !Checkpoints::WantedByPendingSyncCheckpoint(hash))
-        return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString().c_str(), pblock->GetProofOfStake().second, hash.ToString().c_str());
 
     // Preliminary checks
     if (!pblock->CheckBlock())
         return error("ProcessBlock() : CheckBlock FAILED");
 
- // Verify hash target and signature of coinstake tx
-        if (pblock->IsProofOfStake())
+    if (pblock->IsProofOfStake())
     {
+        // Limited duplicity on stake: prevents block flood attack
+        // Duplicate stake allowed only when there is orphan child block
+        if (setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash) 
+          && !Checkpoints::WantedByPendingSyncCheckpoint(hash))
+          return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString().c_str(), 
+          pblock->GetProofOfStake().second, hash.ToString().c_str());
+
         uint256 hashProofOfStake = 0, targetProofOfStake = 0;
         if (!CheckProofOfStake(pblock->vtx[1], pblock->nBits, hashProofOfStake, targetProofOfStake))
         {
             printf("WARNING: ProcessBlock(): check proof-of-stake failed for block %s\n", hash.ToString().c_str());
             return false; // do not error here as we expect this during initial block download
         }
+
         if (!mapProofOfStake.count(hash)) // add to mapProofOfStake
             mapProofOfStake.insert(make_pair(hash, hashProofOfStake));
     }
-/**
-    CBlockIndex* pcheckpoint = Checkpoints::GetLastSyncCheckpoint();
-    if (pcheckpoint && pblock->hashPrevBlock != hashBestChain && !Checkpoints::WantedByPendingSyncCheckpoint(hash))
-    {
-        // Extra checks to prevent "fill up memory by spamming with bogus blocks"
-        int64_t deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
-        CBigNum bnNewBlock;
-        bnNewBlock.SetCompact(pblock->nBits);
-        CBigNum bnRequired;
-    if (pblock->IsProofOfStake())
-            bnRequired.SetCompact(ComputeMinStake(GetLastBlockIndex(pcheckpoint, true)->nBits, deltaTime, pblock->nTime));
-        else
-            bnRequired.SetCompact(ComputeMinWork(GetLastBlockIndex(pcheckpoint, false)->nBits, deltaTime));
 
-
-
-        if (bnNewBlock > bnRequired && pindexBest->nHeight > 536698)
-        {
-            if (pfrom)
-              pfrom->Misbehaving(100);
-            return error("ProcessBlock() : block with too little %s", pblock->IsProofOfStake()? "proof-of-stake" : "proof-of-work");
-        }
-    }
-**/
-    // version: ask for pending sync-checkpoint if any
+    // ask for pending sync-checkpoint if any
     if (!IsInitialBlockDownload())
         Checkpoints::AskForPendingSyncCheckpoint(pfrom);
 
     // If don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock))
     {
-    if (fDebug)
         printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().substr(0,20).c_str());
         CBlock* pblock2 = new CBlock(*pblock);
-        // version: check proof-of-stake
+
         if (pblock2->IsProofOfStake())
         {
             // Limited duplicity on stake: prevents block flood attack
@@ -2330,6 +2300,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             else
                 setStakeSeenOrphan.insert(pblock2->GetProofOfStake());
         }
+
         mapOrphanBlocks.insert(make_pair(hash, pblock2));
         mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
 
@@ -2337,7 +2308,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         if (pfrom)
         {
             pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2));
-            // version: getblocks may not obtain the ancestor block rejected
+            // ppcoin: getblocks may not obtain the ancestor block rejected
             // earlier by duplicate-stake check so we ask for it again directly
             if (!IsInitialBlockDownload())
                 pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
@@ -2346,12 +2317,10 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     }
 
     // Store to disk
-    //printf("ProcessBlock: Store to disk\n");
     if (!pblock->AcceptBlock())
         return error("ProcessBlock() : AcceptBlock FAILED");
 
     // Recursively process any orphan blocks that depended on this one
-    //printf("ProcessBlock: Recursively process orphan blocks\n");
     vector<uint256> vWorkQueue;
     vWorkQueue.push_back(hash);
     for (unsigned int i = 0; i < vWorkQueue.size(); i++)
@@ -2371,7 +2340,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    if (fDebug)
         printf("ProcessBlock: ACCEPTED\n");
 
     /* Checkpoint master sends a new advanced checkpoint
@@ -2936,12 +2904,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     if (strCommand == "version")
     {
-        // Each connection can only send one version message
-        if (pfrom->nVersion != 0)
-        {
-            pfrom->Misbehaving(1);
-            return false;
-        }
+        /* Process the 1st version message received per connection
+         * and ignore the others if any */
+        if(pfrom->nVersion) return(true);
 
         int64_t nTime;
         CAddress addrMe;
@@ -3021,14 +2986,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
         }
 
-        // Ask the first connected node for block updates
-        static int nAskedForBlocks = 0;
+        /* Ask for inventory */
         if (!pfrom->fClient && !pfrom->fOneShot &&
             (pfrom->nVersion < NOBLKS_VERSION_START ||
              pfrom->nVersion >= NOBLKS_VERSION_END) &&
-             (nAskedForBlocks < 1 || vNodes.size() <= 1))
+             (pfrom->nStartingHeight > nBestHeight))
         {
-            nAskedForBlocks++;
             pfrom->PushGetBlocks(pindexBest, uint256(0));
         }
 
@@ -3048,13 +3011,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
         pfrom->fSuccessfullyConnected = true;
 
-        printf("version message: version %d, blocks=%d\n", pfrom->nVersion, pfrom->nStartingHeight);
+        printf("received version message from %s, version %d, blocks=%d, us=%s, them=%s\n", pfrom->addr.ToString().c_str(), pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString().c_str(), addrFrom.ToString().c_str());
 
         cPeerBlockCounts.input(pfrom->nStartingHeight);
 
-        // version: ask for pending sync-checkpoint if any
-        if (!IsInitialBlockDownload())
-            Checkpoints::AskForPendingSyncCheckpoint(pfrom);
+        if(!IsInitialBlockDownload())
+          Checkpoints::AskForPendingSyncCheckpoint(pfrom);
     }
 
     else if (pfrom->nVersion == 0)
@@ -3212,21 +3174,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     CBlock block;
                     block.ReadFromDisk((*mi).second);
                     pfrom->PushMessage("block", block);
-
-                    // Trigger them to send a getblocks request for the next batch of inventory
-                    if (inv.hash == pfrom->hashContinue)
-                    {
-                        // Bypass PushInventory, this must send even if redundant,
-                        // and we want it right after the last block so they don't
-                        // wait for other stuff first.
-                        // version: send latest proof-of-work block to allow the
-                        // download node to accept as orphan (proof-of-stake 
-                        // block might be rejected by stake connection check)
-                        vector<CInv> vInv;
-                        vInv.push_back(CInv(MSG_BLOCK, GetLastBlockIndex(pindexBest, false)->GetBlockHash()));
-                        pfrom->PushMessage("inv", vInv);
-                        pfrom->hashContinue = 0;
-                    }
                 }
             }
             else if (inv.IsKnownType())
@@ -3245,57 +3192,100 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
     }
 
-
     else if (strCommand == "getblocks")
     {
         CBlockLocator locator;
         uint256 hashStop;
         vRecv >> locator >> hashStop;
 
-        // Find the last block the caller has in the main chain
-        CBlockIndex* pindex = locator.GetBlockIndex();
+        /* Time limit for responding to a particular peer */
+        uint nCurrentTime = (uint)GetTime();
+        if((nCurrentTime - 5U) < pfrom->nGetblocksReceiveTime) {
+            return(error("message getblocks spam"));
+        } else {
+            pfrom->nGetblocksReceiveTime = nCurrentTime;
+        }
 
-        // Send the rest of the chain
-        if (pindex)
-            pindex = pindex->pnext;
-        int nLimit = 500 + locator.GetDistanceBack();
-        unsigned int nBytes = 0;
-	if (fDebug)
-	        printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().substr(0,20).c_str(), nLimit);
-        for (; pindex; pindex = pindex->pnext)
-        {
-            if (pindex->GetBlockHash() == hashStop)
-            {
-		if (fDebug)
-	                printf("  getblocks stopping at %d %s (%u bytes)\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str(), nBytes);
-                // version: tell downloading node about the latest block if it's
-                // without risk being rejected due to stake connection check
-                if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
-                    pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
-                break;
+        /* Locate the best block of the caller that matches our chain;
+         * it must be the genesis block if no match */
+        CBlockIndex *pindex = locator.GetBlockIndex();
+
+        /* Start with the next block if available */
+        if(pindex->pnext) pindex = pindex->pnext;
+        else return(true);
+
+        if(hashStop != uint256(0)) {
+            printf("getblocks height %d up to block %s received from peer %s\n",
+              pindex->nHeight, hashStop.ToString().substr(0,20).c_str(),
+              pfrom->addr.ToString().c_str());
+        } else {
+            printf("getblocks height %d received from peer %s\n",
+              pindex->nHeight, pfrom->addr.ToString().c_str());
+        }
+
+        /* Send inventory on the rest of the chain up to the limit */
+        uint nLimit = 1000;
+
+        while(nLimit--) {
+
+            if(pindex->GetBlockHash() == hashStop) {
+                printf("getblocks stopping at height %d block %s for peer %s\n",
+                  pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str(),
+                  pfrom->addr.ToString().c_str());
+            break;
             }
+
             pfrom->PushInventory(CInv(MSG_BLOCK, pindex->GetBlockHash()));
-            CBlock block;
-            block.ReadFromDisk(pindex, true);
-            nBytes += block.GetSerializeSize(SER_NETWORK, PROTOCOL_VERSION);
-            if (--nLimit <= 0 || nBytes >= SendBufferSize()/2)
-            {
-                // When this block is requested, we'll send an inv that'll make them
-                // getblocks the next batch of inventory.
-		if (fDebug)
-	                printf("  getblocks stopping at limit %d %s (%u bytes)\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str(), nBytes);
-                pfrom->hashContinue = pindex->GetBlockHash();
-                break;
-            }
+
+            if(pindex->pnext) pindex = pindex->pnext;
+            else break;
+
+        }
+
+        if(!nLimit) {
+            printf("getblocks height %d block %s stopping at limit for peer %s\n",
+              pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str(),
+              pfrom->addr.ToString().c_str());
+        }
+
+        /* Advertise our best block */
+        if(((pindexBest->nHeight - pindex->nHeight) < 4000) &&
+          (pindex->GetBlockHash() != hashBestChain)) {
+            pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
+            printf("getblocks advertised height %d block %s to peer %s\n",
+              nBestHeight, hashBestChain.ToString().substr(0,20).c_str(),
+              pfrom->addr.ToString().c_str());
         }
     }
 
+    else if (strCommand == "checkpoint")
+    {
+        CSyncCheckpoint checkpoint;
+        vRecv >> checkpoint;
+
+        if (checkpoint.ProcessSyncCheckpoint(pfrom))
+        {
+            // Relay
+            pfrom->hashCheckpointKnown = checkpoint.hashCheckpoint;
+            LOCK(cs_vNodes);
+            for (CNode* pnode : vNodes)
+                checkpoint.RelayTo(pnode);
+        }
+    }
 
     else if (strCommand == "getheaders")
     {
         CBlockLocator locator;
         uint256 hashStop;
         vRecv >> locator >> hashStop;
+
+        /* Time limit for responding to a particular peer */
+        uint nCurrentTime = (uint)GetTime();
+        if((nCurrentTime - 5U) < pfrom->nGetheadersReceiveTime) {
+            return(error("message getheaders spam"));
+        } else {
+            pfrom->nGetheadersReceiveTime = nCurrentTime;
+        }
 
         CBlockIndex* pindex = NULL;
         if (locator.IsNull())
@@ -3315,7 +3305,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
 
         vector<CBlock> vHeaders;
-        int nLimit = 2000;
+        int nLimit = 4000;
         printf("getheaders %d to %s\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().substr(0,20).c_str());
         for (; pindex; pindex = pindex->pnext)
         {
@@ -3325,7 +3315,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
         pfrom->PushMessage("headers", vHeaders);
     }
-
 
     else if (strCommand == "tx")
     {
@@ -3393,114 +3382,67 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (tx.nDoS) pfrom->Misbehaving(tx.nDoS);
     }
 
-
     else if (strCommand == "block")
     {
         CBlock block;
         vRecv >> block;
         uint256 hashBlock = block.GetHash();
+        int nBlockHeight = block.GetBlockHeight();
 
-	if (fDebug)
-	        printf("received block %s\n", hashBlock.ToString().substr(0,20).c_str());
-        // block.print();
-	if (fDebug)
-        	printf("CInv inv(MSG_BLOCK, block.GetHash())\n");
-        CInv inv(MSG_BLOCK, hashBlock);
-	if (fDebug) 	       
-		printf("pfrom->AddInventoryKnown\n");
-        pfrom->AddInventoryKnown(inv);
+        if(nBlockHeight > (nBestHeight + 5000)) {
+            /* Discard this block because cannot verify it any time soon */
+            printf("received and discarded a distant block %s height %d\n",
+              hashBlock.ToString().substr(0,20).c_str(), nBlockHeight);
+        } else {
+//            printf("received block %s height %d\n",
+//              hashBlock.ToString().substr(0,20).c_str(), nBlockHeight);
+            printf("received block %s\n",
+              hashBlock.ToString().substr(0,20).c_str());
 
-	if (fDebug)
-	        printf("block: ProcessBlock\n");
-        if (ProcessBlock(pfrom, &block))
-            mapAlreadyAskedFor.erase(inv);
-	
-	if (fDebug)
-	        printf("block: check misbehaving");
-        if (block.nDoS) pfrom->Misbehaving(block.nDoS);
+            CInv inv(MSG_BLOCK, hashBlock);
+            pfrom->AddInventoryKnown(inv);
+
+            if(ProcessBlock(pfrom, &block))
+              mapAlreadyAskedFor.erase(inv);
+
+            if(block.nDoS)
+              pfrom->Misbehaving(block.nDoS);
+        }
     }
-
 
     else if (strCommand == "getaddr")
     {
-	    // Don't return addresses older than nCutOff timestamp
-		int64_t nCutOff = GetTime() - (nNodeLifespan * 24 * 60 * 60);
+        // Don't return addresses older than nCutOff timestamp
+        int64_t nCutOff = GetTime() - (nNodeLifespan * 24 * 60 * 60);
         pfrom->vAddrToSend.clear();
         vector<CAddress> vAddr = addrman.GetAddr();
         for (const CAddress &addr : vAddr)
             if(addr.nTime > nCutOff)
-			  pfrom->PushAddress(addr);
+                pfrom->PushAddress(addr);
     }
 
-
-    else if (strCommand == "checkorder")
-    {
-        uint256 hashReply;
-        vRecv >> hashReply;
-
-        if (!GetBoolArg("-allowreceivebyip"))
-        {
-            pfrom->PushMessage("reply", hashReply, (int)2, string(""));
-            return true;
-        }
-
-        CWalletTx order;
-        vRecv >> order;
-
-        /// we have a chance to check the order here
-
-        // Keep giving the same key to the same ip until they use it
-        if (!mapReuseKey.count(pfrom->addr))
-            pwalletMain->GetKeyFromPool(mapReuseKey[pfrom->addr], true);
-
-        // Send back approval of order and pubkey to use
-        CScript scriptPubKey;
-        scriptPubKey << mapReuseKey[pfrom->addr] << OP_CHECKSIG;
-        pfrom->PushMessage("reply", hashReply, (int)0, scriptPubKey);
+    else if(strCommand == "ping") {
+        int64_t nonce;
+        vRecv >> nonce;
+        pfrom->PushMessage("pong", nonce);
+        if(fDebug) printf("pong sent to peer %s nonce %" PRId64 "\n",
+          pfrom->addr.ToString().c_str(), nonce);
     }
 
-
-    else if (strCommand == "reply")
-    {
-        uint256 hashReply;
-        vRecv >> hashReply;
-
-        CRequestTracker tracker;
-        {
-            LOCK(pfrom->cs_mapRequests);
-            map<uint256, CRequestTracker>::iterator mi = pfrom->mapRequests.find(hashReply);
-            if (mi != pfrom->mapRequests.end())
-            {
-                tracker = (*mi).second;
-                pfrom->mapRequests.erase(mi);
-            }
-        }
-        if (!tracker.IsNull())
-            tracker.fn(tracker.param1, vRecv);
-    }
-
-
-    else if (strCommand == "ping")
-    {
-        if (pfrom->nVersion > BIP0031_VERSION)
-        {
-            uint64_t nonce = 0;
-            vRecv >> nonce;
-            // Echo the message back with the nonce. This allows for two useful features:
-            //
-            // 1) A remote node can quickly check if the connection is operational
-            // 2) Remote nodes can measure the latency of the network thread. If this node
-            //    is overloaded it won't respond to pings quickly and the remote node can
-            //    avoid sending us more work, like chain download requests.
-            //
-            // The nonce stops the remote getting confused between different pings: without
-            // it, if the remote node sends a ping once per second and this node takes 5
-            // seconds to respond to each, the 5th ping the remote sends would appear to
-            // return very quickly.
-            pfrom->PushMessage("pong", nonce);
+    else if(strCommand == "pong") {
+        int64_t nonce;
+        vRecv >> nonce;
+        if(pfrom->nPingStamp == nonce) {
+            pfrom->nPongStamp = nonce;
+            pfrom->nPingTime = (uint)((GetTimeMicros() - nonce) / 1000);
+            if(fDebug) printf("pong received from peer %s time %u ms\n",
+              pfrom->addr.ToString().c_str(), pfrom->nPingTime);
+        } else {
+            if(fDebug) printf("invalid pong received from peer %s nonce %" PRId64 "\n",
+              pfrom->addr.ToString().c_str(), nonce);
         }
     }
-	
+
     else if (strCommand == "pong")
     {
         int64_t pingUsecEnd = nTimeReceived;
@@ -3574,21 +3516,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
     }
 
-    else if (strCommand == "checkpoint")
-    {
-        CSyncCheckpoint checkpoint;
-        vRecv >> checkpoint;
-
-        if (checkpoint.ProcessSyncCheckpoint(pfrom))
-        {
-            // Relay
-            pfrom->hashCheckpointKnown = checkpoint.hashCheckpoint;
-            LOCK(cs_vNodes);
-            for (CNode* pnode : vNodes)
-                checkpoint.RelayTo(pnode);
-        }
-    }
-
     else
     {
         // Ignore unknown commands for extensibility
@@ -3642,7 +3569,7 @@ bool ProcessMessages(CNode* pfrom)
 			
         // at this point, any failure means we can delete the current message
         it++;
-			
+
         // Scan for message start
         if (memcmp(msg.hdr.pchMessageStart, pchMessageStart, sizeof(pchMessageStart)) != 0) {
             printf("\n\nPROCESSMESSAGE: INVALID MESSAGESTART\n\n");
@@ -3720,51 +3647,46 @@ bool ProcessMessages(CNode* pfrom)
     return fOk;
 }
 
-bool SendMessages(CNode* pto, bool fSendTrickle)
-{
+/* Time stamp of the last getblocks polling request */
+uint nGetblocksTimePolling = 0;
+
+bool SendMessages(CNode *pto, bool fSendTrickle) {
+
+    /* Valid version must be received first */
+    if(pto->nVersion < 1) return(true);
+
     TRY_LOCK(cs_main, lockMain);
-    if (lockMain) {
-        // Don't send anything until we get their version message
-        if (pto->nVersion == 0)
-            return true;
+    if(lockMain) {
+        int64_t nCurrentTime = GetTimeMicros();
 
-        // Keep-alive ping. We send a nonce of zero because we don't use it anywhere
-        // right now.
-        //
-        // Message: ping
-        //
-        bool pingSend = false;
-        if (pto->fPingQueued) {
-            // RPC ping request by user
-             pingSend = true;
-        }
-        if (pto->nPingNonceSent == 0 && pto->nPingUsecStart + PING_INTERVAL * 1000000 < GetTimeMicros()) {
-            // Ping automatically sent as a latency probe & keepalive.
-            pingSend = true;
-        }
-        if (pingSend) {
-            uint64_t nonce = 0;
-            while (nonce == 0) {
-                RAND_bytes((unsigned char*)&nonce, sizeof(nonce));
-            }
-            pto->fPingQueued = false;
-            pto->nPingUsecStart = GetTimeMicros();
-            if (pto->nVersion > BIP0031_VERSION) {
-                pto->nPingNonceSent = nonce;
-                pto->PushMessage("ping", nonce);
-             } else {
-                // Peer is too old to support ping command with nonce, pong will never arrive.
-                pto->nPingNonceSent = 0;
-                pto->PushMessage("ping");
-             }
+        /* Keep-alive ping using an arbitrary nonce which is an extended time stamp */
+        if(((nCurrentTime - pto->nPingStamp) > 60 * 1000000) && pto->ssSend.empty()) {
+            pto->nPingStamp = nCurrentTime;
+            pto->PushMessage("ping", nCurrentTime);
+            printf("ping sent to peer %s nonce %" PRId64 "\n",
+              pto->addr.ToString().c_str(), nCurrentTime);
         }
 
-        // Start block sync
-        if (pto->fStartSync) {
-            pto->fStartSync = false;
+        /* Disconnect if the peer hasn't responded to pings recently */
+        if(pto->nPingTime && ((pto->nPingStamp - pto->nPongStamp) > 5 * 60 * 1000000)) {
+            pto->fDisconnect = true;
+            printf("disconnecting peer %s due to pings timed out\n",
+              pto->addr.ToString().c_str());
+            return(true);
+        }
+
+        /* Convert to seconds */
+        nCurrentTime /= 1000000;
+
+        /* Ask a random peer for inventory */
+        if(fSendTrickle && IsInitialBlockDownload() &&
+          (nBestHeight < pto->nStartingHeight) &&
+          ((nCurrentTime - nTimeBestReceived) > 1LL) &&
+          ((nCurrentTime - nGetblocksTimePolling) > 1LL)) {
+            nGetblocksTimePolling = nCurrentTime;
             pto->PushGetBlocks(pindexBest, uint256(0));
         }
-		
+
         // Resend wallet transactions that haven't gotten in a block yet
         ResendWalletTransactions();
 

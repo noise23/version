@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
-VERSION = 4.0.1
+VERSION = 4.0.2
 QT += core gui network
 INCLUDEPATH += src src/json src/qt
 QT += network
