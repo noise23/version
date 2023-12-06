@@ -2447,12 +2447,10 @@ bool CBlock::CheckBlockSignature(bool fProofOfStake) const
         if (whichType == TX_PUBKEY)
         {
             valtype& vchPubKey = vSolutions[0];
-            CKey key;
-            if (!key.SetPubKey(vchPubKey))
-                return false;
+            CPubKey key;
             if (vchBlockSig.empty())
                 return false;
-            return key.Verify(GetHash(), vchBlockSig);
+            return CPubKey(vchPubKey).Verify(GetHash(), vchBlockSig);
         }
     }
     else
@@ -2468,12 +2466,10 @@ bool CBlock::CheckBlockSignature(bool fProofOfStake) const
             {
                 // Verify
                 valtype& vchPubKey = vSolutions[0];
-                CKey key;
-                if (!key.SetPubKey(vchPubKey))
-                    continue;
+                CPubKey key;
                 if (vchBlockSig.empty())
                     continue;
-                if(!key.Verify(GetHash(), vchBlockSig))
+                if (!CPubKey(vchPubKey).Verify(GetHash(), vchBlockSig))
                     continue;
 
                 return true;

@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2012 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef H_BITCOIN_SCRIPT
@@ -188,8 +188,6 @@ enum opcodetype
     OP_NOP9 = 0xb8,
     OP_NOP10 = 0xb9,
 
-
-
     // template matching params
     OP_SMALLINTEGER = 0xfa,
     OP_PUBKEYS = 0xfb,
@@ -281,7 +279,6 @@ public:
         ret += b;
         return ret;
     }
-
 
     //explicit CScript(char b) is not portable.  Use 'signed char' or 'unsigned char'.
     explicit CScript(signed char b)    { operator<<(b); }
@@ -533,7 +530,7 @@ public:
     }
 
     void SetDestination(const CTxDestination& address);
-    void SetMultisig(int nRequired, const std::vector<CKey>& keys);
+    void SetMultisig(int nRequired, const std::vector<CPubKey>& keys);
 
     void PrintHex() const
     {
@@ -567,7 +564,7 @@ public:
     {
         printf("%s\n", ToString().c_str());
     }
-	
+
     CScriptID GetID() const
     {
          return CScriptID(Hash160(*this));
@@ -603,7 +600,7 @@ protected:
     // form).
     bool IsToKeyID(CKeyID &hash) const;
     bool IsToScriptID(CScriptID &hash) const;
-    bool IsToPubKey(std::vector<unsigned char> &pubkey) const;
+    bool IsToPubKey(CPubKey &pubkey) const;
 
     bool Compress(std::vector<unsigned char> &out) const;
     unsigned int GetSpecialSize(unsigned int nSize) const;

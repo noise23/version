@@ -1,5 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_WALLETDB_H
@@ -17,7 +18,7 @@ enum DBErrors
 {
     DB_LOAD_OK,
     DB_CORRUPT,
-	DB_NONCRITICAL_ERROR,
+    DB_NONCRITICAL_ERROR,
     DB_TOO_NEW,
     DB_LOAD_FAIL,
     DB_NEED_REWRITE
@@ -95,7 +96,7 @@ public:
     bool ReadKey(const CPubKey& vchPubKey, CPrivKey& vchPrivKey)
     {
         vchPrivKey.clear();
-        return Read(std::make_pair(std::string("key"), vchPubKey.Raw()), vchPrivKey);
+        return Read(std::make_pair(std::string("key"), vchPubKey), vchPrivKey);
     }
 
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata &keyMeta)
@@ -105,7 +106,7 @@ public:
         if(!Write(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta))
             return false;
 
-        return Write(std::make_pair(std::string("key"), vchPubKey.Raw()), vchPrivKey, false);
+        return Write(std::make_pair(std::string("key"), vchPubKey), vchPrivKey, false);
     }
 
     bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret, const CKeyMetadata &keyMeta)
@@ -116,12 +117,12 @@ public:
         if(!Write(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta))
              return false;
 
-        if (!Write(std::make_pair(std::string("ckey"), vchPubKey.Raw()), vchCryptedSecret, false))
+        if (!Write(std::make_pair(std::string("ckey"), vchPubKey), vchCryptedSecret, false))
             return false;
         if (fEraseUnencryptedKey)
         {
-            Erase(std::make_pair(std::string("key"), vchPubKey.Raw()));
-            Erase(std::make_pair(std::string("wkey"), vchPubKey.Raw()));
+            Erase(std::make_pair(std::string("key"), vchPubKey));
+            Erase(std::make_pair(std::string("wkey"), vchPubKey));
         }
         return true;
     }
@@ -171,7 +172,7 @@ public:
     bool WriteDefaultKey(const CPubKey& vchPubKey)
     {
         nWalletDBUpdated++;
-        return Write(std::string("defaultkey"), vchPubKey.Raw());
+        return Write(std::string("defaultkey"), vchPubKey);
     }
 
     bool ReadPool(int64_t nPool, CKeyPool& keypool)

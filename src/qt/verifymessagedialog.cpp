@@ -75,8 +75,8 @@ void VerifyMessageDialog::on_verifyMessage_clicked()
     ss << strMessageMagic;
     ss << ui->edMessage->document()->toPlainText().toStdString();
 
-    CKey key;
-    if (!key.SetCompactSignature(Hash(ss.begin(), ss.end()), vchSig))
+    CPubKey pubkey;
+    if (!pubkey.RecoverCompact(Hash(ss.begin(), ss.end()), vchSig))
     {
         ui->lnSig->setValid(false);
         ui->lblStatus->setStyleSheet("QLabel { color: red; }");
@@ -84,7 +84,7 @@ void VerifyMessageDialog::on_verifyMessage_clicked()
         return;
     }
 
-    if (!(CBitcoinAddress(key.GetPubKey().GetID()) == addr))
+    if (!(CBitcoinAddress(pubkey.GetID()) == addr))
     {
         ui->lblStatus->setStyleSheet("QLabel { color: red; }");
         ui->lblStatus->setText(QString("<nobr>") + tr("Message verification failed.") + QString("</nobr>"));

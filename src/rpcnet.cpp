@@ -108,7 +108,7 @@ extern map<uint256, CAlert> mapAlerts;
 Value sendalert(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 6)
-	throw runtime_error(
+    throw runtime_error(
             "sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]\n"
             "<message> is the alert text message\n"
             "<privatekey> is hex string of alert master private key\n"
@@ -138,7 +138,7 @@ Value sendalert(const Array& params, bool fHelp)
     alert.vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
     
     vector<unsigned char> vchPrivKey = ParseHex(params[1].get_str());
-    key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end())); // if key is not correct openssl may crash
+    key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false); // if key is not correct openssl may crash
     if (!key.Sign(Hash(alert.vchMsg.begin(), alert.vchMsg.end()), alert.vchSig))
         throw runtime_error(
             "Unable to sign alert, check private key?\n");  

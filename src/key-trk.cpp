@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2024 The Version developers
+// Copyright (c) 2013-2023 The Truckcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -156,14 +156,11 @@ public:
     }
 
     void SetSecretBytes(const unsigned char vch[32]) {
-        BIGNUM *bn;
-        bn = BN_new();
-#if (OPENSSL_VERSION_NUMBER < 0x10100000)
-        BN_init(bn);
-#endif
-        assert(BN_bin2bn(vch, 32, bn));
-        assert(EC_KEY_regenerate_key(pkey, bn));
-        BN_clear_free(bn);
+        BIGNUM bn;
+        BN_init(&bn);
+        assert(BN_bin2bn(vch, 32, &bn));
+        assert(EC_KEY_regenerate_key(pkey, &bn));
+        BN_clear_free(&bn);
     }
 
     void GetPrivKey(CPrivKey &privkey, bool fCompressed) {
@@ -225,16 +222,8 @@ public:
         if (sig==NULL)
             return false;
         memset(p64, 0, 64);
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
         int nBitsR = BN_num_bits(sig->r);
         int nBitsS = BN_num_bits(sig->s);
-#else
-        const BIGNUM *sig_r, *sig_s;
-        ECDSA_SIG_get0(sig, &sig_r, &sig_s);
-
-        int nBitsR = BN_num_bits(sig_r);
-        int nBitsS = BN_num_bits(sig_s);
-#endif
         if (nBitsR <= 256 && nBitsS <= 256) {
             CPubKey pubkey;
             GetPubKey(pubkey, true);
@@ -251,13 +240,8 @@ public:
                 }
             }
             assert(fOk);
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-            BN_bn2bin(sig->r, &p64[32 - (nBitsR + 7) / 8]);
-            BN_bn2bin(sig->s, &p64[64 - (nBitsS + 7) / 8]);
-#else
-            BN_bn2bin(sig_r, &p64[32 - (nBitsR + 7) / 8]);
-            BN_bn2bin(sig_s, &p64[64 - (nBitsS + 7) / 8]);
-#endif
+            BN_bn2bin(sig->r,&p64[32-(nBitsR+7)/8]);
+            BN_bn2bin(sig->s,&p64[64-(nBitsS+7)/8]);
         }
         ECDSA_SIG_free(sig);
         return fOk;
@@ -272,20 +256,8 @@ public:
         if (rec<0 || rec>=3)
             return false;
         ECDSA_SIG *sig = ECDSA_SIG_new();
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-    BIGNUM *sig_r = NULL;
-    BIGNUM *sig_s = NULL;
-    if (!(sig_r = BN_bin2bn(&p64[0], 32, nullptr)) ||
-        !(sig_s = BN_bin2bn(&p64[32], 32, nullptr)) ||
-    !ECDSA_SIG_set0(sig, sig_r, sig_s)) {
-        BN_free(sig_r);
-        BN_free(sig_s);
-        return false;
-    }
-#else
         BN_bin2bn(&p64[0],  32, sig->r);
         BN_bin2bn(&p64[32], 32, sig->s);
-#endif
         bool ret = ECDSA_SIG_recover_key_GFp(pkey, sig, (unsigned char*)&hash, sizeof(hash), rec, 0) == 1;
         ECDSA_SIG_free(sig);
         return ret;
@@ -394,6 +366,21 @@ bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned cha
     if (!key.Recover(hash, &vchSig[1], (vchSig[0] - 27) & ~4))
         return false;
     key.GetPubKey(*this, (vchSig[0] - 27) & 4);
+    return true;
+}
+
+bool CPubKey::VerifyCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {
+    if (!IsValid())
+        return false;
+    if (vchSig.size() != 65)
+        return false;
+    CECKey key;
+    if (!key.Recover(hash, &vchSig[1], (vchSig[0] - 27) & ~4))
+        return false;
+    CPubKey pubkeyRec;
+    key.GetPubKey(pubkeyRec, IsCompressed());
+    if (*this != pubkeyRec)
+        return false; 
     return true;
 }
 

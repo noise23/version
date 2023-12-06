@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -20,6 +20,8 @@ using namespace std;
 
 map<uint256, CAlert> mapAlerts;
 CCriticalSection cs_mapAlerts;
+
+static const char* pszMainKey = "04242ececcd8d59b58e22363f45d84d59c040b1842b386af768ce5bddba5e733b8f26779f487a28180159ac30f27069d00c0aeeee1da35ec3b95f158dbfcca8ce7";
 
 void CUnsignedAlert::SetNull()
 {
@@ -143,9 +145,7 @@ bool CAlert::RelayTo(CNode* pnode) const
 
 bool CAlert::CheckSignature() const
 {
-    CKey key;
-    if (!key.SetPubKey(ParseHex("04242ececcd8d59b58e22363f45d84d59c040b1842b386af768ce5bddba5e733b8f26779f487a28180159ac30f27069d00c0aeeee1da35ec3b95f158dbfcca8ce7")))
-        return error("CAlert::CheckSignature() : SetPubKey failed");
+    CPubKey key(ParseHex(pszMainKey));
     if (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig))
         return error("CAlert::CheckSignature() : verify signature failed");
 

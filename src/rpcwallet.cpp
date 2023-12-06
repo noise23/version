@@ -43,11 +43,11 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
-		entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
+        entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
     }
     entry.push_back(Pair("txid", wtx.GetHash().GetHex()));
     entry.push_back(Pair("time", (int64_t)wtx.GetTxTime()));
-	entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
+    entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
     for (const auto& item : wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
 }
@@ -66,7 +66,7 @@ Value getinfo(const Array& params, bool fHelp)
         throw runtime_error(
             "getinfo\n"
             "Returns an object containing various state info.");
-			
+
     proxyType proxy;
     GetProxy(NET_IPV4, proxy);
 
@@ -85,7 +85,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            addrSeenByPeer.ToStringIP()));
     obj.push_back(Pair("PoW difficulty",    (double)GetDifficulty()));
-	obj.push_back(Pair("PoS difficulty", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("PoS difficulty", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
     obj.push_back(Pair("testnet",       fTestNet));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize",   pwalletMain->GetKeyPoolSize()));
@@ -227,7 +227,6 @@ Value getaccount(const Array& params, bool fHelp)
     return strAccount;
 }
 
-
 Value getaddressesbyaccount(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -329,7 +328,7 @@ Value signmessage(const Array& params, bool fHelp)
     CBitcoinAddress addr(strAddress);
     if (!addr.IsValid())
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
-		
+
     CKeyID keyID;
     if (!addr.GetKeyID(keyID))
         throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
@@ -363,7 +362,7 @@ Value verifymessage(const Array& params, bool fHelp)
     CBitcoinAddress addr(strAddress);
     if (!addr.IsValid())
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
-		
+
     CKeyID keyID;
     if (!addr.GetKeyID(keyID))
         throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to key");
@@ -378,13 +377,12 @@ Value verifymessage(const Array& params, bool fHelp)
     ss << strMessageMagic;
     ss << strMessage;
 
-    CKey key;
-    if (!key.SetCompactSignature(Hash(ss.begin(), ss.end()), vchSig))
+    CPubKey pubkey;
+    if (!pubkey.RecoverCompact(Hash(ss.begin(), ss.end()), vchSig))
         return false;
 
-    return (key.GetPubKey().GetID() == keyID);
+    return (pubkey.GetID() == keyID);
 }
-
 
 Value getreceivedbyaddress(const Array& params, bool fHelp)
 {
@@ -472,7 +470,6 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     return (double)nAmount / (double)COIN;
 }
 
-
 int64_t GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth)
 {
     int64_t nBalance = 0;
@@ -503,7 +500,6 @@ int64_t GetAccountBalance(const string& strAccount, int nMinDepth)
     CWalletDB walletdb(pwalletMain->strWalletFile);
     return GetAccountBalance(walletdb, strAccount, nMinDepth);
 }
-
 
 Value getbalance(const Array& params, bool fHelp)
 {
@@ -556,7 +552,6 @@ Value getbalance(const Array& params, bool fHelp)
     return ValueFromAmount(nBalance);
 }
 
-
 Value movecmd(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
@@ -583,7 +578,7 @@ Value movecmd(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_DATABASE_ERROR, "database error");
 
     int64_t nNow = GetAdjustedTime();
-	
+
     // Debit
     CAccountingEntry debit;
     debit.nOrderPos = pwalletMain->IncOrderPosNext(&walletdb);
@@ -609,7 +604,6 @@ Value movecmd(const Array& params, bool fHelp)
 
     return true;
 }
-
 
 Value sendfrom(const Array& params, bool fHelp)
 {
@@ -746,7 +740,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
         throw runtime_error(
             strprintf("not enough keys supplied "
                       "(got %lu keys, but need at least %d to redeem)", keys.size(), nRequired));
-    std::vector<CKey> pubkeys;
+    std::vector<CPubKey> pubkeys;
     pubkeys.resize(keys.size());
     for (unsigned int i = 0; i < keys.size(); i++)
     {
@@ -764,16 +758,18 @@ Value addmultisigaddress(const Array& params, bool fHelp)
             if (!pwalletMain->GetPubKey(keyID, vchPubKey))
                 throw runtime_error(
                     strprintf("no full public key for address %s",ks.c_str()));
-            if (!vchPubKey.IsValid() || !pubkeys[i].SetPubKey(vchPubKey))
+            if (!vchPubKey.IsFullyValid())
                 throw runtime_error(" Invalid public key: "+ks);
+            pubkeys[i] = vchPubKey;
         }
 
         // Case 2: hex public key
         else if (IsHex(ks))
         {
             CPubKey vchPubKey(ParseHex(ks));
-            if (!vchPubKey.IsValid() || !pubkeys[i].SetPubKey(vchPubKey))
+            if (!vchPubKey.IsFullyValid())
                 throw runtime_error(" Invalid public key: "+ks);
+            pubkeys[i] = vchPubKey;
         }
         else
         {
@@ -790,7 +786,6 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     pwalletMain->SetAddressBookName(innerID, strAccount);
     return CBitcoinAddress(innerID).ToString();
 }
-
 
 struct tallyitem
 {
@@ -827,7 +822,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
         int nDepth = wtx.GetDepthInMainChain();
         if (nDepth < nMinDepth)
             continue;
-			
+
         for (const CTxOut& txout : wtx.vout)
         {
             CTxDestination address;
@@ -1458,7 +1453,7 @@ Value encryptwallet(const Array& params, bool fHelp)
     SecureString strWalletPass;
     strWalletPass.reserve(100);
     strWalletPass = params[0].get_str().c_str();
-	
+
     if (strWalletPass.length() < 1)
         throw runtime_error(
             "encryptwallet <passphrase>\n"
@@ -1656,6 +1651,6 @@ Value makekeypair(const Array& params, bool fHelp)
     CPrivKey vchPrivKey = key.GetPrivKey();
     Object result;
     result.push_back(Pair("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end())));
-    result.push_back(Pair("PublicKey", HexStr(key.GetPubKey().Raw())));
+    result.push_back(Pair("PublicKey", HexStr(key.GetPubKey())));
     return result;
 }

@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2011-2012 The Version developers
+// Copyright (c) 2013-2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_WALLET_H
@@ -96,7 +96,7 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
-	unsigned int nHashDrift;
+    unsigned int nHashDrift;
 
     CWallet()
     {
@@ -105,7 +105,7 @@ public:
         fFileBacked = false;
         nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
-	fSplitBlock = false;
+    fSplitBlock = false;
         nOrderPosNext = 0;
         fWalletUnlockMintOnly = false;
         nHashDrift = 40;
@@ -119,7 +119,7 @@ public:
         fFileBacked = true;
         nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
-	fSplitBlock = false;
+    fSplitBlock = false;
         nOrderPosNext = 0;
         fWalletUnlockMintOnly = false;
         nHashDrift = 40;
@@ -136,18 +136,18 @@ public:
 
     // check whether we are allowed to upgrade (or already support) to the named feature
     bool CanSupportFeature(enum WalletFeature wf) { return nWalletMaxVersion >= wf; }
-	
+
     void AvailableCoinsMinConf(std::vector<COutput>& vCoins, int nConf) const;
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL) const;
-	bool SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet) const;
+    bool SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64_t& nValueRet) const;
 
     // keystore implementation
     // Generate a new key
     CPubKey GenerateNewKey();
     // Adds a key to the store, and saves it to disk.
-    bool AddKey(const CKey& key);
+    bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey);
     // Adds a key to the store, without saving it to disk (used by LoadWallet)
-    bool LoadKey(const CKey& key) { return CCryptoKeyStore::AddKey(key); }
+    bool LoadKey(const CKey& key, const CPubKey &pubkey) { return CCryptoKeyStore::AddKeyPubKey(key, pubkey); }
     // Load metadata (used by LoadWallet)
     bool LoadKeyMetadata(const CPubKey &pubkey, const CKeyMetadata &metadata);
 
@@ -163,7 +163,7 @@ public:
     bool Unlock(const SecureString& strWalletPassphrase);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
-	
+
     void GetKeyBirthTimes(std::map<CKeyID, int64_t> &mapKeyBirth) const;
 
     /** Increment the next transaction order id
@@ -198,7 +198,7 @@ public:
     bool CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl *coinControl=NULL);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     bool GetStakeWeightFromValue(const int64_t& nTime, const int64_t& nValue, uint64_t& nWeight);
-	bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, CTransaction& txNew);
+    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, CTransaction& txNew);
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
@@ -321,7 +321,7 @@ public:
 
     void FixSpentCoins(int& nMismatchSpent, int64_t& nBalanceInQuestion, bool fCheckOnly = false);
     void DisableTransaction(const CTransaction &tx);
-	
+
     /** Address book entry changed.
      * @note called with lock cs_wallet held.
      */
@@ -360,7 +360,6 @@ public:
 
 typedef std::map<std::string, std::string> mapValue_t;
 
-
 static void ReadOrderPos(int64_t& nOrderPos, mapValue_t& mapValue)
 {
     if (!mapValue.count("n"))
@@ -370,7 +369,6 @@ static void ReadOrderPos(int64_t& nOrderPos, mapValue_t& mapValue)
     }
     nOrderPos = atoi64(mapValue["n"].c_str());
 }
-
 
 static void WriteOrderPos(const int64_t& nOrderPos, mapValue_t& mapValue)
 {
@@ -471,7 +469,7 @@ public:
                     fSpent = true;
             }
             pthis->mapValue["spent"] = str;
-			
+
             WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
             if (nTimeSmart)
                 pthis->mapValue["timesmart"] = strprintf("%u", nTimeSmart);
@@ -625,7 +623,6 @@ public:
         fAvailableCreditCached = true;
         return nCredit;
     }
-
 
     int64_t GetChange() const
     {
@@ -826,7 +823,7 @@ public:
         READWRITE(nCreditDebit);
         READWRITE(nTime);
         READWRITE(strOtherAccount);
-		
+
         if (!fRead)
         {
             WriteOrderPos(nOrderPos, me.mapValue);
@@ -840,9 +837,9 @@ public:
                 me.strComment.append(ss.str());
             }
         }
-		
+
         READWRITE(strComment);
-		
+
         size_t nSepPos = strComment.find("\0", 0, 1);
         if (fRead)
         {
@@ -860,7 +857,7 @@ public:
 
         me.mapValue.erase("n");
     )
-	
+
 private:
     std::vector<char> _ssExtra;
 };
