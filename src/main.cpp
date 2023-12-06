@@ -3178,7 +3178,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         vRecv >> locator >> hashStop;
 
         /* Time limit for responding to a particular peer */
-        uint nCurrentTime = (uint)GetTime();
+        unsigned int nCurrentTime = (unsigned int)GetTime();
         if((nCurrentTime - 5U) < pfrom->nGetblocksReceiveTime) {
             return(error("message getblocks spam"));
         } else {
@@ -3203,7 +3203,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         }
 
         /* Send inventory on the rest of the chain up to the limit */
-        uint nLimit = 1000;
+        unsigned int nLimit = 1000;
 
         while(nLimit--) {
 
@@ -3259,7 +3259,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         vRecv >> locator >> hashStop;
 
         /* Time limit for responding to a particular peer */
-        uint nCurrentTime = (uint)GetTime();
+        unsigned int nCurrentTime = (unsigned int)GetTime();
         if((nCurrentTime - 5U) < pfrom->nGetheadersReceiveTime) {
             return(error("message getheaders spam"));
         } else {
@@ -3413,7 +3413,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         vRecv >> nonce;
         if(pfrom->nPingStamp == nonce) {
             pfrom->nPongStamp = nonce;
-            pfrom->nPingTime = (uint)((GetTimeMicros() - nonce) / 1000);
+            pfrom->nPingTime = (unsigned int)((GetTimeMicros() - nonce) / 1000);
             if(fDebug) printf("pong received from peer %s time %u ms\n",
               pfrom->addr.ToString().c_str(), pfrom->nPingTime);
         } else {
@@ -3627,7 +3627,7 @@ bool ProcessMessages(CNode* pfrom)
 }
 
 /* Time stamp of the last getblocks polling request */
-uint nGetblocksTimePolling = 0;
+unsigned int nGetblocksTimePolling = 0;
 
 bool SendMessages(CNode *pto, bool fSendTrickle) {
 

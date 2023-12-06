@@ -89,7 +89,7 @@ unsigned short GetListenPort()
 
 void CNode::PushGetBlocks(CBlockIndex *pindexBegin, uint256 hashEnd) 
 {
-    uint nCurrentTime = (uint)GetTime();
+    unsigned int nCurrentTime = (unsigned int)GetTime();
 
     /* Time limit for asking a particular peer */
     if((nCurrentTime - 5U) < nGetblocksAskTime)
@@ -386,7 +386,7 @@ bool GetMyExternalIP(CNetAddr& ipRet)
         }
         else if (nHost == 2)
         {
-            addrConnect = CService("108.61.29.222", 80); // ip.truckcoin.net
+            addrConnect = CService("23.158.40.11", 80); // ip.truckcoin.net
 
             if (nLookup == 1)
             {

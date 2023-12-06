@@ -145,7 +145,7 @@ public:
     std::string strSubVer;
     bool fInbound;
     int64_t nReleaseTime;
-    uint nPingTime;
+    unsigned int nPingTime;
     int nStartingHeight;
     int nMisbehavior;
     double dPingTime;
@@ -236,10 +236,10 @@ public:
     int64_t nReleaseTime;
     std::map<uint256, CRequestTracker> mapRequests;
     CCriticalSection cs_mapRequests;
-    uint nGetblocksAskTime;
-    uint nGetblocksReceiveTime;
-    uint nGetheadersReceiveTime;
-    uint nPingTime;
+    unsigned int nGetblocksAskTime;
+    unsigned int nGetblocksReceiveTime;
+    unsigned int nGetheadersReceiveTime;
+    unsigned int nPingTime;
     int64_t nPingStamp;
     int64_t nPongStamp;
     int nStartingHeight;
