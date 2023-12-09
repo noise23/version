@@ -1,4 +1,5 @@
-Version V2 released, V network is up.
+Version V4 released, V network is up.
+DECEMBER 2023 - IMPORTANT - NEW VERSION 4.1 RELEASED, PLEASE UPDATE!
 
  ██▒   █▓▓█████  ██▀███    ██████  ██▓ ▒█████   ███▄    █ 
 ▓██░   █▒▓█   ▀ ▓██ ▒ ██▒▒██    ▒ ▓██▒▒██▒  ██▒ ██ ▀█   █ 
