@@ -1062,7 +1062,7 @@ boost::filesystem::path GetConfigFile()
     namespace fs = boost::filesystem;
 
     fs::path pathConfigFile(GetArg("-conf", "version.conf"));
-    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
+    if (!pathConfigFile.is_absolute()) pathConfigFile = GetDataDir(false) / pathConfigFile;
     return pathConfigFile;
 }
 
@@ -1098,7 +1098,7 @@ boost::filesystem::path GetPidFile()
     namespace fs = boost::filesystem;
 
     fs::path pathPidFile(GetArg("-pid", "versiond.pid"));
-    if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
+    if (!pathPidFile.is_absolute()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }
 
