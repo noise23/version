@@ -476,8 +476,8 @@ bool AppInit2()
     std::string strWalletFileName = GetArg("-wallet", "wallet.dat");
 
     // strWalletFileName must be a plain filename without a directory
-    if (strWalletFileName != boost::filesystem::basename(strWalletFileName) + boost::filesystem::extension(strWalletFileName))
-        return InitError(strprintf(_("Wallet %s resides outside data directory %s."), strWalletFileName.c_str(), strDataDir.c_str()));
+    if (strWalletFileName != boost::filesystem::path(strWalletFileName).stem().string() + boost::filesystem::path(strWalletFileName).extension().string())
+        return InitError(strprintf(_("%s is not a valid wallet name. Please use a plain filename without a path.\nWallets reside in data directory %s."), strWalletFileName.c_str(), strDataDir.c_str()));
 
     // Make sure only a single Version process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
