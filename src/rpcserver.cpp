@@ -732,6 +732,11 @@ void ThreadRPCServer3(void* parg)
         // Read HTTP message headers and body
         ReadHTTPMessage(conn->stream(), mapHeaders, strRequest, nProto);
 
+        if (strURI != "/") {
+            conn->stream() << HTTPReply(HTTP_NOT_FOUND, "", false) << std::flush;
+            break;
+        }
+
         // Check authorization
         if (mapHeaders.count("authorization") == 0)
         {
