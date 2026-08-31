@@ -197,49 +197,45 @@ void TransactionView::setModel(WalletModel *model)
 
 void TransactionView::chooseDate(int idx)
 {
-    if(!transactionProxyModel)
-        return;
-    QDate current = QDate::currentDate();
-    dateRangeWidget->setVisible(false);
-    switch(dateWidget->itemData(idx).toInt())
-    {
-    case All:
-        transactionProxyModel->setDateRange(
-                TransactionFilterProxy::MIN_DATE,
-                TransactionFilterProxy::MAX_DATE);
-        break;
-    case Today:
-        transactionProxyModel->setDateRange(
-                QDateTime(current),
-                TransactionFilterProxy::MAX_DATE);
-        break;
-    case ThisWeek: {
-        // Find last monday
-        QDate startOfWeek = current.addDays(-(current.dayOfWeek()-1));
-        transactionProxyModel->setDateRange(
-                QDateTime(startOfWeek),
-                TransactionFilterProxy::MAX_DATE);
 
+    if(!transactionProxyModel) return;
+
+    const QDate current = QDate::currentDate();
+    const QTime timeZero = QTime(0, 0);
+
+    dateRangeWidget->setVisible(false);
+    switch(dateWidget->itemData(idx).toInt()) {
+        case(All):
+            transactionProxyModel->setDateRange(TransactionFilterProxy::MIN_DATE,
+                                                TransactionFilterProxy::MAX_DATE);
+            break;
+        case(Today):
+            transactionProxyModel->setDateRange(QDateTime(current, timeZero),
+                                                TransactionFilterProxy::MAX_DATE);
+            break;
+        case(ThisWeek): {
+            /* Find last Monday */
+            QDate startOfWeek = current.addDays(-(current.dayOfWeek()-1));
+            transactionProxyModel->setDateRange(QDateTime(startOfWeek, timeZero),
+                                                TransactionFilterProxy::MAX_DATE);
         } break;
-    case ThisMonth:
-        transactionProxyModel->setDateRange(
-                QDateTime(QDate(current.year(), current.month(), 1)),
-                TransactionFilterProxy::MAX_DATE);
-        break;
-    case LastMonth:
-        transactionProxyModel->setDateRange(
-                QDateTime(QDate(current.year(), current.month()-1, 1)),
-                QDateTime(QDate(current.year(), current.month(), 1)));
-        break;
-    case ThisYear:
-        transactionProxyModel->setDateRange(
-                QDateTime(QDate(current.year(), 1, 1)),
-                TransactionFilterProxy::MAX_DATE);
-        break;
-    case Range:
-        dateRangeWidget->setVisible(true);
-        dateRangeChanged();
-        break;
+        case(ThisMonth):
+            transactionProxyModel->setDateRange(QDateTime(QDate(current.year(),
+                                                                current.month(), 1), timeZero), TransactionFilterProxy::MAX_DATE);
+            break;
+        case(LastMonth):
+            transactionProxyModel->setDateRange(QDateTime(QDate(current.year(),
+                                                                current.month()-1, 1), timeZero), QDateTime(QDate(current.year(),
+                                                                                                                  current.month(), 1), timeZero));
+            break;
+        case(ThisYear):
+            transactionProxyModel->setDateRange(QDateTime(QDate(current.year(), 1, 1),
+                                                          timeZero), TransactionFilterProxy::MAX_DATE);
+            break;
+        case(Range):
+            dateRangeWidget->setVisible(true);
+            dateRangeChanged();
+            break;
     }
 }
 
@@ -440,10 +436,12 @@ QWidget *TransactionView::createDateRangeWidget()
 
 void TransactionView::dateRangeChanged()
 {
-    if(!transactionProxyModel)
-        return;
-    transactionProxyModel->setDateRange(
-            QDateTime(dateFrom->date()),
-            QDateTime(dateTo->date()).addDays(1));
+
+    if(!transactionProxyModel) return;
+
+    const QTime timeZero = QTime(0, 0);
+
+    transactionProxyModel->setDateRange(QDateTime(dateFrom->date(), timeZero),
+                                        QDateTime(dateTo->date(), timeZero).addDays(1));
 }
 
