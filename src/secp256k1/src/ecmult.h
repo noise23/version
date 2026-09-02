@@ -11,7 +11,18 @@
 #include "scalar.h"
 #include "scratch.h"
 
-/* Noone will ever need more than a window size of 24. The code might
+#ifndef ECMULT_WINDOW_SIZE
+#  define ECMULT_WINDOW_SIZE 15
+#  ifdef DEBUG_CONFIG
+#     pragma message DEBUG_CONFIG_MSG("ECMULT_WINDOW_SIZE undefined, assuming default value")
+#  endif
+#endif
+
+#ifdef DEBUG_CONFIG
+#  pragma message DEBUG_CONFIG_DEF(ECMULT_WINDOW_SIZE)
+#endif
+
+/* No one will ever need more than a window size of 24. The code might
  * be correct for larger values of ECMULT_WINDOW_SIZE but this is not
  * tested.
  *
@@ -27,9 +38,12 @@
 #endif
 
 /** The number of entries a table with precomputed multiples needs to have. */
-#define ECMULT_TABLE_SIZE(w) (1L << ((w)-2))
+#define ECMULT_TABLE_SIZE(w) ((size_t)1 << ((w)-2))
 
-/** Double multiply: R = na*A + ng*G */
+/** Double multiply: R = na*A + ng*G
+ *
+ * Passing NULL as ng is equivalent to the zero scalar but a tiny bit faster.
+ */
 static void secp256k1_ecmult(secp256k1_gej *r, const secp256k1_gej *a, const secp256k1_scalar *na, const secp256k1_scalar *ng);
 
 typedef int (secp256k1_ecmult_multi_callback)(secp256k1_scalar *sc, secp256k1_ge *pt, size_t idx, void *data);
