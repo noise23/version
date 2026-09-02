@@ -126,25 +126,25 @@ QMAKE_CLEAN += $$PWD/src/leveldb/out-static/libleveldb.a; cd $$PWD/src/leveldb ;
 #Build Secp256k1
 !win32 {
     INCLUDEPATH += src/secp256k1/include
-    LIBS += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+    LIBS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
     gensecp256k1.commands = cd $$PWD/src/secp256k1 && chmod 755 * && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
-    gensecp256k1.target = $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+    gensecp256k1.target = $$PWD/src/secp256k1/.libs/libsecp256k1.a
     gensecp256k1.depends = FORCE
-    PRE_TARGETDEPS += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+    PRE_TARGETDEPS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
     QMAKE_EXTRA_TARGETS += gensecp256k1
     # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
-    QMAKE_CLEAN += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o; cd $$PWD/src/secp256k1; $(MAKE) clean
+    QMAKE_CLEAN += $$PWD/src/secp256k1/.libs/libsecp256k1.a; cd $$PWD/src/secp256k1; $(MAKE) clean
 } else {
     INCLUDEPATH += src/secp256k1/include
-    LIBS += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+    LIBS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
     gensecp256k1.commands = cd $$PWD/src/secp256k1 && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental --host=i686-w64-mingw32.static CC=$$QMAKE_CC && CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
-    gensecp256k1.target = $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+    gensecp256k1.target = $$PWD/src/secp256k1/.libs/libsecp256k1.a
     gensecp256k1.depends = FORCE
-    PRE_TARGETDEPS += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o
+    PRE_TARGETDEPS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
     QMAKE_EXTRA_TARGETS += gensecp256k1
     # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
-    QMAKE_CLEAN += $$PWD/src/secp256k1/src/libsecp256k1_la-secp256k1.o; cd $$PWD/src/secp256k1; $(MAKE) clean
+    QMAKE_CLEAN += $$PWD/src/secp256k1/.libs/libsecp256k1.a; cd $$PWD/src/secp256k1; $(MAKE) clean
 }
 
 # regenerate src/build.h

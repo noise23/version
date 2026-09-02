@@ -104,9 +104,21 @@ all: versiond.exe
 
 # build secp256k1
 DEFS += $(addprefix -I,$(CURDIR)/secp256k1/include)
-secp256k1/src/libsecp256k1_la-secp256k1.o:
-	@echo "Building Secp256k1 ..."; cd secp256k1; chmod 755 *; ./autogen.sh; ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental; make; cd ..;
-versiond: secp256k1/src/libsecp256k1_la-secp256k1.o
+LIBS += $(CURDIR)/secp256k1/.libs/libsecp256k1.a
+
+SECP256K1_SRC := $(shell find secp256k1/src secp256k1/include -type f \( -name '*.c' -o -name '*.h' \) 2>/dev/null) \
+                  secp256k1/configure.ac secp256k1/Makefile.am
+
+secp256k1/.libs/libsecp256k1.a: $(SECP256K1_SRC)
+	@echo "Building Secp256k1 ..."; \
+	cd secp256k1; \
+	chmod 755 *; \
+	./autogen.sh; \
+	./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental; \
+	$(MAKE); \
+	cd ..
+
+versiond: secp256k1/.libs/libsecp256k1.a
 
 # build leveldb
 LIBS += $(CURDIR)/leveldb/out-static/libleveldb.a $(CURDIR)/leveldb/out-static/libmemenv.a -lshlwapi
