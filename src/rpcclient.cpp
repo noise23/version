@@ -93,7 +93,7 @@ void ConvertTo(Value& value, bool fAllowNull=false)
         return;
     if (value.type() == str_type)
     {
-        // reinterpret string as unquoted json value
+        // Reinterpret string as unquoted json value
         Value value2;
         string strJSON = value.get_str();
         if (!read_string(strJSON, value2))
