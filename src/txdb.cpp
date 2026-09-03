@@ -125,12 +125,14 @@ CTxDB::CTxDB(const char* pszMode)
 
 void CTxDB::Close()
 {
-    delete txdb;
-    txdb = pdb = NULL;
-    delete options.filter_policy;
-    options.filter_policy = NULL;
-    delete options.block_cache;
-    options.block_cache = NULL;
+    // The LevelDB handle is a process-global singleton shared by every CTxDB
+    // instance (they all copy the global `txdb` pointer into `pdb`). Some
+    // callers invoke Close() on a short-lived CTxDB while an outer CTxDB is
+    // still in use (e.g. Checkpoints::WriteSyncCheckpoint() called from
+    // LoadBlockIndex()); destroying the handle here left those outer objects
+    // with a dangling `pdb` and crashed on the next read/write. LevelDB is
+    // closed for good when the process exits, so here we only drop any
+    // uncommitted batch owned by this instance.
     delete activeBatch;
     activeBatch = NULL;
 }
