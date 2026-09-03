@@ -107,22 +107,26 @@ public:
     }
     bool connect(const std::string &server, const std::string &port) {
         #if (BOOST_VERSION >= 107000)
-        boost::asio::ip::tcp::resolver resolver((boost::asio::io_context &)(stream.get_executor().context()));
+        boost::asio::ip::tcp::resolver resolver(stream.get_executor());
         #else
         boost::asio::ip::tcp::resolver resolver(stream.get_io_service());
         #endif
-        boost::asio::ip::tcp::resolver::query query(server.c_str(), port.c_str());
-        boost::asio::ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-        boost::asio::ip::tcp::resolver::iterator end;
         boost::system::error_code error = boost::asio::error::host_not_found;
-        while (error && endpoint_iterator != end)
-        {
-            stream.lowest_layer().close();
-            stream.lowest_layer().connect(*endpoint_iterator++, error);
-        }
+        // Boost 1.87 removed resolver::query / resolver::iterator; resolve() now
+        // returns a results range that can be iterated directly.
+        boost::asio::ip::tcp::resolver::results_type endpoints =
+            resolver.resolve(server, port, error);
         if (error)
             return false;
-        return true;
+        for (const boost::asio::ip::tcp::resolver::results_type::value_type& entry : endpoints)
+        {
+            stream.lowest_layer().close();
+            error = boost::asio::error::host_not_found;
+            stream.lowest_layer().connect(entry.endpoint(), error);
+            if (!error)
+                return true;
+        }
+        return false;
     }
 
 private:
