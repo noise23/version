@@ -27,7 +27,8 @@ LIBS= \
  -l db_cxx \
  -l ssl \
  -l crypto \
- -l z 
+ -l event \
+ -l z
 
 DEFS=-D_MT -DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -D__USE_MINGW_ANSI_STDIO -D__STDC_FORMAT_MACROS
 DEBUGFLAGS=-g
@@ -60,6 +61,8 @@ OBJS= \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
+    obj/httpserver.o \
+    obj/httprpc.o \
     obj/netbase.o \
     obj/addrman.o \
     obj/cleanse.o \

@@ -30,7 +30,9 @@ LIBS += \
    -l boost_thread$(BOOST_LIB_SUFFIX) \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
-   -l crypto
+   -l crypto \
+   -l event \
+   -l event_pthreads
 
 ifndef USE_UPNP
 	override USE_UPNP = -
@@ -94,6 +96,8 @@ OBJS= \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
+    obj/httpserver.o \
+    obj/httprpc.o \
     obj/netbase.o \
     obj/addrman.o \
     obj/cleanse.o \

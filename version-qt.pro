@@ -225,6 +225,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/rpcserver.h \
     src/rpcprotocol.h \
     src/rpcclient.h \
+    src/httpserver.h \
+    src/httprpc.h \
     src/qt/overviewpage.h \
     src/qt/csvmodelwriter.h \
     src/crypter.h \
@@ -302,6 +304,8 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/rpcserver.cpp \
     src/rpcprotocol.cpp \
     src/rpcclient.cpp \
+    src/httpserver.cpp \
+    src/httprpc.cpp \
     src/rpcdump.cpp \
     src/rpcnet.cpp \
     src/rpcmining.cpp \
@@ -464,6 +468,9 @@ LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
 win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 LIBS += -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
+LIBS += -levent
+!win32:LIBS += -levent_pthreads
+win32:LIBS += -levent_core
 win32:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
 macx:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
 

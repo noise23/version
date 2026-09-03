@@ -27,7 +27,20 @@ static inline unsigned short GetDefaultRPCPort()
   return GetBoolArg("-testnet", false) ? 9909 : 9908;
 };
 
-void ThreadRPCServer(void* parg);
+/** A parsed, single JSON-RPC request. */
+class JSONRequest
+{
+public:
+    json_spirit::Value id;
+    std::string strMethod;
+    json_spirit::Array params;
+
+    JSONRequest() { id = json_spirit::Value::null; }
+    void parse(const json_spirit::Value& valRequest);
+};
+
+/** Execute a batch (array) of JSON-RPC requests, returning the serialized reply. */
+std::string JSONRPCExecBatch(const json_spirit::Array& vReq);
 
 /*
   Type-check arguments; throws JSONRPCError if wrong type given. Does not check that

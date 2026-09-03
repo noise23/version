@@ -1,5 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2013 The Bitcoin developers
+// Copyright (c) 2024 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,10 +10,6 @@
 #include <list>
 #include <map>
 #include <string>
-#include <boost/iostreams/concepts.hpp>
-#include <boost/iostreams/stream.hpp>
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
 
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_utils.h"
@@ -26,7 +23,9 @@ enum HTTPStatusCode
     HTTP_UNAUTHORIZED          = 401,
     HTTP_FORBIDDEN             = 403,
     HTTP_NOT_FOUND             = 404,
+    HTTP_METHOD_NOT_ALLOWED    = 405,
     HTTP_INTERNAL_SERVER_ERROR = 500,
+    HTTP_SERVICE_UNAVAILABLE   = 503,
 };
 
 // Bitcoin RPC error codes
@@ -65,86 +64,6 @@ enum RPCErrorCode
     RPC_WALLET_ALREADY_UNLOCKED     = -17, // Wallet is already unlocked
 };
 
-class AcceptedConnection
-{
-public:
-    virtual ~AcceptedConnection() {}
-
-    virtual std::iostream& stream() = 0;
-    virtual std::string peer_address_to_string() const = 0;
-    virtual void close() = 0;
-};
-
-//
-// IOStream device that speaks SSL but can also speak non-SSL
-//
-template <typename Protocol>
-class SSLIOStreamDevice : public boost::iostreams::device<boost::iostreams::bidirectional> {
-public:
-    SSLIOStreamDevice(boost::asio::ssl::stream<typename Protocol::socket> &streamIn, bool fUseSSLIn) : stream(streamIn)
-    {
-        fUseSSL = fUseSSLIn;
-        fNeedHandshake = fUseSSLIn;
-    }
-
-    void handshake(boost::asio::ssl::stream_base::handshake_type role)
-    {
-        if (!fNeedHandshake) return;
-        fNeedHandshake = false;
-        stream.handshake(role);
-    }
-    std::streamsize read(char* s, std::streamsize n)
-    {
-        handshake(boost::asio::ssl::stream_base::server); // HTTPS servers read first
-        if (fUseSSL) return stream.read_some(boost::asio::buffer(s, n));
-        return stream.next_layer().read_some(boost::asio::buffer(s, n));
-    }
-    std::streamsize write(const char* s, std::streamsize n)
-    {
-        handshake(boost::asio::ssl::stream_base::client); // HTTPS clients write first
-        if (fUseSSL) return boost::asio::write(stream, boost::asio::buffer(s, n));
-        return boost::asio::write(stream.next_layer(), boost::asio::buffer(s, n));
-    }
-    bool connect(const std::string &server, const std::string &port) {
-        #if (BOOST_VERSION >= 107000)
-        boost::asio::ip::tcp::resolver resolver(stream.get_executor());
-        #else
-        boost::asio::ip::tcp::resolver resolver(stream.get_io_service());
-        #endif
-        boost::system::error_code error = boost::asio::error::host_not_found;
-        // Boost 1.87 removed resolver::query / resolver::iterator; resolve() now
-        // returns a results range that can be iterated directly.
-        boost::asio::ip::tcp::resolver::results_type endpoints =
-            resolver.resolve(server, port, error);
-        if (error)
-            return false;
-        for (const boost::asio::ip::tcp::resolver::results_type::value_type& entry : endpoints)
-        {
-            stream.lowest_layer().close();
-            error = boost::asio::error::host_not_found;
-            stream.lowest_layer().connect(entry.endpoint(), error);
-            if (!error)
-                return true;
-        }
-        return false;
-    }
-
-private:
-    bool fNeedHandshake;
-    bool fUseSSL;
-    boost::asio::ssl::stream<typename Protocol::socket>& stream;
-};
-
-std::string HTTPPost(const std::string& strMsg, const std::map<std::string,std::string>& mapRequestHeaders);
-std::string HTTPReply(int nStatus, const std::string& strMsg, bool keepalive,
-                      bool headerOnly = false,
-                      const char *contentType = "application/json");
-bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
-                         std::string& http_method, std::string& http_uri);
-int ReadHTTPStatus(std::basic_istream<char>& stream, int &proto);
-int ReadHTTPHeaders(std::basic_istream<char>& stream, std::map<std::string, std::string>& mapHeadersRet);
-int ReadHTTPMessage(std::basic_istream<char>& stream, std::map<std::string, std::string>& mapHeadersRet,
-                    std::string& strMessageRet, int nProto);
 std::string JSONRPCRequest(const std::string& strMethod, const json_spirit::Array& params, const json_spirit::Value& id);
 json_spirit::Object JSONRPCReplyObj(const json_spirit::Value& result, const json_spirit::Value& error, const json_spirit::Value& id);
 std::string JSONRPCReply(const json_spirit::Value& result, const json_spirit::Value& error, const json_spirit::Value& id);

@@ -11,18 +11,62 @@
 #include "ui_interface.h"
 
 #include <boost/algorithm/string.hpp>
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/iostreams/concepts.hpp>
-#include <boost/iostreams/stream.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include <stdio.h>
+#include <event2/event.h>
+#include <event2/http.h>
+#include <event2/buffer.h>
+#include <event2/keyvalq_struct.h>
+
 using namespace std;
 using namespace boost;
-using namespace boost::asio;
 using namespace json_spirit;
+
+//
+// Exception thrown on connection error.  This error is used to determine
+// when to wait if -rpcwait is given.
+//
+class CConnectionFailed : public std::runtime_error
+{
+public:
+    explicit inline CConnectionFailed(const std::string& msg) :
+        std::runtime_error(msg)
+    {}
+};
+
+/** Reply structure for request_done to fill in */
+struct HTTPReply
+{
+    HTTPReply(): status(0) {}
+    int status;
+    std::string body;
+};
+
+static void http_request_done(struct evhttp_request *req, void *ctx)
+{
+    HTTPReply *reply = static_cast<HTTPReply*>(ctx);
+
+    if (req == NULL) {
+        /* If req is NULL, it means an error occurred while connecting, but
+         * I'm not sure how to find out which one. We also don't really care. */
+        reply->status = 0;
+        return;
+    }
+
+    reply->status = evhttp_request_get_response_code(req);
+
+    struct evbuffer *buf = evhttp_request_get_input_buffer(req);
+    if (buf) {
+        size_t size = evbuffer_get_length(buf);
+        const char *data = (const char*)evbuffer_pullup(buf, size);
+        if (data)
+            reply->body = std::string(data, size);
+        evbuffer_drain(buf, size);
+    }
+}
 
 Object CallRPC(const string& strMethod, const Array& params)
 {
@@ -32,52 +76,68 @@ Object CallRPC(const string& strMethod, const Array& params)
             "If the file does not exist, create it with owner-readable-only file permissions."),
             GetConfigFile().string().c_str()));
 
-    // Connect to localhost
-    bool fUseSSL = GetBoolArg("-rpcssl");
-    asio::io_context io_service;
+    if (GetBoolArg("-rpcssl"))
+        throw runtime_error("SSL mode for RPC (-rpcssl) is no longer supported. Use a reverse proxy (e.g. stunnel) instead.");
 
-        #if (BOOST_VERSION > 106501)
-        ssl::context context(ssl::context::sslv23);
-        #else
-        ssl::context context(io_service, ssl::context::sslv23);
-        #endif
+    std::string host = GetArg("-rpcconnect", "127.0.0.1");
+    int port = GetArg("-rpcport", GetDefaultRPCPort());
 
-    context.set_options(ssl::context::no_sslv2);
-    asio::ssl::stream<asio::ip::tcp::socket> sslStream(io_service, context);
-    SSLIOStreamDevice<asio::ip::tcp> d(sslStream, fUseSSL);
-    iostreams::stream< SSLIOStreamDevice<asio::ip::tcp> > stream(d);
-    if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", itostr(GetDefaultRPCPort()))))
-        throw runtime_error("couldn't connect to server");
+    struct event_base *base = event_base_new();
+    if (!base)
+        throw runtime_error("cannot create event_base");
+
+    struct evhttp_connection *evcon = evhttp_connection_base_new(base, NULL, host.c_str(), port);
+    if (evcon == NULL) {
+        event_base_free(base);
+        throw runtime_error("create connection failed");
+    }
+    evhttp_connection_set_timeout(evcon, GetArg("-rpctimeout", 30));
+
+    HTTPReply response;
+    struct evhttp_request *req = evhttp_request_new(http_request_done, (void*)&response);
+    if (req == NULL) {
+        evhttp_connection_free(evcon);
+        event_base_free(base);
+        throw runtime_error("create http request failed");
+    }
 
     // HTTP basic authentication
     string strUserPass64 = EncodeBase64(mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"]);
-    map<string, string> mapRequestHeaders;
-    mapRequestHeaders["Authorization"] = string("Basic ") + strUserPass64;
+    struct evkeyvalq *output_headers = evhttp_request_get_output_headers(req);
+    assert(output_headers);
+    evhttp_add_header(output_headers, "Host", host.c_str());
+    evhttp_add_header(output_headers, "Connection", "close");
+    evhttp_add_header(output_headers, "Authorization", (string("Basic ") + strUserPass64).c_str());
 
-    // Send request
+    // Attach request data
     string strRequest = JSONRPCRequest(strMethod, params, 1);
-    string strPost = HTTPPost(strRequest, mapRequestHeaders);
-    stream << strPost << std::flush;
+    struct evbuffer *output_buffer = evhttp_request_get_output_buffer(req);
+    assert(output_buffer);
+    evbuffer_add(output_buffer, strRequest.data(), strRequest.size());
 
-    // Receive HTTP reply status
-    int nProto = 0;
-    int nStatus = ReadHTTPStatus(stream, nProto);
+    int r = evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/");
+    if (r != 0) {
+        evhttp_connection_free(evcon);
+        event_base_free(base);
+        throw CConnectionFailed("send http request failed");
+    }
 
-    // Receive HTTP reply message headers and body
-    map<string, string> mapHeaders;
-    string strReply;
-    ReadHTTPMessage(stream, mapHeaders, strReply, nProto);
+    event_base_dispatch(base);
+    evhttp_connection_free(evcon);
+    event_base_free(base);
 
-    if (nStatus == HTTP_UNAUTHORIZED)
+    if (response.status == 0)
+        throw CConnectionFailed("couldn't connect to server");
+    else if (response.status == HTTP_UNAUTHORIZED)
         throw runtime_error("incorrect rpcuser or rpcpassword (authorization failed)");
-    else if (nStatus >= 400 && nStatus != HTTP_BAD_REQUEST && nStatus != HTTP_NOT_FOUND && nStatus != HTTP_INTERNAL_SERVER_ERROR)
-        throw runtime_error(strprintf("server returned HTTP error %d", nStatus));
-    else if (strReply.empty())
+    else if (response.status >= 400 && response.status != HTTP_BAD_REQUEST && response.status != HTTP_NOT_FOUND && response.status != HTTP_INTERNAL_SERVER_ERROR)
+        throw runtime_error(strprintf("server returned HTTP error %d", response.status));
+    else if (response.body.empty())
         throw runtime_error("no response from server");
 
     // Parse reply
     Value valReply;
-    if (!read_string(strReply, valReply))
+    if (!read_string(response.body, valReply))
         throw runtime_error("couldn't parse reply from server");
     const Object& reply = valReply.get_obj();
     if (reply.empty())
@@ -192,30 +252,44 @@ int CommandLineRPC(int argc, char *argv[])
         std::vector<std::string> strParams(&argv[2], &argv[argc]);
         Array params = RPCConvertValues(strMethod, strParams);
 
-        // Execute
-        Object reply = CallRPC(strMethod, params);
+        // Execute and handle connection failures with -rpcwait
+        const bool fWait = GetBoolArg("-rpcwait", false);
+        do {
+            try {
+                Object reply = CallRPC(strMethod, params);
 
-        // Parse reply
-        const Value& result = find_value(reply, "result");
-        const Value& error  = find_value(reply, "error");
+                // Parse reply
+                const Value& result = find_value(reply, "result");
+                const Value& error  = find_value(reply, "error");
 
-        if (error.type() != null_type)
-        {
-            // Error
-            strPrint = "error: " + write_string(error, false);
-            int code = find_value(error.get_obj(), "code").get_int();
-            nRet = abs(code);
-        }
-        else
-        {
-            // Result
-            if (result.type() == null_type)
-                strPrint = "";
-            else if (result.type() == str_type)
-                strPrint = result.get_str();
-            else
-                strPrint = write_string(result, true);
-        }
+                if (error.type() != null_type)
+                {
+                    // Error
+                    strPrint = "error: " + write_string(error, false);
+                    int code = find_value(error.get_obj(), "code").get_int();
+                    nRet = abs(code);
+                }
+                else
+                {
+                    // Result
+                    if (result.type() == null_type)
+                        strPrint = "";
+                    else if (result.type() == str_type)
+                        strPrint = result.get_str();
+                    else
+                        strPrint = write_string(result, true);
+                }
+                // Connection succeeded, no need to retry.
+                break;
+            }
+            catch (const CConnectionFailed&)
+            {
+                if (fWait)
+                    MilliSleep(1000);
+                else
+                    throw;
+            }
+        } while (fWait);
     }
     catch (std::exception& e)
     {

@@ -9,6 +9,8 @@
 #include "walletdb.h"
 #include "rpcserver.h"
 #include "rpcclient.h"
+#include "httpserver.h"
+#include "httprpc.h"
 #include "net.h"
 #include "util.h"
 #include "ui_interface.h"
@@ -83,6 +85,9 @@ void Shutdown(void* parg)
     {
         fShutdown = true;
         nTransactionsUpdated++;
+        InterruptHTTPServer();
+        StopHTTPRPC();
+        StopHTTPServer();
 //        CTxDB().Close();
         if (pwalletMain)
             bitdb.Flush(false);
@@ -893,7 +898,13 @@ bool AppInit2()
         InitError(_("Error: could not start node"));
 
     if (fServer)
-        NewThread(ThreadRPCServer, NULL);
+    {
+        uiInterface.InitMessage(_("Starting HTTP RPC server..."));
+        if (!StartHTTPServer())
+            return InitError(_("Unable to start HTTP RPC server, see debug.log for details"));
+        if (!StartHTTPRPC())
+            return InitError(_("Unable to start HTTP RPC server, see debug.log for details"));
+    }
 
     // ********************************************************* Step 12: finished
 
@@ -908,8 +919,9 @@ bool AppInit2()
         pwalletMain->ReacceptWalletTransactions();
 
 #if !defined(QT_GUI)
-    // Loop until process is exit()ed from shutdown() function,
-    // called from ThreadRPCServer thread when a "stop" command is received.
+    // Loop until process is exit()ed from Shutdown(), which is started in its
+    // own thread from StartShutdown() (e.g. when the "stop" RPC is received by
+    // an HTTP worker thread, or on SIGTERM).
     while (1)
         MilliSleep(5000);
 #endif

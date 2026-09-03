@@ -34,6 +34,8 @@ LIBS += \
  $(DEPSDIR)/lib/libboost_thread-mt.a \
  $(DEPSDIR)/lib/libssl.a \
  $(DEPSDIR)/lib/libcrypto.a \
+ $(DEPSDIR)/lib/libevent.a \
+ $(DEPSDIR)/lib/libevent_pthreads.a \
  -lz
 else
 LIBS += \
@@ -43,6 +45,8 @@ LIBS += \
  -lboost_thread-mt \
  -lssl \
  -lcrypto \
+ -levent \
+ -levent_pthreads \
  -lz
 endif
 
@@ -70,6 +74,8 @@ OBJS= \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
+    obj/httpserver.o \
+    obj/httprpc.o \
     obj/netbase.o \
     obj/addrman.o \
     obj/cleanse.o \
