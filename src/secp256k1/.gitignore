@@ -46,7 +46,9 @@ coverage.*.html
 *.gcno
 *.gcov
 
-/autotools-aux/
+/autotools-aux/*
+!/autotools-aux/m4/
+/autotools-aux/m4/*
 !/autotools-aux/m4/bitcoin_secp.m4
 
 libsecp256k1.pc
