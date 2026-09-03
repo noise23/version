@@ -8,6 +8,7 @@
 
 #include "uint256.h"
 
+#include <limits>
 #include <stdint.h>
 
 /* Seed OpenSSL PRNG with additional entropy data */
@@ -26,6 +27,24 @@ uint256 GetRandHash();
  * of those source fail to provide a result.
  */
 void GetStrongRandBytes(unsigned char* buf, int num);
+
+/**
+ * UniformRandomBitGenerator adaptor over the OpenSSL PRNG so it can be passed
+ * to standard algorithms such as std::shuffle (which replaced the removed
+ * std::random_shuffle in C++17).
+ */
+struct RandomBitGenerator
+{
+    typedef uint64_t result_type;
+    static constexpr result_type min() { return 0; }
+    static constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
+    result_type operator()()
+    {
+        result_type r;
+        GetRandBytes(reinterpret_cast<unsigned char*>(&r), sizeof(r));
+        return r;
+    }
+};
 
 /**
  * Seed insecure_rand using the random pool.

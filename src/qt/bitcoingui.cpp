@@ -1126,7 +1126,7 @@ void BitcoinGUI::stakeMinerToggle(bool fInitial) {
 
     if(fInitial) {
         fStakingInt = GetBoolArg("-staking", fStaking);
-        fStakingInt = ~fStakingInt & 0x1;
+        fStakingInt = !fStakingInt;
     }
 
     if(fStakingInt) {
