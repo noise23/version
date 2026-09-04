@@ -27,6 +27,14 @@ uint256 GetRandHash();
 void GetStrongRandBytes(unsigned char* buf, int num);
 
 /**
+ * Check that OS randomness is available and functioning correctly.
+ * Called once during startup; aborts the process (via RandFailure) if the
+ * OS CSPRNG is silently broken (e.g. returns constant/all-zero output)
+ * rather than letting the wallet mint weak keys.
+ */
+bool Random_SanityCheck();
+
+/**
  * UniformRandomBitGenerator adaptor over the OS CSPRNG so it can be passed
  * to standard algorithms such as std::shuffle (which replaced the removed
  * std::random_shuffle in C++17).

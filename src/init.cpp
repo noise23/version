@@ -324,6 +324,11 @@ bool InitSanityCheck(void)
         return false;
     }
 
+    if(!Random_SanityCheck()) {
+        InitError("OS randomness sanity check failed. Aborting.");
+        return false;
+    }
+
     // TODO: remaining sanity checks, see #4081
 
     return true;

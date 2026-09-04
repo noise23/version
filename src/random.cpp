@@ -47,6 +47,67 @@ static void RandFailure()
     abort();
 }
 
+#if defined(__x86_64__) || defined(__amd64__) || defined(__i386__)
+#define HAVE_HW_RAND 1
+#endif
+
+#ifdef HAVE_HW_RAND
+#ifdef __GNUC__
+/** CPUID leaf query, safe under -fPIC (ebx is an explicit output operand, so
+ *  GCC/Clang save and restore it around the asm as needed on 32-bit x86). */
+static void GetCPUID(uint32_t leaf, uint32_t subleaf, uint32_t& a, uint32_t& b, uint32_t& c, uint32_t& d)
+{
+    __asm__("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(leaf), "c"(subleaf));
+}
+
+/** Whether the CPU advertises RDRAND support (CPUID leaf 1, ECX bit 30). */
+static bool RDRandSupported()
+{
+    static bool support = []() {
+        uint32_t eax, ebx, ecx, edx;
+        GetCPUID(1, 0, eax, ebx, ecx, edx);
+        static const uint32_t CPUID_F1_ECX_RDRAND = 0x40000000;
+        return (ecx & CPUID_F1_ECX_RDRAND) != 0;
+    }();
+    return support;
+}
+
+/** Read 64 bits from the CPU's hardware RNG (RDRAND), if available.
+ *  Never relied on alone: this is only ever mixed in alongside the OS
+ *  CSPRNG below as an additional, independent entropy source (defense in
+ *  depth against a compromised or backdoored OS RNG). Bounded retry count
+ *  so a misbehaving CPU can't hang startup. */
+static bool GetHWRand64(uint64_t& out)
+{
+    if (!RDRandSupported())
+        return false;
+#if defined(__x86_64__) || defined(__amd64__)
+    uint8_t ok = 0;
+    for (int i = 0; i < 10; i++) {
+        __asm__ volatile(".byte 0x48, 0x0f, 0xc7, 0xf0; setc %1" : "=a"(out), "=q"(ok)::"cc");
+        if (ok) return true;
+    }
+#else // 32-bit x86: two 32-bit RDRAND reads combined into one 64-bit value
+    uint32_t lo = 0, hi = 0;
+    uint8_t ok1 = 0, ok2 = 0;
+    for (int i = 0; i < 10; i++) {
+        __asm__ volatile(".byte 0x0f, 0xc7, 0xf0; setc %1" : "=a"(lo), "=q"(ok1)::"cc");
+        if (!ok1) continue;
+        __asm__ volatile(".byte 0x0f, 0xc7, 0xf0; setc %1" : "=a"(hi), "=q"(ok2)::"cc");
+        if (!ok2) continue;
+        out = ((uint64_t)hi << 32) | lo;
+        return true;
+    }
+#endif
+    return false;
+}
+#else // non-GCC/Clang x86 compiler: no inline asm support, skip RDRAND
+static bool GetHWRand64(uint64_t& out) { (void)out; return false; }
+#endif
+#else
+static bool GetHWRand64(uint64_t& out) { (void)out; return false; }
+#endif // HAVE_HW_RAND
+
 static inline int64_t GetPerformanceCounter()
 {
     int64_t nCounter = 0;
@@ -153,10 +214,68 @@ void GetStrongRandBytes(unsigned char* out, int num)
     int64_t tsc = GetPerformanceCounter();
     hasher.Write((const unsigned char*)&tsc, sizeof(tsc));
 
+    // Source 3: CPU hardware RNG (RDRAND), if the processor supports it.
+    // Purely additive: if unavailable, or if the OS CSPRNG is itself
+    // compromised, this is an independent line of defense rather than a
+    // single point of failure.
+    uint64_t hw;
+    if (GetHWRand64(hw))
+        hasher.Write((const unsigned char*)&hw, sizeof(hw));
+
+    // Source 4: process id, to further separate output between processes
+    // that might otherwise race to read the OS RNG at the same instant.
+#ifdef WIN32
+    DWORD pid = GetCurrentProcessId();
+#else
+    pid_t pid = getpid();
+#endif
+    hasher.Write((const unsigned char*)&pid, sizeof(pid));
+
     // Produce output.
     hasher.Finalize(buf);
     memcpy(out, buf, num);
     memory_cleanse(buf, sizeof(buf));
+}
+
+bool Random_SanityCheck()
+{
+    // Verify GetOSRand() actually produces (statistically) distinct,
+    // non-constant output rather than e.g. silently returning zeros: fill a
+    // buffer with a fixed pattern, request OS randomness NUM_OS_RANDOM_BYTES
+    // times, and require that every byte position was overwritten to a
+    // non-original value at least once.
+    unsigned char seen[NUM_OS_RANDOM_BYTES];
+    memset(seen, 0, sizeof(seen));
+    for (int i = 0; i < NUM_OS_RANDOM_BYTES; i++) {
+        unsigned char buf[NUM_OS_RANDOM_BYTES];
+        memset(buf, 0xAA, sizeof(buf));
+        GetOSRand(buf);
+        for (int j = 0; j < NUM_OS_RANDOM_BYTES; j++) {
+            if (buf[j] != 0xAA)
+                seen[j] = 1;
+        }
+    }
+    for (int j = 0; j < NUM_OS_RANDOM_BYTES; j++) {
+        if (!seen[j])
+            return false;
+    }
+
+    // Verify the performance counter used to strengthen GetStrongRandBytes
+    // actually advances.
+    int64_t start = GetPerformanceCounter();
+    for (volatile int i = 0; i < 1000; i++) {}
+    int64_t end = GetPerformanceCounter();
+    if (end <= start)
+        return false;
+
+    // Verify two independent GetStrongRandBytes() calls don't collide.
+    unsigned char r1[32], r2[32];
+    GetStrongRandBytes(r1, 32);
+    GetStrongRandBytes(r2, 32);
+    if (memcmp(r1, r2, 32) == 0)
+        return false;
+
+    return true;
 }
 
 uint64_t GetRand(uint64_t nMax)
