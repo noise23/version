@@ -1,10 +1,10 @@
-.TH BITCOIND "1" "January 2011" "bitcoind 3.19" 
+.TH VERSIOND "1" "January 2011" "bitcoind 3.19"
 .SH NAME
 bitcoind \- peer-to-peer network based digital currency
 .SH SYNOPSIS
-bitcoin [options] <command> [params]  
+version [options] <command> [params]
 .TP
-bitcoin [options] help <command> - Get help for a command
+version [options] help <command> - Get help for a command
 .SH DESCRIPTION
 This  manual page documents the bitcoind program. Bitcoin is a peer-to-peer digital currency. Peer-to-peer (P2P) means that there is no central authority to issue new money or keep track of transactions. Instead, these tasks are managed collectively by the nodes of the network. Advantages:
 
@@ -13,7 +13,7 @@ Bitcoins can be sent easily through the Internet, without having to trust middle
 .SH OPTIONS
 .TP
 \fB\-conf=\fR<file>
-Specify configuration file (default: bitcoin.conf)
+Specify configuration file (default: version.conf)
 .TP
 \fB\-gen\fR
 Generate coins
@@ -63,19 +63,9 @@ Allow JSON\-RPC connections from specified IP address
 \fB\-rpcconnect=\fR<ip>
 Send commands to node running on <ip>
 .PP
-SSL options: (see the Bitcoin Wiki for SSL setup instructions)
-.TP
-\fB\-rpcssl\fR=\fI1\fR
-Use OpenSSL (https) for JSON\-RPC connections
-.TP
-\fB\-rpcsslcertificatchainfile=\fR<file.cert>
-Server certificate file (default: server.cert)
-.TP
-\fB\-rpcsslprivatekeyfile=\fR<file.pem>
-Server private key (default: server.pem)
-.TP
-\fB\-rpcsslciphers=\fR<ciphers>
-Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)
+Note: \fB\-rpcssl\fR is no longer supported; the RPC server no longer links
+OpenSSL. Put a TLS\-terminating reverse proxy (e.g. stunnel, nginx) in front
+of the RPC port if you need encrypted JSON\-RPC.
 .TP
 \-?
 This help message
@@ -91,7 +81,7 @@ Returns the account associated with the given address.
 Sets the ['account'] associated with the given address. ['account'] may be omitted to remove an address from ['account'].
 .TP
 \fBgetaccountaddress 'account'\fR
-Returns a new bitcoin address for 'account'.
+Returns a new version address for 'account'.
 .TP
 \fBgetaddressesbyaccount 'account'\fR
 Returns the list of addresses associated with the given 'account'.
@@ -112,7 +102,7 @@ Returns the number of connections to other nodes.
 Returns the proof-of-work difficulty as a multiple of the minimum difficulty.
 .TP
 \fBgetgenerate\fR
-Returns boolean true if server is trying to generate bitcoins, false otherwise.
+Returns boolean true if server is trying to generate V-coins, false otherwise.
 .TP
 \fBsetgenerate 'generate' ['genproclimit']\fR
 Generation is limited to ['genproclimit'] processors, -1 is unlimited.
@@ -124,7 +114,7 @@ Returns a recent hashes per second performance measurement while generating.
 Returns an object containing server information.
 .TP
 \fBgetnewaddress 'account'\fR
-Returns a new bitcoin address for receiving payments. If 'account' is specified (recommended), it is added to the address book so payments received with the address will be credited to 'account'.
+Returns a new Version address for receiving payments. If 'account' is specified (recommended), it is added to the address book so payments received with the address will be credited to 'account'.
 .TP
 \fBgetreceivedbyaccount 'account' ['minconf=1']\fR
 Returns the total amount received by addresses associated with 'account' in transactions with at least ['minconf'] confirmations.
@@ -189,10 +179,10 @@ Sends amount from account's balance to 'bitcoinaddress'. This method will fail i
 Sends amount from the server's available balance to 'bitcoinaddress'. amount is a real and is rounded to the nearest 0.01. Returns transaction id on success.
 .TP    
 \fBstop\fR
-Stops the bitcoin server.
+Stops the Version server.
 .TP    
 \fBvalidateaddress 'bitcoinaddress'\fR
-Checks that 'bitcoinaddress' looks like a proper bitcoin address. Returns an object containing:
+Checks that 'bitcoinaddress' looks like a proper Version address. Returns an object containing:
 
     "isvalid" : true or false.
     "ismine"  : true if the address is in the server's wallet.
@@ -201,7 +191,7 @@ Checks that 'bitcoinaddress' looks like a proper bitcoin address. Returns an obj
     *note: ismine and address are only returned if the address is valid.
 
 .SH "SEE ALSO"
-bitcoin.conf(5)
+version.conf(5)
 .SH AUTHOR
 This manual page was written by Micah Anderson <micah@debian.org> for the Debian system (but may be used by others). Permission is granted to copy, distribute and/or modify this document under the terms of the GNU General Public License, Version 3 or any later version published by the Free Software Foundation.
 

@@ -1,10 +1,7 @@
 Copyright (c) 2009-2012 Bitcoin Developers
 Distributed under the MIT/X11 software license, see the accompanying
 file license.txt or http://www.opensource.org/licenses/mit-license.php.
-This product includes software developed by the OpenSSL Project for use in
-the OpenSSL Toolkit (http://www.openssl.org/).  This product includes
-cryptographic software written by Eric Young (eay@cryptsoft.com) and UPnP
-software written by Thomas Bernard.
+This product includes UPnP software written by Thomas Bernard.
 
 
 See readme-qt.rst for instructions on building Bitcoin QT, the
@@ -24,33 +21,26 @@ Dependencies
 Libraries you need to download separately and build:
 
                 default path               download
-OpenSSL         \openssl-1.0.1b-mgw        http://www.openssl.org/source/
+libevent        \libevent-2.1.12-mgw       https://libevent.org/
 Berkeley DB     \db-4.8.30.NC-mgw          http://www.oracle.com/technology/software/products/berkeley-db/index.html
 Boost           \boost-1.47.0-mgw          http://www.boost.org/users/download/
 miniupnpc       \miniupnpc-1.6-mgw         http://miniupnp.tuxfamily.org/files/
 
 Their licenses:
-OpenSSL        Old BSD license with the problematic advertising requirement
+libevent       3-clause BSD license
 Berkeley DB    New BSD license with additional requirement that linked software must be free open source
 Boost          MIT-like license
 miniupnpc      New (3-clause) BSD license
 
 Versions used in this release:
-OpenSSL      1.0.1b
+libevent     2.1.12
 Berkeley DB  4.8.30.NC
 Boost        1.47.0
 miniupnpc    1.6
 
-
-OpenSSL
--------
-MSYS shell:
-un-tar sources with MSYS 'tar xfz' to avoid issue with symlinks (OpenSSL ticket 2377)
-change 'MAKE' env. variable from 'C:\MinGW32\bin\mingw32-make.exe' to '/c/MinGW32/bin/mingw32-make.exe'
-
-cd /c/openssl-1.0.1b-mgw
-./config
-make
+Note: OpenSSL is not used - secp256k1 (bundled) provides EC signing/verification,
+and SHA/RIPEMD/AES are in-tree implementations. Randomness comes from
+BCryptGenRandom, not OpenSSL's RNG.
 
 Berkeley DB
 -----------
@@ -76,9 +66,9 @@ make -f Makefile.mingw
 mkdir miniupnpc
 cp *.h miniupnpc/
 
-Bitcoin
+Version
 -------
 DOS prompt:
-cd \bitcoin\src
+cd \version\src
 mingw32-make -f makefile.mingw
-strip bitcoind.exe
+strip versiond.exe

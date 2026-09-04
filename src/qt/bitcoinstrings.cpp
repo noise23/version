@@ -66,13 +66,10 @@ QT_TRANSLATE_NOOP("bitcoin-core", "How many blocks to check at startup (default:
 QT_TRANSLATE_NOOP("bitcoin-core", "How thorough the block verification is (0-6, default: 1)"),
 QT_TRANSLATE_NOOP("bitcoin-core", ""
 "\n"
-"SSL options: (see the Bitcoin Wiki for SSL setup instructions)"),
-QT_TRANSLATE_NOOP("bitcoin-core", "Use OpenSSL (https) for JSON-RPC connections"),
-QT_TRANSLATE_NOOP("bitcoin-core", "Server certificate file (default: server.cert)"),
-QT_TRANSLATE_NOOP("bitcoin-core", "Server private key (default: server.pem)"),
+"Note: -rpcssl is no longer supported (the RPC server no longer links OpenSSL)."),
 QT_TRANSLATE_NOOP("bitcoin-core", ""
-"Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:"
-"@STRENGTH)"),
+"      Put a TLS-terminating reverse proxy (e.g. stunnel, nginx) in front of "
+"the RPC port instead."),
 QT_TRANSLATE_NOOP("bitcoin-core", "This help message"),
 QT_TRANSLATE_NOOP("bitcoin-core", "Usage"),
 QT_TRANSLATE_NOOP("bitcoin-core", ""

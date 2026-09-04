@@ -20,7 +20,7 @@ which holds a salt and random encryption key.
 
 CMasterKeys are encrypted using AES-256-CBC using a key
 derived using derivation method nDerivationMethod
-(0 == EVP_sha512()) and derivation iterations nDeriveIterations.
+(0 == SHA512-based, in-tree implementation) and derivation iterations nDeriveIterations.
 vchOtherDerivationParameters is provided for alternative algorithms
 which may require more parameters (such as scrypt).
 
@@ -35,7 +35,7 @@ class CMasterKey
 public:
     std::vector<unsigned char> vchCryptedKey;
     std::vector<unsigned char> vchSalt;
-    // 0 = EVP_sha512()
+    // 0 = SHA512-based (in-tree implementation, see BytesToKeySHA512AES)
     // 1 = scrypt()
     unsigned int nDerivationMethod;
     unsigned int nDeriveIterations;

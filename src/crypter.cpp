@@ -16,7 +16,7 @@
 
 int CCrypter::BytesToKeySHA512AES(const std::vector<unsigned char>& chSalt, const SecureString& strKeyData, int count, unsigned char *key,unsigned char *iv) const
 {
-    // This mimics the behavior of openssl's EVP_BytesToKey with an aes256cbc
+    // This reproduces the key/IV derivation OpenSSL's EVP_BytesToKey used for aes-256-cbc (kept for wallet.dat compatibility; no OpenSSL call involved)
     // cipher and sha512 message digest. Because sha512's output size (64b) is
     // greater than the aes256 block size (16b) + aes256 key size (32b),
     // there's no need to process more than once (D_0).

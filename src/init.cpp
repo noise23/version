@@ -307,11 +307,8 @@ std::string HelpMessage()
         "  -?                     " + _("This help message") + "\n";
 
     strUsage += string() +
-        _("\nSSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n" +
-        "  -rpcssl                                  " + _("Use OpenSSL (https) for JSON-RPC connections") + "\n" +
-        "  -rpcsslcertificatechainfile=<file.cert>  " + _("Server certificate file (default: server.cert)") + "\n" +
-        "  -rpcsslprivatekeyfile=<file.pem>         " + _("Server private key (default: server.pem)") + "\n" +
-        "  -rpcsslciphers=<ciphers>                 " + _("Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)") + "\n";
+        _("\nNote: -rpcssl is no longer supported (the RPC server no longer links OpenSSL).") + "\n" +
+        _("      Put a TLS-terminating reverse proxy (e.g. stunnel, nginx) in front of the RPC port instead.") + "\n";
 
     return strUsage;
 }

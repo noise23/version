@@ -86,13 +86,13 @@ public:
     // Check whether the public key corresponding to this private key is (to be) compressed.
     bool IsCompressed() const { return fCompressed; }
 
-    // Initialize from a CPrivKey (serialized OpenSSL private key data).
+    // Initialize from a CPrivKey (a DER-encoded EC private key, parsed via libsecp256k1).
     bool SetPrivKey(const CPrivKey &vchPrivKey, bool fCompressed);
 
     // Generate a new private key using a cryptographic PRNG.
     void MakeNewKey(bool fCompressed);
 
-    // Convert the private key to a CPrivKey (serialized OpenSSL private key data).
+    // Convert the private key to a CPrivKey (a DER-encoded EC private key, via libsecp256k1).
     // This is expensive.
     CPrivKey GetPrivKey() const;
 
