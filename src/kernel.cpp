@@ -320,92 +320,101 @@ continued heavy CPU use.
 
 uint256 stakeHash(unsigned int nTimeTx, unsigned int nTxPrevTime, CDataStream ss, unsigned int prevoutIndex, unsigned int nTxPrevOffset, unsigned int nTimeBlockFrom)
 {
-	ss << nTimeBlockFrom << nTxPrevOffset << nTxPrevTime << prevoutIndex << nTimeTx;
-	return Hash(ss.begin(), ss.end());
+    ss << nTimeBlockFrom << nTxPrevOffset << nTxPrevTime << prevoutIndex << nTimeTx;
+    return Hash(ss.begin(), ss.end());
 }
 
 //HyperStake test hash vs target
-bool stakeTargetHit(uint256 hashProofOfStake, unsigned int nAge, int64_t nValueIn, CBigNum bnTargetPerCoinDay)
-{	
-	//get the stake weight
-	int64_t nTimeWeight = min((int64_t)nAge, (int64_t)nStakeMaxAge) - nStakeMinAge;
-	CBigNum bnCoinDayWeight = CBigNum(nValueIn) * nTimeWeight / COIN / (24 * 60 * 60);
-	
-	// Now check if proof-of-stake hash meets target protocol
-	return (CBigNum(hashProofOfStake) < bnCoinDayWeight * bnTargetPerCoinDay);
+bool stakeTargetHit(uint256 hashProofOfStake, unsigned int nAge, int64_t nValueIn, uint256 bnTargetPerCoinDay)
+{
+    //get the stake weight
+    int64_t nTimeWeight = min((int64_t)nAge, (int64_t)nStakeMaxAge) - nStakeMinAge;
+
+    // A non-positive weight can never satisfy the target: with CBigNum the
+    // weighted target was <= 0 and (hash < non-positive) is always false.
+    if (nTimeWeight <= 0)
+        return false;
+
+    // Coin-day weight fits comfortably in 256 bits.
+    uint256 bnCoinDayWeight = uint256((uint64_t)nValueIn) * uint256((uint64_t)nTimeWeight)
+                            / uint256((uint64_t)COIN) / uint256((uint64_t)(24 * 60 * 60));
+
+    // weight * target can exceed 256 bits given V's PoS difficulty limit,
+    // so compare in 512-bit space - bit-identical to the old CBigNum path.
+    return uint512(hashProofOfStake) < uint512(bnCoinDayWeight) * uint512(bnTargetPerCoinDay);
 }
 
 //instead of looping outside and reinitializing variables many times, we will give a nTimeTx and also search interval so that we can do all the hashing here
 bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset, const CTransaction& txPrev, 
-	const COutPoint& prevout, unsigned int& nTimeTx, unsigned int nHashDrift, bool fCheck, uint256& hashProofOfStake, bool fPrintProofOfStake)
+    const COutPoint& prevout, unsigned int& nTimeTx, unsigned int nHashDrift, bool fCheck, uint256& hashProofOfStake, bool fPrintProofOfStake)
 {
     //assign new variables to make it easier to read
-	int64_t nValueIn = txPrev.vout[prevout.n].nValue;
-	unsigned int nTxPrevTime = txPrev.nTime;
-	unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
+    int64_t nValueIn = txPrev.vout[prevout.n].nValue;
+    unsigned int nTxPrevTime = txPrev.nTime;
+    unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
 
     if (nTimeTx < txPrev.nTime)  // Transaction timestamp violation
 //        return error("CheckStakeKernelHash() : nTime violation");
-		return false;
+        return false;
 
     if (nTimeBlockFrom + nStakeMinAge > nTimeTx) // Min age requirement
 //        return error("CheckStakeKernelHash() : min age violation");
-		return false;
+        return false;
 
-	//grab difficulty
-    CBigNum bnTargetPerCoinDay;
+    //grab difficulty
+    uint256 bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
-	
-	//grab stake modifier - HyperStake improves hashing by only grabbing this once per utxo
+
+    //grab stake modifier - HyperStake improves hashing by only grabbing this once per utxo
     uint64_t nStakeModifier = 0;
     int nStakeModifierHeight = 0;
     int64_t nStakeModifierTime = 0;
-	if (!GetKernelStakeModifier(blockFrom.GetHash(), nStakeModifier, nStakeModifierHeight, nStakeModifierTime, fPrintProofOfStake))
-		return false;
-	
-	//create data stream once instead of repeating it in the loop
-	CDataStream ss(SER_GETHASH, 0);
+    if (!GetKernelStakeModifier(blockFrom.GetHash(), nStakeModifier, nStakeModifierHeight, nStakeModifierTime, fPrintProofOfStake))
+        return false;
+
+    //create data stream once instead of repeating it in the loop
+    CDataStream ss(SER_GETHASH, 0);
         ss << nStakeModifier;
 
-	//if wallet is simply checking to make sure a hash is valid
-	if(fCheck)
- 	{
-		hashProofOfStake = stakeHash(nTimeTx, nTxPrevTime, ss, prevout.n, nTxPrevOffset, nTimeBlockFrom); 
-		return stakeTargetHit(hashProofOfStake, (int64_t)nTimeTx - nTxPrevTime, nValueIn, bnTargetPerCoinDay);
- 	}	
-	
+    //if wallet is simply checking to make sure a hash is valid
+    if(fCheck)
+    {
+        hashProofOfStake = stakeHash(nTimeTx, nTxPrevTime, ss, prevout.n, nTxPrevOffset, nTimeBlockFrom);
+        return stakeTargetHit(hashProofOfStake, (int64_t)nTimeTx - nTxPrevTime, nValueIn, bnTargetPerCoinDay);
+    }
+
     bool fSuccess = false;
-	unsigned int nTryTime = 0;
-	unsigned int i;
-	for(i = 0; i < (nHashDrift); i++) //iterate the hashing
- 	{
+    unsigned int nTryTime = 0;
+    unsigned int i;
+    for(i = 0; i < (nHashDrift); i++) //iterate the hashing
+    {
         //hash this iteration
-		nTryTime = nTimeTx + nHashDrift - i;
-		hashProofOfStake = stakeHash(nTryTime, nTxPrevTime, ss, prevout.n, nTxPrevOffset, nTimeBlockFrom); 
+        nTryTime = nTimeTx + nHashDrift - i;
+        hashProofOfStake = stakeHash(nTryTime, nTxPrevTime, ss, prevout.n, nTxPrevOffset, nTimeBlockFrom);
 
-		// if stake hash does not meet the target then continue to next iteration
-		if(!stakeTargetHit(hashProofOfStake, (int64_t)nTimeTx - nTxPrevTime, nValueIn, bnTargetPerCoinDay))
-			continue;
-		
-		fSuccess = true; // if we make it this far then we have successfully created a stake hash 
-		nTimeTx = nTryTime;
-		
-		if (fDebug || fPrintProofOfStake)
-		{
-			printf("CheckStakeKernelHash() : using modifier 0x%016" PRIx64 " at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
-				nStakeModifier, nStakeModifierHeight, 
-				DateTimeStrFormat(nStakeModifierTime).c_str(),
-				mapBlockIndex[blockFrom.GetHash()]->nHeight,
-				DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
-			printf("CheckStakeKernelHash() : pass protocol=%s modifier=0x%016" PRIx64 " nTimeBlockFrom=%u nTxPrevOffset=%u nTimeTxPrev=%u nPrevout=%u nTimeTx=%u hashProof=%s\n",
-				"0.3",
-				nStakeModifier,
-				nTimeBlockFrom, nTxPrevOffset, nTxPrevTime, prevout.n, nTryTime,
-				hashProofOfStake.ToString().c_str());
-		}
- 	}
+        // if stake hash does not meet the target then continue to next iteration
+        if(!stakeTargetHit(hashProofOfStake, (int64_t)nTimeTx - nTxPrevTime, nValueIn, bnTargetPerCoinDay))
+                continue;
 
-	mapHashedBlocks[nBestHeight] = GetTime(); //store a time stamp of when we last hashed on this block
+        fSuccess = true; // if we make it this far then we have successfully created a stake hash
+        nTimeTx = nTryTime;
+
+        if (fDebug || fPrintProofOfStake)
+        {
+            printf("CheckStakeKernelHash() : using modifier 0x%016" PRIx64 " at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
+                nStakeModifier, nStakeModifierHeight,
+                DateTimeStrFormat(nStakeModifierTime).c_str(),
+                mapBlockIndex[blockFrom.GetHash()]->nHeight,
+                DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
+            printf("CheckStakeKernelHash() : pass protocol=%s modifier=0x%016" PRIx64 " nTimeBlockFrom=%u nTxPrevOffset=%u nTimeTxPrev=%u nPrevout=%u nTimeTx=%u hashProof=%s\n",
+                "0.3",
+                nStakeModifier,
+                nTimeBlockFrom, nTxPrevOffset, nTxPrevTime, prevout.n, nTryTime,
+                hashProofOfStake.ToString().c_str());
+        }
+    }
+
+    mapHashedBlocks[nBestHeight] = GetTime(); //store a time stamp of when we last hashed on this block
     return fSuccess;
  }
  
@@ -453,7 +462,7 @@ bool CheckCoinStakeTimestamp(int64_t nTimeBlock, int64_t nTimeTx)
 unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex)
 {
     if(!fTestNet)
-	    assert (pindex->pprev || pindex->GetBlockHash() == hashGenesisBlock);
+        assert (pindex->pprev || pindex->GetBlockHash() == hashGenesisBlock);
     
     // Hash previous checksum with flags, hashProofOfStake and nStakeModifier
     CDataStream ss(SER_GETHASH, 0);

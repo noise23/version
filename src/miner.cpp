@@ -329,7 +329,8 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     uint256 hashblock = pblock->GetHash();
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    uint256 hashTarget;
+    hashTarget.SetCompact(pblock->nBits);
 
     if(!pblock->IsProofOfWork())
         return error("CheckWork() : %s is not a proof-of-work block", hashblock.GetHex().c_str());
@@ -492,7 +493,8 @@ void BitcoinMiner(CWallet *pwallet, bool fProofOfStake)
         // Search
         //
         int64_t nStart = GetTime();
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashTarget;
+        hashTarget.SetCompact(pblock->nBits);
         uint256 hash;
         uint32_t nNonce = 0;
         uint32_t nOldNonce = 0;

@@ -32,7 +32,6 @@ LIBS += \
  $(DEPSDIR)/lib/libboost_filesystem-mt.a \
  $(DEPSDIR)/lib/libboost_program_options-mt.a \
  $(DEPSDIR)/lib/libboost_thread-mt.a \
- $(DEPSDIR)/lib/libcrypto.a \
  $(DEPSDIR)/lib/libevent.a \
  $(DEPSDIR)/lib/libevent_pthreads.a \
  -lz
@@ -42,7 +41,6 @@ LIBS += \
  -lboost_filesystem-mt \
  -lboost_program_options-mt \
  -lboost_thread-mt \
- -lcrypto \
  -levent \
  -levent_pthreads \
  -lz

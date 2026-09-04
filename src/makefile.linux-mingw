@@ -25,7 +25,6 @@ LIBS= \
  -l boost_thread_win32-mt-s \
  -l boost_chrono-mt-s \
  -l db_cxx \
- -l crypto \
  -l event \
  -l z
 

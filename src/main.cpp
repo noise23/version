@@ -34,8 +34,8 @@ unsigned int nTransactionsUpdated = 0;
 map<uint256, CBlockIndex*> mapBlockIndex;
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 uint256 hashGenesisBlock = hashGenesisBlockOfficial;
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8);
-CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
+static uint256 bnProofOfWorkLimit = (~uint256(0) >> 8);
+uint256 bnProofOfStakeLimit = (~uint256(0) >> 20);
 
 
 unsigned int nStakeMinAge = STAKE_MIN_AGE;
@@ -965,15 +965,15 @@ static const int64_t nTargetSpacingWorkMax = 12 * nStakeTargetSpacing; // 2-hour
 //
 // maximum nBits value could possible be required nTime after
 //
-unsigned int ComputeMaxBits(CBigNum bnTargetLimit, unsigned int nBase, int64_t nTime)
+unsigned int ComputeMaxBits(uint256 bnTargetLimit, unsigned int nBase, int64_t nTime)
 {
-    CBigNum bnResult;
+    uint256 bnResult;
     bnResult.SetCompact(nBase);
-    bnResult *= 2;
+    bnResult *= (uint32_t)2;
     while (nTime > 0 && bnResult < bnTargetLimit)
     {
         // Maximum 200% adjustment per day...
-        bnResult *= 2;
+        bnResult *= (uint32_t)2;
         nTime -= 24 * 60 * 60;
     }
     if (bnResult > bnTargetLimit)
@@ -1009,7 +1009,7 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake) 
 {
-    CBigNum bnTargetLimit, bnNew;
+    uint256 bnTargetLimit, bnNew;
 
     /* Separate range limits */
     if(fProofOfStake)
@@ -1038,19 +1038,26 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
     int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime(); 
     int64_t nTargetSpacing = fProofOfStake? nStakeTargetSpacing : min(nTargetSpacingWorkMax, (int64_t) nStakeTargetSpacing * (1 + pindexLast->nHeight - pindexPrev->nHeight)); 
  
-    if (nActualSpacing < 0) 
-          nActualSpacing = nTargetSpacing; 
- 
-    CBigNum bnNew; 
+    if (nActualSpacing < 0)
+          nActualSpacing = nTargetSpacing;
 
-    bnNew.SetCompact(pindexPrev->nBits); 
- 
-    int64_t nInterval = nTargetTimespan / nTargetSpacing; 
-    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing); 
-    bnNew /= ((nInterval + 1) * nTargetSpacing); 
- 
-    if (bnNew > bnTargetLimit) 
-        bnNew = bnTargetLimit; 
+    // NOTE: this local shadows the outer bnNew, exactly as the original code did.
+    // The legacy retarget result is therefore discarded and GetNextTargetRequired()
+    // returns GetCompact() of a zero for nHeight <= 536698 - which is fine because
+    // the caller only enforces the nBits check for nHeight > 536698 (see AcceptBlock).
+    uint256 bnNew;
+    bnNew.SetCompact(pindexPrev->nBits);
+
+    int64_t nInterval = nTargetTimespan / nTargetSpacing;
+    // Wide intermediate: the product can exceed 256 bits given V's high
+    // difficulty limits. CBigNum computed this at full precision then clamped.
+    uint512 w = uint512(bnNew) * uint512((uint64_t)((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing));
+    w /= uint512((uint64_t)((nInterval + 1) * nTargetSpacing));
+    if (w > uint512(bnTargetLimit))
+        bnNew = bnTargetLimit;
+    else
+        bnNew = w.trim256();
+    (void)bnNew;
 
     } else {
 
@@ -1104,10 +1111,14 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
 
         /* Retarget */
         bnNew.SetCompact(pindexPrev->nBits);
-        bnNew *= nActualTimespan;
-        bnNew /= nTargetTimespan;
-
-        if(bnNew > bnTargetLimit) bnNew = bnTargetLimit;
+        // Wide intermediate: SetCompact(nBits) * nActualTimespan can exceed
+        // 256 bits before the divide; CBigNum did this at full precision.
+        uint512 w = uint512(bnNew) * uint512((uint64_t)nActualTimespan);
+        w /= uint512((uint64_t)nTargetTimespan);
+        if (w > uint512(bnTargetLimit))
+            bnNew = bnTargetLimit;
+        else
+            bnNew = w.trim256();
 
     }
 
@@ -1116,15 +1127,16 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {
-    CBigNum bnTarget;
-    bnTarget.SetCompact(nBits);
+    bool fNegative = false, fOverflow = false;
+    uint256 bnTarget;
+    bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
 
     // Check range
-    if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
+    if (fNegative || fOverflow || bnTarget == uint256(0) || bnTarget > bnProofOfWorkLimit)
         return error("CheckProofOfWork() : nBits below minimum work");
 
     // Check proof of work matches claimed amount
-    if (hash > bnTarget.getuint256())
+    if (hash > bnTarget)
         return error("CheckProofOfWork() : hash doesn't match nBits");
 
     return true;
@@ -1883,7 +1895,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
 // age (trust score) of competing branches.
 bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 {
-    CBigNum bnCentSecond = 0;  // coin age in the unit of cent-seconds
+    uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
     nCoinAge = 0;
 
     if (IsCoinBase())
@@ -1910,16 +1922,16 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
             continue; // only count coins meeting min age requirement
 
         int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
-        bnCentSecond += CBigNum(nValueIn) * (nTime-txPrev.nTime) / CENT;
+        bnCentSecond += uint256((uint64_t)nValueIn) * uint256((uint64_t)(nTime - txPrev.nTime)) / uint256((uint64_t)CENT);
 
         if (fDebug && GetBoolArg("-printcoinage"))
             printf("coin age nValueIn=%" PRId64 " nTimeDiff=%d bnCentSecond=%s\n", nValueIn, nTime - txPrev.nTime, bnCentSecond.ToString().c_str());
     }
 
-    CBigNum bnCoinDay = bnCentSecond * CENT / COIN / (24 * 60 * 60);
+    uint256 bnCoinDay = bnCentSecond * uint256((uint64_t)CENT) / uint256((uint64_t)COIN) / uint256((uint64_t)(24 * 60 * 60));
     if (fDebug && GetBoolArg("-printcoinage"))
         printf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
-    nCoinAge = bnCoinDay.getuint64();
+    nCoinAge = bnCoinDay.Get64();
     return true;
 }
 
@@ -2229,21 +2241,23 @@ bool CBlock::AcceptBlock()
 
 uint256 CBlockIndex::GetBlockTrust() const
 {
-    CBigNum bnTarget;
-    bnTarget.SetCompact(nBits);
-    if (bnTarget <= 0)
+    bool fNegative = false, fOverflow = false;
+    uint256 bnTarget;
+    bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
+    if (fNegative || fOverflow || bnTarget == uint256(0))
         return 0;
 
     if (IsProofOfStake())
     {
-        // Return trust score as usual
-        return ((CBigNum(1)<<256) / (bnTarget+1)).getuint256();
+        // Return trust score as usual: 2^256 / (bnTarget + 1), computed
+        // without a 257-bit intermediate via  (~bnTarget / (bnTarget+1)) + 1.
+        return (uint256(~bnTarget) / (bnTarget + uint256(1))) + uint256(1);
     }
     else
     {
         // Calculate work amount for block
-        uint256 nPoWTrust = (bnProofOfWorkLimit / (bnTarget+1)).getuint256();
-        return nPoWTrust > 1 ? nPoWTrust : 1;
+        uint256 nPoWTrust = bnProofOfWorkLimit / (bnTarget + uint256(1));
+        return nPoWTrust > uint256(1) ? nPoWTrust : uint256(1);
     }
 } 
 
@@ -2570,7 +2584,7 @@ bool LoadBlockIndex(bool fAllowNew)
         }
 
     // generate the genesis block
-    while (hashGenesisBlock > bnProofOfWorkLimit.getuint256()){
+    while (hashGenesisBlock > bnProofOfWorkLimit){
         block.nNonce = block.nNonce + 1; 
            if(block.nNonce == 0) break;
 

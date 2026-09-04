@@ -1506,8 +1506,9 @@ bool CWallet::GetStakeWeightFromValue(const int64_t& nTime, const int64_t& nValu
   if (nTimeWeight < 0 )
     nTimeWeight=0;
 
-  CBigNum bnCoinDayWeight = CBigNum(nValue) * nTimeWeight / COIN / (24 * 60 * 60);
-  nWeight = bnCoinDayWeight.getuint64();
+  uint256 bnCoinDayWeight = uint256((uint64_t)nValue) * uint256((uint64_t)nTimeWeight)
+                            / uint256((uint64_t)COIN) / uint256((uint64_t)(24 * 60 * 60));
+  nWeight = bnCoinDayWeight.Get64();
 
   return true;
 }
@@ -1546,24 +1547,26 @@ bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, ui
         }
 
         int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)GetTime());
-        CBigNum bnCoinDayWeight = CBigNum(pcoin.first->vout[pcoin.second].nValue) * nTimeWeight / COIN / (24 * 60 * 60);
+        uint256 bnCoinDayWeight = uint256((uint64_t)pcoin.first->vout[pcoin.second].nValue)
+                                  * uint256((uint64_t)(nTimeWeight > 0 ? nTimeWeight : 0))
+                                  / uint256((uint64_t)COIN) / uint256((uint64_t)(24 * 60 * 60));
 
         // Weight is greater than zero
         if (nTimeWeight > 0)
         {
-            nWeight += bnCoinDayWeight.getuint64();
+            nWeight += bnCoinDayWeight.Get64();
         }
 
         // Weight is greater than zero, but the maximum value isn't reached yet
         if (nTimeWeight > 0 && nTimeWeight < nStakeMaxAge)
         {
-            nMinWeight += bnCoinDayWeight.getuint64();
+            nMinWeight += bnCoinDayWeight.Get64();
         }
 
         // Maximum weight was reached
         if (nTimeWeight == nStakeMaxAge)
         {
-            nMaxWeight += bnCoinDayWeight.getuint64();
+            nMaxWeight += bnCoinDayWeight.Get64();
         }
     }
 

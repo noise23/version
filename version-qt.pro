@@ -19,7 +19,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 # Dependency library locations can be customized with:
 #    BOOST_INCLUDE_PATH, BOOST_LIB_PATH, BDB_INCLUDE_PATH,
-#    BDB_LIB_PATH, OPENSSL_INCLUDE_PATH and OPENSSL_LIB_PATH respectively
+#    BDB_LIB_PATH respectively
 
 OBJECTS_DIR = build
 MOC_DIR = build
@@ -177,7 +177,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/cleanse.h \
     src/addrman.h \
     src/base58.h \
-    src/bignum.h \
     src/checkpoints.h \
     src/coincontrol.h \
     src/compat.h \
@@ -462,10 +461,10 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
-LIBS += -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
-# -lgdi32 has to happen after -lcrypto (see  #681)
+INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
+LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
+# note: -lgdi32 must come after any lib that pulls Win32 GDI symbols (see #681)
 win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lbcrypt
 LIBS += -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
 LIBS += -levent

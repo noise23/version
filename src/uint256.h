@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <stdint.h>
@@ -214,6 +215,143 @@ public:
         return ret;
     }
 
+    //
+    // Arbitrary-width multiply/divide and Bitcoin's compact-target encoding.
+    // These are ported verbatim from Bitcoin Core's src/arith_uint256.cpp so
+    // that fixed-width uintN arithmetic reproduces the exact results the old
+    // OpenSSL-backed CBigNum used to produce (see bignum.h, now removed).
+    //
+
+    // Return the position of the highest set bit + 1, or 0 for a zero value.
+    int bits() const
+    {
+        for (int pos = WIDTH - 1; pos >= 0; pos--)
+        {
+            if (pn[pos])
+            {
+                for (int nbits = 31; nbits > 0; nbits--)
+                {
+                    if (pn[pos] & (1U << nbits))
+                        return 32 * pos + nbits + 1;
+                }
+                return 32 * pos + 1;
+            }
+        }
+        return 0;
+    }
+
+    uint64_t GetLow64() const
+    {
+        return pn[0] | ((uint64_t)pn[1] << 32);
+    }
+
+    base_uint& operator*=(uint32_t b32)
+    {
+        uint64_t carry = 0;
+        for (int i = 0; i < WIDTH; i++)
+        {
+            uint64_t n = carry + (uint64_t)b32 * pn[i];
+            pn[i] = n & 0xffffffff;
+            carry = n >> 32;
+        }
+        return *this;
+    }
+
+    base_uint& operator*=(const base_uint& b)
+    {
+        base_uint a;
+        for (int i = 0; i < WIDTH; i++)
+            a.pn[i] = 0;
+        for (int j = 0; j < WIDTH; j++)
+        {
+            uint64_t carry = 0;
+            for (int i = 0; i + j < WIDTH; i++)
+            {
+                uint64_t n = carry + a.pn[i + j] + (uint64_t)pn[j] * b.pn[i];
+                a.pn[i + j] = n & 0xffffffff;
+                carry = n >> 32;
+            }
+        }
+        *this = a;
+        return *this;
+    }
+
+    base_uint& operator/=(const base_uint& b)
+    {
+        base_uint div = b;     // make a copy, so we can shift.
+        base_uint num = *this; // make a copy, so we can subtract.
+        *this = (uint64_t)0;   // the quotient.
+        int num_bits = num.bits();
+        int div_bits = div.bits();
+        if (div_bits == 0)
+            throw std::runtime_error("uint division by zero");
+        if (div_bits > num_bits) // the result is certainly 0.
+            return *this;
+        int shift = num_bits - div_bits;
+        div <<= shift; // shift so that div and num align.
+        while (shift >= 0)
+        {
+            if (num >= div)
+            {
+                num -= div;
+                pn[shift / 32] |= (1U << (shift & 31)); // set a bit of the result.
+            }
+            div >>= 1; // shift back.
+            shift--;
+        }
+        // num now contains the remainder of the division.
+        return *this;
+    }
+
+    base_uint& SetCompact(uint32_t nCompact, bool* pfNegative = NULL, bool* pfOverflow = NULL)
+    {
+        int nSize = nCompact >> 24;
+        uint32_t nWord = nCompact & 0x007fffff;
+        if (nSize <= 3)
+        {
+            nWord >>= 8 * (3 - nSize);
+            *this = (uint64_t)nWord;
+        }
+        else
+        {
+            *this = (uint64_t)nWord;
+            *this <<= 8 * (nSize - 3);
+        }
+        if (pfNegative)
+            *pfNegative = nWord != 0 && (nCompact & 0x00800000) != 0;
+        if (pfOverflow)
+            *pfOverflow = nWord != 0 && ((nSize > (int)(WIDTH * 4) + 2) ||
+                                        (nWord > 0xff && nSize > (int)(WIDTH * 4) + 1) ||
+                                        (nWord > 0xffff && nSize > (int)(WIDTH * 4)));
+        return *this;
+    }
+
+    uint32_t GetCompact(bool fNegative = false) const
+    {
+        int nSize = (bits() + 7) / 8;
+        uint32_t nCompact = 0;
+        if (nSize <= 3)
+        {
+            nCompact = GetLow64() << 8 * (3 - nSize);
+        }
+        else
+        {
+            base_uint bn = *this;
+            bn >>= 8 * (nSize - 3);
+            nCompact = bn.GetLow64();
+        }
+        // The 0x00800000 bit denotes the sign.
+        // Thus, if it is already set, divide the mantissa by 256 and increase the exponent.
+        if (nCompact & 0x00800000)
+        {
+            nCompact >>= 8;
+            nSize++;
+        }
+        nCompact |= nSize << 24;
+        nCompact |= (fNegative && (nCompact & 0x007fffff) ? 0x00800000 : 0);
+        return nCompact;
+    }
+
 
     friend inline bool operator<(const base_uint& a, const base_uint& b)
     {
@@ -394,6 +532,7 @@ public:
 
     friend class uint160;
     friend class uint256;
+    friend class uint512;
 };
 
 typedef base_uint<160> base_uint160;
@@ -630,5 +769,81 @@ inline const uint256 operator&(const uint256& a, const uint256& b)      { return
 inline const uint256 operator|(const uint256& a, const uint256& b)      { return (base_uint256)a |  (base_uint256)b; }
 inline const uint256 operator+(const uint256& a, const uint256& b)      { return (base_uint256)a +  (base_uint256)b; }
 inline const uint256 operator-(const uint256& a, const uint256& b)      { return (base_uint256)a -  (base_uint256)b; }
+
+inline const uint256 operator*(const uint256& a, const uint256& b)      { return uint256(a) *= b; }
+inline const uint256 operator/(const uint256& a, const uint256& b)      { return uint256(a) /= b; }
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// uint512 - a 512-bit unsigned integer, used only as a wide intermediate for
+// the few consensus multiplications (difficulty retarget, proof-of-stake
+// kernel) that can exceed 256 bits given V's high difficulty limits.
+// CBigNum computed these at arbitrary precision; uint512 reproduces that
+// exactly for every value that fits in 512 bits.
+//
+
+typedef base_uint<512> base_uint512;
+
+class uint512 : public base_uint512
+{
+public:
+    typedef base_uint512 basetype;
+
+    uint512()
+    {
+        for (int i = 0; i < WIDTH; i++)
+            pn[i] = 0;
+    }
+
+    uint512(const basetype& b)
+    {
+        for (int i = 0; i < WIDTH; i++)
+            pn[i] = b.pn[i];
+    }
+
+    uint512& operator=(const basetype& b)
+    {
+        for (int i = 0; i < WIDTH; i++)
+            pn[i] = b.pn[i];
+        return *this;
+    }
+
+    uint512(uint64_t b)
+    {
+        pn[0] = (unsigned int)b;
+        pn[1] = (unsigned int)(b >> 32);
+        for (int i = 2; i < WIDTH; i++)
+            pn[i] = 0;
+    }
+
+    uint512(const uint256& b)
+    {
+        for (int i = 0; i < WIDTH; i++)
+            pn[i] = 0;
+        for (int n = 0; n < 4; n++)
+        {
+            uint64_t w = b.Get64(n);
+            pn[2 * n]     = (unsigned int)w;
+            pn[2 * n + 1] = (unsigned int)(w >> 32);
+        }
+    }
+
+    // Narrow to the low 256 bits (matches CBigNum::getuint256()).
+    uint256 trim256() const
+    {
+        uint256 ret;
+        memcpy(ret.begin(), (const unsigned char*)pn, 32);
+        return ret;
+    }
+};
+
+inline const uint512 operator*(const uint512& a, const uint512& b)      { return uint512(a) *= b; }
+inline const uint512 operator/(const uint512& a, const uint512& b)      { return uint512(a) /= b; }
+inline bool operator<(const uint512& a, const uint512& b)              { return (base_uint512)a <  (base_uint512)b; }
+inline bool operator<=(const uint512& a, const uint512& b)             { return (base_uint512)a <= (base_uint512)b; }
+inline bool operator>(const uint512& a, const uint512& b)              { return (base_uint512)a >  (base_uint512)b; }
+inline bool operator>=(const uint512& a, const uint512& b)             { return (base_uint512)a >= (base_uint512)b; }
 
 #endif
