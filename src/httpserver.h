@@ -103,6 +103,9 @@ public:
      * main thread, do not call any other HTTPRequest methods after calling this.
      */
     void WriteReply(int nStatus, const std::string& strReply = "");
+
+    /** Whether a reply has already been handed back to the event loop. */
+    bool ReplySent() const { return replySent; }
 };
 
 /** Event handler closure.

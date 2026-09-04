@@ -58,7 +58,21 @@ public:
     }
     void operator()()
     {
-        func(req.get(), path);
+        // A handler is expected to catch its own errors and craft a proper
+        // reply, but if one escapes we must not let it unwind out of the
+        // worker thread (that would call std::terminate). Log it, and make
+        // sure the client gets a response instead of hanging.
+        try {
+            func(req.get(), path);
+        } catch (const std::exception& e) {
+            printf("HTTP: unhandled exception while processing request: %s\n", e.what());
+            if (!req->ReplySent())
+                req->WriteReply(HTTP_INTERNAL_SERVER_ERROR, e.what());
+        } catch (...) {
+            printf("HTTP: unhandled non-standard exception while processing request\n");
+            if (!req->ReplySent())
+                req->WriteReply(HTTP_INTERNAL_SERVER_ERROR, "Internal server error");
+        }
     }
 
     boost::scoped_ptr<HTTPRequest> req;
@@ -109,7 +123,9 @@ public:
     /** Thread function */
     void Run()
     {
-        while (running) {
+        // `running` is only ever read/written while holding `cs`; the locked
+        // check below is what actually terminates the loop.
+        while (true) {
             WorkItem* i = 0;
             {
                 boost::unique_lock<boost::mutex> lock(cs);
@@ -160,7 +176,9 @@ static struct event_base* eventBase = 0;
 struct evhttp* eventHTTP = 0;
 //! Work queue for handling longer requests off the event loop thread
 static WorkQueue<HTTPClosure>* workQueue = 0;
-//! Handlers for (sub)paths
+//! Handlers for (sub)paths. Read from the event-loop thread, mutated from the
+//! init/shutdown threads via (Un)RegisterHTTPHandler, so guard every access.
+static boost::mutex g_httppathhandlers_mutex;
 static std::vector<HTTPPathHandler> pathHandlers;
 //! Threads for the event loop and the request workers
 static boost::thread_group threadHTTP;
@@ -225,23 +243,30 @@ static void http_request_cb(struct evhttp_request* req, void* arg)
     // Find registered handler for prefix
     std::string strURI = hreq->GetURI();
     std::string path;
-    std::vector<HTTPPathHandler>::const_iterator i = pathHandlers.begin();
-    std::vector<HTTPPathHandler>::const_iterator iend = pathHandlers.end();
-    for (; i != iend; ++i) {
-        bool match = false;
-        if (i->exactMatch)
-            match = (strURI == i->prefix);
-        else
-            match = (strURI.substr(0, i->prefix.size()) == i->prefix);
-        if (match) {
-            path = strURI.substr(i->prefix.size());
-            break;
+    HTTPRequestHandler handler;
+    bool foundHandler = false;
+    {
+        boost::unique_lock<boost::mutex> lock(g_httppathhandlers_mutex);
+        std::vector<HTTPPathHandler>::const_iterator i = pathHandlers.begin();
+        std::vector<HTTPPathHandler>::const_iterator iend = pathHandlers.end();
+        for (; i != iend; ++i) {
+            bool match = false;
+            if (i->exactMatch)
+                match = (strURI == i->prefix);
+            else
+                match = (strURI.substr(0, i->prefix.size()) == i->prefix);
+            if (match) {
+                path = strURI.substr(i->prefix.size());
+                handler = i->handler;
+                foundHandler = true;
+                break;
+            }
         }
     }
 
     // Dispatch to worker thread
-    if (i != iend) {
-        std::unique_ptr<HTTPWorkItem> item(new HTTPWorkItem(hreq.release(), path, i->handler));
+    if (foundHandler) {
+        std::unique_ptr<HTTPWorkItem> item(new HTTPWorkItem(hreq.release(), path, handler));
         assert(workQueue);
         if (workQueue->Enqueue(item.get()))
             item.release(); /* if true, queue took ownership */
@@ -561,11 +586,13 @@ HTTPRequest::RequestMethod HTTPRequest::GetRequestMethod()
 void RegisterHTTPHandler(const std::string &prefix, bool exactMatch, const HTTPRequestHandler &handler)
 {
     printf("HTTP: registering handler for %s (exactmatch %d)\n", prefix.c_str(), exactMatch);
+    boost::unique_lock<boost::mutex> lock(g_httppathhandlers_mutex);
     pathHandlers.push_back(HTTPPathHandler(prefix, exactMatch, handler));
 }
 
 void UnregisterHTTPHandler(const std::string &prefix, bool exactMatch)
 {
+    boost::unique_lock<boost::mutex> lock(g_httppathhandlers_mutex);
     std::vector<HTTPPathHandler>::iterator i = pathHandlers.begin();
     std::vector<HTTPPathHandler>::iterator iend = pathHandlers.end();
     for (; i != iend; ++i)
