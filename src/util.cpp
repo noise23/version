@@ -33,7 +33,6 @@ namespace boost {
 #include <boost/variant/get.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
-#include <openssl/rand.h>
 #include <stdarg.h>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
@@ -111,48 +110,7 @@ std::time_t pt_to_time_t(const bt::ptime& pt)
     return diff.ticks()/bt::time_duration::rep_type::ticks_per_second;
 }
 
-// Init openssl library multithreading support
-static CCriticalSection** ppmutexOpenSSL;
-void locking_callback(int mode, int i, const char* file, int line)
-{
-            if (mode & CRYPTO_LOCK) {
-                     ENTER_CRITICAL_SECTION(*ppmutexOpenSSL[i]);
-        } else {
-                     LEAVE_CRITICAL_SECTION(*ppmutexOpenSSL[i]);
-                    }
-}
-
 LockedPageManager LockedPageManager::instance;
-// Init
-class CInit
-{
-public:
-    CInit()
-    {
-        // Init openssl library multithreading support
-		ppmutexOpenSSL = (CCriticalSection**)OPENSSL_malloc(CRYPTO_num_locks() * sizeof(CCriticalSection*));
-        for (int i = 0; i < CRYPTO_num_locks(); i++)
-			ppmutexOpenSSL[i] = new CCriticalSection();
-        CRYPTO_set_locking_callback(locking_callback);
-
-#ifdef WIN32
-        // Seed random number generator with screen scrape and other hardware sources
-        RAND_screen();
-#endif
-
-        // Seed random number generator with performance counter
-        RandAddSeed();
-    }
-    ~CInit()
-    {
-        // Shutdown openssl library multithreading support
-        CRYPTO_set_locking_callback(NULL);
-        for (int i = 0; i < CRYPTO_num_locks(); i++)
-            delete ppmutexOpenSSL[i];
-        OPENSSL_free(ppmutexOpenSSL);
-    }
-}
-instance_of_cinit;
 
 static FILE* fileout = NULL;
 

@@ -11,11 +11,9 @@
 #include <limits>
 #include <stdint.h>
 
-/* Seed OpenSSL PRNG with additional entropy data */
-void RandAddSeed();
-
 /**
- * Functions to gather random data via the OpenSSL PRNG
+ * Functions to gather random data from the operating system CSPRNG
+ * (getrandom(2) / getentropy() / CryptGenRandom, with a /dev/urandom fallback).
  */
 void GetRandBytes(unsigned char* buf, int num);
 uint64_t GetRand(uint64_t nMax);
@@ -29,7 +27,7 @@ uint256 GetRandHash();
 void GetStrongRandBytes(unsigned char* buf, int num);
 
 /**
- * UniformRandomBitGenerator adaptor over the OpenSSL PRNG so it can be passed
+ * UniformRandomBitGenerator adaptor over the OS CSPRNG so it can be passed
  * to standard algorithms such as std::shuffle (which replaced the removed
  * std::random_shuffle in C++17).
  */

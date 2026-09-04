@@ -8,7 +8,6 @@
 
 #include <deque>
 #include <boost/array.hpp>
-#include <openssl/rand.h>
 
 #ifndef WIN32
 #include <arpa/inet.h>
