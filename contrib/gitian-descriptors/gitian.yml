@@ -13,7 +13,7 @@ packages:
 - "libboost-filesystem-dev"
 - "libboost-program-options-dev"
 - "libboost-thread-dev"
-- "libssl-dev"
+- "libevent-dev"
 - "git-core"
 - "unzip"
 - "pkg-config"
@@ -47,7 +47,7 @@ script: |
   #cp $OUTDIR/src/doc/README $OUTDIR
   #cp $OUTDIR/src/COPYING $OUTDIR
   cd src
-  make -f makefile.unix STATIC=1 OPENSSL_INCLUDE_PATH="$INSTDIR/include" OPENSSL_LIB_PATH="$INSTDIR/lib" $MAKEOPTS versiond USE_UPNP=1 DEBUGFLAGS= USE_SSE2=1
+  make -f makefile.unix STATIC=1 $MAKEOPTS versiond USE_UPNP=1 DEBUGFLAGS= USE_SSE2=1
   mkdir -p $OUTDIR/bin/$GBUILD_BITS
   install -s versiond $OUTDIR/bin/$GBUILD_BITS
   #
