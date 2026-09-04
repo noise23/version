@@ -180,8 +180,12 @@ static WorkQueue<HTTPClosure>* workQueue = 0;
 //! init/shutdown threads via (Un)RegisterHTTPHandler, so guard every access.
 static boost::mutex g_httppathhandlers_mutex;
 static std::vector<HTTPPathHandler> pathHandlers;
-//! Threads for the event loop and the request workers
-static boost::thread_group threadHTTP;
+//! Bound listening sockets. Removing these lets the event loop exit on its own.
+static std::vector<evhttp_bound_socket*> boundSockets;
+//! The event loop dispatch thread
+static boost::thread threadHTTP;
+//! The request worker threads
+static boost::thread_group threadHTTPWorkers;
 //! Set when the server is shutting down
 static bool fHTTPStopped = false;
 
@@ -327,6 +331,7 @@ static bool HTTPBindAddresses(struct evhttp* http)
         evhttp_bound_socket *bind_handle = evhttp_bind_socket_with_handle(http, i->first.empty() ? NULL : i->first.c_str(), i->second);
         if (bind_handle) {
             nBound += 1;
+            boundSockets.push_back(bind_handle);
         } else {
             printf("Binding RPC on address %s port %i failed.\n", i->first.c_str(), i->second);
         }
@@ -394,9 +399,9 @@ bool StartHTTPServer()
     eventBase = base;
     eventHTTP = http;
 
-    threadHTTP.create_thread(boost::bind(&ThreadHTTP, base, http));
+    threadHTTP = boost::thread(boost::bind(&ThreadHTTP, base, http));
     for (int i = 0; i < rpcThreads; i++)
-        threadHTTP.create_thread(boost::bind(&HTTPWorkQueueRun, workQueue));
+        threadHTTPWorkers.create_thread(boost::bind(&HTTPWorkQueueRun, workQueue));
 
     return true;
 }
@@ -421,21 +426,38 @@ void StopHTTPServer()
         return;
     fHTTPStopped = true;
 
-    // Unblock the request workers, then let the event loop keep running for a
-    // short grace period so any in-flight reply (e.g. the response to the
-    // "stop" RPC) is flushed to the client before we tear the loop down.
-    if (workQueue)
+    // 1. Drain and join the request workers so no worker is still holding a
+    //    request when we tear down the event loop.
+    if (workQueue) {
+        printf("HTTP: waiting for HTTP worker threads to exit\n");
         workQueue->Interrupt();
+        threadHTTPWorkers.join_all();
+        delete workQueue;
+        workQueue = 0;
+    }
+
+    // 2. Stop listening. The bound sockets are what keep the event loop alive;
+    //    once they are removed and all client connections have closed (see the
+    //    "Connection: close" header added by WriteReply during shutdown), the
+    //    loop returns on its own - no arbitrary timeout needed.
+    for (size_t i = 0; i < boundSockets.size(); i++)
+        evhttp_del_accept_socket(eventHTTP, boundSockets[i]);
+    boundSockets.clear();
+
+    // 3. Wait for the event loop thread to finish. As a safety net against a
+    //    misbehaving client holding an idle keep-alive connection open, cap
+    //    the wait; well-behaved clients (including our own CLI) send
+    //    "Connection: close" and never reach this.
     if (eventBase) {
+        printf("HTTP: waiting for HTTP event thread to exit\n");
         struct timeval tv;
-        tv.tv_sec = 1;
+        tv.tv_sec = 10;
         tv.tv_usec = 0;
         event_base_loopexit(eventBase, &tv);
     }
-    threadHTTP.join_all();
+    if (threadHTTP.joinable())
+        threadHTTP.join();
 
-    delete workQueue;
-    workQueue = 0;
     if (eventHTTP) {
         evhttp_free(eventHTTP);
         eventHTTP = 0;
@@ -537,6 +559,12 @@ static void http_send_reply(struct evhttp_request* req, int nStatus)
 void HTTPRequest::WriteReply(int nStatus, const std::string& strReply)
 {
     assert(!replySent && req);
+    if (fShutdown) {
+        // Tell libevent to close this (otherwise persistent, for HTTP/1.1)
+        // connection once the reply is sent, so the event loop can drain and
+        // exit cleanly during shutdown instead of waiting on the timeout.
+        WriteHeader("Connection", "close");
+    }
     // Send event to main http thread to send reply message
     struct evbuffer* evb = evhttp_request_get_output_buffer(req);
     assert(evb);
