@@ -19,6 +19,7 @@
 #include <string.h>
 #include <algorithm>
 #include <deque>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -42,8 +43,10 @@
 
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/bind/bind.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread.hpp>
+#include <boost/thread/thread_time.hpp>
 
 /** Maximum size of http request (request line + headers) */
 static const size_t MAX_HEADERS_SIZE = 8192;
@@ -189,6 +192,87 @@ static boost::thread_group threadHTTPWorkers;
 //! Set when the server is shutting down
 static bool fHTTPStopped = false;
 
+/**
+ * Keeps track of open evhttp_connections that have in-flight evhttp_requests.
+ *
+ * A worker thread may still be holding an HTTPRequest (whose evhttp_request is
+ * owned by libevent) while the event loop tears itself down. Freeing the
+ * evhttp / event_base underneath it is a use-after-free. On the client side, a
+ * peer that disconnects before its request is answered frees the evhttp_request
+ * without ever firing the completion callback. Tracking per-connection request
+ * counts - decremented on request completion and cleared on connection close -
+ * lets shutdown wait until nothing is in flight before freeing libevent state.
+ * (Ported from Bitcoin Core PRs #19792 and #26742.)
+ */
+class HTTPRequestTracker
+{
+private:
+    mutable boost::mutex m_mutex;
+    mutable boost::condition_variable m_cv;
+    std::map<const evhttp_connection*, size_t> m_tracker;
+
+    void RemoveConnectionInternal(std::map<const evhttp_connection*, size_t>::iterator it)
+    {
+        m_tracker.erase(it);
+        if (m_tracker.empty())
+            m_cv.notify_all();
+    }
+
+public:
+    //! Register a new in-flight request against its connection.
+    void AddRequest(evhttp_request* req)
+    {
+        const evhttp_connection* conn = evhttp_request_get_connection(req);
+        if (!conn)
+            return;
+        boost::unique_lock<boost::mutex> lock(m_mutex);
+        ++m_tracker[conn];
+    }
+    //! A request finished; drop its connection from tracking once its count hits 0.
+    void RemoveRequest(evhttp_request* req)
+    {
+        const evhttp_connection* conn = evhttp_request_get_connection(req);
+        if (!conn)
+            return;
+        boost::unique_lock<boost::mutex> lock(m_mutex);
+        std::map<const evhttp_connection*, size_t>::iterator it = m_tracker.find(conn);
+        if (it != m_tracker.end() && it->second > 0) {
+            if (--(it->second) == 0)
+                RemoveConnectionInternal(it);
+        }
+    }
+    //! A connection closed; forget any requests still attributed to it.
+    void RemoveConnection(const evhttp_connection* conn)
+    {
+        if (!conn)
+            return;
+        boost::unique_lock<boost::mutex> lock(m_mutex);
+        std::map<const evhttp_connection*, size_t>::iterator it = m_tracker.find(conn);
+        if (it != m_tracker.end())
+            RemoveConnectionInternal(it);
+    }
+    size_t CountActiveConnections() const
+    {
+        boost::unique_lock<boost::mutex> lock(m_mutex);
+        return m_tracker.size();
+    }
+    //! Block until nothing is in flight, or until the timeout elapses.
+    //! Returns true if the tracker drained.
+    bool WaitUntilEmpty(int64_t nTimeoutMillis) const
+    {
+        boost::unique_lock<boost::mutex> lock(m_mutex);
+        const boost::system_time deadline =
+            boost::get_system_time() + boost::posix_time::milliseconds(nTimeoutMillis);
+        while (!m_tracker.empty()) {
+            if (!m_cv.timed_wait(lock, deadline))
+                break;
+        }
+        return m_tracker.empty();
+    }
+};
+//! Track connections with in-flight requests, so shutdown can wait for them.
+static HTTPRequestTracker g_requests;
+
 /** Check if a network address is allowed to access the HTTP server.
  *  Uses the same wildcard matching semantics as the legacy asio RPC server,
  *  so existing -rpcallowip configuration keeps working unchanged.
@@ -224,9 +308,30 @@ static std::string RequestMethodString(HTTPRequest::RequestMethod m)
     }
 }
 
+/** libevent callback: an HTTP request finished (reply fully sent, or aborted). */
+static void http_request_on_complete_cb(struct evhttp_request* req, void*)
+{
+    g_requests.RemoveRequest(req);
+}
+
+/** libevent callback: an HTTP connection closed (e.g. remote peer disconnected). */
+static void http_connection_close_cb(struct evhttp_connection* conn, void*)
+{
+    g_requests.RemoveConnection(conn);
+}
+
 /** HTTP request callback */
 static void http_request_cb(struct evhttp_request* req, void* arg)
 {
+    // Track this request (and its connection) so shutdown can wait for it, and
+    // so a client disconnecting mid-request is noticed. Runs on the event-loop
+    // thread; the callbacks below also run there.
+    evhttp_connection* conn = evhttp_request_get_connection(req);
+    g_requests.AddRequest(req);
+    evhttp_request_set_on_complete_cb(req, http_request_on_complete_cb, NULL);
+    if (conn)
+        evhttp_connection_set_closecb(conn, http_connection_close_cb, NULL);
+
     std::unique_ptr<HTTPRequest> hreq(new HTTPRequest(req));
 
     printf("HTTP: received a %s request for %s from %s\n",
@@ -439,19 +544,30 @@ void StopHTTPServer()
     // 2. Stop listening. The bound sockets are what keep the event loop alive;
     //    once they are removed and all client connections have closed (see the
     //    "Connection: close" header added by WriteReply during shutdown), the
-    //    loop returns on its own - no arbitrary timeout needed.
+    //    loop returns on its own.
     for (size_t i = 0; i < boundSockets.size(); i++)
         evhttp_del_accept_socket(eventHTTP, boundSockets[i]);
     boundSockets.clear();
 
-    // 3. Wait for the event loop thread to finish. As a safety net against a
-    //    misbehaving client holding an idle keep-alive connection open, cap
-    //    the wait; well-behaved clients (including our own CLI) send
-    //    "Connection: close" and never reach this.
+    // 3. Wait for any request still being served to complete before we free
+    //    the event base out from under a worker (or under libevent, for a
+    //    request whose client already disconnected). The event loop is still
+    //    running here, so completion/close callbacks keep firing.
+    {
+        size_t nActive = g_requests.CountActiveConnections();
+        if (nActive != 0)
+            printf("HTTP: waiting for %u connection(s) with in-flight requests\n", (unsigned)nActive);
+        if (!g_requests.WaitUntilEmpty(10000))
+            printf("HTTP: WARNING: timed out waiting for in-flight requests to finish\n");
+    }
+
+    // 4. Wait for the event loop thread to finish. With no listeners and no
+    //    connections it returns on its own; the timeout is only a safety net
+    //    against a misbehaving client holding an idle keep-alive connection.
     if (eventBase) {
         printf("HTTP: waiting for HTTP event thread to exit\n");
         struct timeval tv;
-        tv.tv_sec = 10;
+        tv.tv_sec = 2;
         tv.tv_usec = 0;
         event_base_loopexit(eventBase, &tv);
     }
