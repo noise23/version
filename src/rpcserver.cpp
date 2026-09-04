@@ -226,8 +226,13 @@ static const CRPCCommand vRPCCommands[] =
     { "verifymessage",          &verifymessage,          false,      false,   false },
     { "listaccounts",           &listaccounts,           false,      false,   true },
     { "settxfee",               &settxfee,               false,      false,   true },
-    { "getblocktemplate",       &getblocktemplate,       true,       false,   false },
-    { "submitblock",            &submitblock,            false,      false,   false },
+    // getblocktemplate reserves a coinbase key from the wallet's key pool and
+    // submitblock signs the PoS block with the wallet's key, so both genuinely
+    // need a loaded wallet in this codebase's implementation (unlike upstream
+    // Bitcoin's later wallet-agnostic GBT); reqWallet=true routes -disablewallet
+    // callers to a clean RPC error instead of a NULL-pwalletMain crash.
+    { "getblocktemplate",       &getblocktemplate,       true,       false,   true },
+    { "submitblock",            &submitblock,            false,      false,   true },
     { "listsinceblock",         &listsinceblock,         false,      false,   true },
     { "dumpprivkey",            &dumpprivkey,            false,      false,   true },
     { "dumpwallet",             &dumpwallet,             true,       false,   true },

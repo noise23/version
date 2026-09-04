@@ -1910,12 +1910,19 @@ void StartNode(void* parg)
     if (!NewThread(ThreadDumpAddress, NULL))
         printf("Error; NewThread(ThreadDumpAddress) failed\n");
 
-    // Generate coins in the background
-    GenerateBitcoins(GetBoolArg("-gen", false), pwalletMain);
+    // Generate coins in the background. Both PoW mining and PoS minting need
+    // a wallet (to hold the reserve key / coin stake inputs), so skip them
+    // entirely when running with -disablewallet rather than handing the miner
+    // threads a NULL wallet.
+    if (pwalletMain) {
+        GenerateBitcoins(GetBoolArg("-gen", false), pwalletMain);
 
-    // version: mint proof-of-stake blocks in the background
-    if (!NewThread(ThreadStakeMinter, pwalletMain))
-        printf("Error: NewThread(ThreadStakeMinter) failed\n");
+        // version: mint proof-of-stake blocks in the background
+        if (!NewThread(ThreadStakeMinter, pwalletMain))
+            printf("Error: NewThread(ThreadStakeMinter) failed\n");
+    } else {
+        printf("Wallet disabled: skipping miner and stake-minter threads\n");
+    }
 }
 
 bool StopNode()
