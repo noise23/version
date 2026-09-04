@@ -261,9 +261,12 @@ bool Random_SanityCheck()
     }
 
     // Verify the performance counter used to strengthen GetStrongRandBytes
-    // actually advances.
+    // actually advances. A busy-loop delay isn't reliable here: on a fast/idle
+    // core it can complete within a single tick of the underlying (merely
+    // microsecond-resolution, on non-Windows platforms) clock, making this
+    // check intermittently fail. Sleep a real 1ms of wall-clock time instead.
     int64_t start = GetPerformanceCounter();
-    for (volatile int i = 0; i < 1000; i++) {}
+    MilliSleep(1);
     int64_t end = GetPerformanceCounter();
     if (end <= start)
         return false;
