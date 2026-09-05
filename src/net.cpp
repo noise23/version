@@ -192,21 +192,52 @@ bool RecvLine(SOCKET hSocket, string& strLine)
     }
 }
 
-// used when scores of local addresses may have changed
-// pushes better local address to peers
-void static AdvertizeLocal()
+// score of a specific candidate address, or 0 if it isn't a known local address
+int GetnScore(const CService& addr)
 {
-    LOCK(cs_vNodes);
-    for (CNode* pnode : vNodes)
+    LOCK(cs_mapLocalHost);
+    if (mapLocalHost.count(addr) == 0)
+        return 0;
+    return mapLocalHost[addr].nScore;
+}
+
+// Determine whether the peer's own report of our address (learned from the
+// addrMe field of their "version" message - see main.cpp) is plausible
+// enough to echo back to them: only when discovery is enabled, the peer
+// itself is reachable, what they told us is routable, and that network
+// isn't limited (-onlynet). This never affects what any *other* peer is
+// told, unlike the global mapLocalHost score SeenLocal() bumps.
+bool IsPeerAddrLocalGood(CNode *pnode)
+{
+    return fDiscover && pnode->addr.IsRoutable() && pnode->addrLocal.IsRoutable() &&
+           !IsLimited(pnode->addrLocal.GetNetwork());
+}
+
+// Decide what address to advertise to one specific peer, and send it if
+// it's routable. This intentionally never commits to one global "this is my
+// address" belief: most of the time it's our own best globally-known guess
+// (GetLocalAddress(), ranked by AddLocal()/SeenLocal() scores), but - mirroring
+// the P2Pool trick Bitcoin Core adopted here - if discovery is enabled we
+// sometimes instead just echo back to this peer whatever address *it*
+// already told us it sees us as. That keeps one lying (or simply stale)
+// peer's SeenLocal() vote from being amplified into what every other peer
+// gets told; at worst it can only affect what that same peer hears back.
+void AdvertizeLocal(CNode *pnode)
+{
+    if (fListen && pnode->fSuccessfullyConnected)
     {
-        if (pnode->fSuccessfullyConnected)
+        CAddress addrLocal = GetLocalAddress(&pnode->addr);
+        // If discovery is enabled, sometimes give our peer the address it
+        // tells us that it sees us as in case it has a better idea of our
+        // address than we do.
+        if (IsPeerAddrLocalGood(pnode) && (!addrLocal.IsRoutable() ||
+             GetRand((GetnScore(addrLocal) > LOCAL_MANUAL) ? 8 : 2) == 0))
         {
-            CAddress addrLocal = GetLocalAddress(&pnode->addr);
-            if (addrLocal.IsRoutable() && (CService)addrLocal != (CService)pnode->addrLocal)
-            {
-                pnode->PushAddress(addrLocal);
-                pnode->addrLocal = addrLocal;
-            }
+            addrLocal.SetIP(pnode->addrLocal);
+        }
+        if (addrLocal.IsRoutable())
+        {
+            pnode->PushAddress(addrLocal);
         }
     }
 }
@@ -244,7 +275,10 @@ bool AddLocal(const CService& addr, int nScore)
         SetReachable(addr.GetNetwork());
     }
 
-    AdvertizeLocal();
+    // Note: we no longer reactively push this to every connected peer here.
+    // Updated addresses reach existing peers via the periodic rebroadcast in
+    // main.cpp's SendMessages() (which calls AdvertizeLocal(pnode) per peer),
+    // and reach new peers immediately via GetLocalAddress() at handshake time.
 
     return true;
 }
@@ -284,7 +318,10 @@ bool SeenLocal(const CService& addr)
         mapLocalHost[addr].nScore++;
     }
 
-    AdvertizeLocal();
+    // As with AddLocal(), no reactive push here - see the comment there.
+    // This matters more for SeenLocal() specifically: a single peer's vote
+    // only ever bumps the shared mapLocalHost score, it no longer gets
+    // amplified into an immediate broadcast to every other peer.
 
     return true;
 }

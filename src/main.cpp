@@ -3681,12 +3681,7 @@ bool SendMessages(CNode *pto, bool fSendTrickle) {
                         pnode->setAddrKnown.clear();
 
                     // Rebroadcast our address
-                    if (fListen)
-                    {
-                        CAddress addr = GetLocalAddress(&pnode->addr);
-                        if (addr.IsRoutable())
-                            pnode->PushAddress(addr);
-                    }
+                    AdvertizeLocal(pnode);
                 }
             }
             nLastRebroadcast = GetTime();
