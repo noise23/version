@@ -350,51 +350,56 @@ bool GetMyExternalIP2(const CService& addrConnect, const char* pszGet, const cha
     return error("GetMyExternalIP() : connection closed");
 }
 
-// We now get our external IP from the IRC server first and only use this as a backup
 bool GetMyExternalIP(CNetAddr& ipRet)
 {
     CService addrConnect;
     const char* pszGet;
     const char* pszKeyword;
 
-    for (int nLookup = 0; nLookup <= 1; nLookup++)
-    for (int nHost = 1; nHost <= 2; nHost++)
+    for (int nHost = 1; nHost <= 3; nHost++)
     {
-        // We should be phasing out our use of sites like these.  If we need
-        // replacements, we should ask for volunteers to put this simple
-        // php file on their webserver that prints the client IP:
-        //  <?php echo $_SERVER["REMOTE_ADDR"]; ?>
         if (nHost == 1)
         {
-            addrConnect = CService("216.146.38.70",80); // checkip.dyndns.org
-
-            if (nLookup == 1)
-            {
-                CService addrIP("checkip.dyndns.org", 80, true);
-                if (addrIP.IsValid())
-                    addrConnect = addrIP;
-            }
+            // ipv4.icanhazip.com
+            CService addrIP("ipv4.icanhazip.com", 80, true);
+            if (!addrIP.IsValid())
+                continue;
+            addrConnect = addrIP;
 
             pszGet = "GET / HTTP/1.1\r\n"
-                     "Host: checkip.dyndns.org\r\n"
+                     "Host: ipv4.icanhazip.com\r\n"
                      "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
                      "Connection: close\r\n"
                      "\r\n";
 
-            pszKeyword = "Address:";
+            pszKeyword = NULL; // response body is just the plain IP address
         }
         else if (nHost == 2)
         {
+            // api.ipify.org
+              CService addrIP("api.ipify.org", 80, true);
+            if (!addrIP.IsValid())
+                continue;
+            addrConnect = addrIP;
+
+            pszGet = "GET / HTTP/1.1\r\n"
+                     "Host: api.ipify.org\r\n"
+                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
+                     "Connection: close\r\n"
+                     "\r\n";
+
+            pszKeyword = NULL; // response body is just the plain IP address
+        }
+        else if (nHost == 3)
+        {
+            // ip.truckcoin.net
             addrConnect = CService("23.158.40.11", 80); // ip.truckcoin.net
 
-            if (nLookup == 1)
-            {
-                CService addrIP("ip.truckcoin.net", 80, true);
-                if (addrIP.IsValid())
-                    addrConnect = addrIP;
-            }
+            CService addrIP("ip.truckcoin.net", 80, true);
+            if (addrIP.IsValid())
+                addrConnect = addrIP;
 
-            pszGet = "GET /simple/ HTTP/1.1\r\n"
+            pszGet = "GET / HTTP/1.1\r\n"
                      "Host: ip.truckcoin.net\r\n"
                      "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
                      "Connection: close\r\n"
