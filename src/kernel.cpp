@@ -1,8 +1,6 @@
-// Copyright (c) 2013-2024 The Version developers
+// Copyright (c) 2013-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-#include <boost/assign/list_of.hpp>
 
 #include "kernel.h"
 #include "txdb.h"
@@ -21,25 +19,25 @@ unsigned int nModifierIntervalNew = MODIFIER_INTERVAL_V2;
 
 // Hard checkpoints of stake modifiers to ensure they are deterministic
 static std::map<int, unsigned int> mapStakeModifierCheckpoints =
-    boost::assign::map_list_of
-    ( 0, 0x0e00670bu )
-    ( 19079, 0xb3141289u )
-    ( 536698, 0xa133c918u )  
-    ( 537020, 0x3f6ac070u )    // modifierchecksum
-    ( 1101203, 0x6260b286u )
-    ( 1356665, 0xc104141du )
-    ( 1683309, 0x580993efu )
-    ( 1966277, 0x95b6a3b4u )
-    ( 2142663, 0x0e7bc9c4u )
-    ( 2647643, 0x4f9886b0u )
-    ( 2819343, 0x39e155ceu )
-    ( 3000009, 0x2b81e950u )
-    ( 3150705, 0x9f60c6a4u )
-    ( 3311403, 0xd92cdb1au )
-    ( 3766623, 0xfde4843fu )
-    ( 4166623, 0xf5e83205u )
-    ( 4608623, 0xa0d1e883u )
-    ;
+    {
+        { 0, 0x0e00670bu },
+        { 19079, 0xb3141289u },
+        { 536698, 0xa133c918u },
+        { 537020, 0x3f6ac070u },   // modifierchecksum
+        { 1101203, 0x6260b286u },
+        { 1356665, 0xc104141du },
+        { 1683309, 0x580993efu },
+        { 1966277, 0x95b6a3b4u },
+        { 2142663, 0x0e7bc9c4u },
+        { 2647643, 0x4f9886b0u },
+        { 2819343, 0x39e155ceu },
+        { 3000009, 0x2b81e950u },
+        { 3150705, 0x9f60c6a4u },
+        { 3311403, 0xd92cdb1au },
+        { 3766623, 0xfde4843fu },
+        { 4166623, 0xf5e83205u },
+        { 4608623, 0xa0d1e883u }
+    };
 
 // Get time weight 
 int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)

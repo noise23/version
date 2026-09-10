@@ -1,10 +1,8 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2024 The Version developers
+// Copyright (c) 2013-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-#include <boost/assign/list_of.hpp>
 
 #include "base58.h"
 #include "rpcserver.h"
@@ -16,7 +14,6 @@
 
 using namespace std;
 using namespace boost;
-using namespace boost::assign;
 using namespace json_spirit;
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out)
@@ -147,7 +144,7 @@ Value listunspent(const Array& params, bool fHelp)
             "Results are an array of Objects, each of which has:\n"
             "{txid, vout, scriptPubKey, amount, confirmations}");
 
-    RPCTypeCheck(params, list_of(int_type)(int_type)(array_type));
+    RPCTypeCheck(params, {int_type, int_type, array_type});
 
     int nMinDepth = 1;
     if (params.size() > 0)
@@ -217,7 +214,7 @@ Value createrawtransaction(const Array& params, bool fHelp)
             "Note that the transaction's inputs are not signed, and\n"
             "it is not stored in the wallet or transmitted to the network.");
 
-    RPCTypeCheck(params, list_of(array_type)(obj_type));
+    RPCTypeCheck(params, {array_type, obj_type});
 
     Array inputs = params[0].get_array();
     Object sendTo = params[1].get_obj();
@@ -277,7 +274,7 @@ Value decoderawtransaction(const Array& params, bool fHelp)
             "decoderawtransaction <hex string>\n"
             "Return a JSON object representing the serialized, hex-encoded transaction.");
 
-    RPCTypeCheck(params, list_of(str_type));
+    RPCTypeCheck(params, {str_type});
 
     vector<unsigned char> txData(ParseHex(params[0].get_str()));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
@@ -312,7 +309,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
             "  complete : 1 if transaction has a complete set of signature (0 if not)"
             + HelpRequiringPassphrase());
 
-    RPCTypeCheck(params, list_of(str_type)(array_type)(array_type)(str_type), true);
+    RPCTypeCheck(params, {str_type, array_type, array_type, str_type}, true);
 
     vector<unsigned char> txData(ParseHex(params[0].get_str()));
     CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
@@ -371,7 +368,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
 
             Object prevOut = p.get_obj();
 
-            RPCTypeCheck(prevOut, map_list_of("txid", str_type)("vout", int_type)("scriptPubKey", str_type));
+            RPCTypeCheck(prevOut, {{"txid", str_type}, {"vout", int_type}, {"scriptPubKey", str_type}});
 
             string txidHex = find_value(prevOut, "txid").get_str();
             if (!IsHex(txidHex))
@@ -430,14 +427,14 @@ Value signrawtransaction(const Array& params, bool fHelp)
     if (params.size() > 3 && params[3].type() != null_type)
     {
         static map<string, int> mapSigHashValues =
-            boost::assign::map_list_of
-            (string("ALL"), int(SIGHASH_ALL))
-            (string("ALL|ANYONECANPAY"), int(SIGHASH_ALL|SIGHASH_ANYONECANPAY))
-            (string("NONE"), int(SIGHASH_NONE))
-            (string("NONE|ANYONECANPAY"), int(SIGHASH_NONE|SIGHASH_ANYONECANPAY))
-            (string("SINGLE"), int(SIGHASH_SINGLE))
-            (string("SINGLE|ANYONECANPAY"), int(SIGHASH_SINGLE|SIGHASH_ANYONECANPAY))
-            ;
+        {
+            {"ALL", SIGHASH_ALL},
+            {"ALL|ANYONECANPAY", SIGHASH_ALL|SIGHASH_ANYONECANPAY},
+            {"NONE", SIGHASH_NONE},
+            {"NONE|ANYONECANPAY", SIGHASH_NONE|SIGHASH_ANYONECANPAY},
+            {"SINGLE", SIGHASH_SINGLE},
+            {"SINGLE|ANYONECANPAY", SIGHASH_SINGLE|SIGHASH_ANYONECANPAY}
+        };
         string strHashType = params[3].get_str();
         if (mapSigHashValues.count(strHashType))
             nHashType = mapSigHashValues[strHashType];
@@ -488,7 +485,7 @@ Value sendrawtransaction(const Array& params, bool fHelp)
             "sendrawtransaction <hex string>\n"
             "Submits raw transaction (serialized, hex-encoded) to local node and network.");
 
-    RPCTypeCheck(params, list_of(str_type));
+    RPCTypeCheck(params, {str_type});
 
     // parse hex string from parameter
     vector<unsigned char> txData(ParseHex(params[0].get_str()));

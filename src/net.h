@@ -1,13 +1,13 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2024 The Version developers
+// Copyright (c) 2013-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_NET_H
 #define BITCOIN_NET_H
 
+#include <array>
 #include <deque>
-#include <boost/array.hpp>
 
 #ifndef WIN32
 #include <arpa/inet.h>
@@ -125,7 +125,7 @@ extern bool fUseUPnP;
 extern uint64_t nLocalServices;
 extern CAddress addrSeenByPeer;
 extern uint64_t nLocalHostNonce;
-extern boost::array<int, THREAD_MAX> vnThreadsRunning;
+extern std::array<int, THREAD_MAX> vnThreadsRunning;
 extern CAddrMan addrman;
 
 extern std::vector<CNode*> vNodes;

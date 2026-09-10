@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The Bitcoin Core developers
-// Copyright (c) 2024 The Version developers
+// Copyright (c) 2015-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,7 +14,7 @@
 #include "util.h"
 #include "ui_interface.h"
 
-#include <boost/algorithm/string.hpp> // boost::trim
+#include <regex>
 
 #undef printf
 #include <string.h>
@@ -59,8 +59,7 @@ static bool RPCAuthorized(const std::string& strAuth)
         return false;
     if (strAuth.substr(0, 6) != "Basic ")
         return false;
-    std::string strUserPass64 = strAuth.substr(6);
-    boost::trim(strUserPass64);
+    std::string strUserPass64 = std::regex_replace(strAuth.substr(6), static_cast<std::regex>("\\s+"), "");
     std::string strUserPass = DecodeBase64(strUserPass64);
     return TimingResistantEqual(strUserPass, strRPCUserColonPass);
 }

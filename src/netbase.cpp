@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2018 The Version developers
+// Copyright (c) 2013-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -13,7 +13,6 @@
 #include <sys/fcntl.h>
 #endif
 
-#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
 
 using namespace std;
@@ -28,7 +27,7 @@ bool fNameLookup = false;
 static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
 
 enum Network ParseNetwork(std::string net) {
- boost::to_lower(net);
+ transform(net.begin(), net.end(), net.begin(), ::tolower);
  if (net == "ipv4") return NET_IPV4;
  if (net == "ipv6") return NET_IPV6;
  if (net == "tor") return NET_TOR;
