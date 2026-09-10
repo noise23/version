@@ -16,12 +16,6 @@
 #include "db.h"
 
 #undef printf
-#include <boost/bind/bind.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/shared_ptr.hpp>
 #include <list>
 
 #define printf OutputDebugStringF

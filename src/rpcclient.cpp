@@ -10,11 +10,6 @@
 #include "util.h"
 #include "ui_interface.h"
 
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/lexical_cast.hpp>
-#include <boost/shared_ptr.hpp>
-
 #include <stdio.h>
 #include <event2/event.h>
 #include <event2/http.h>

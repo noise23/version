@@ -8,7 +8,7 @@
 #include "hash.h"
 #include "txdb.h"
 #include "kernel.h"
-#include <boost/algorithm/string/replace.hpp>
+#include <boost/thread.hpp>       // for boost::thread::hardware_concurrency()
 
 using namespace std;
 
