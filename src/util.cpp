@@ -19,7 +19,8 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
+#include <thread>
+#include <mutex>
 #include <stdarg.h>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
@@ -124,8 +125,8 @@ inline int OutputDebugStringF(const char* pszFormat, ...)
         if (fileout)
         {
             static bool fStartedNewLine = true;
-            static boost::mutex mutexDebugLog;
-            boost::mutex::scoped_lock scoped_lock(mutexDebugLog);
+            static std::mutex mutexDebugLog;
+            std::lock_guard<std::mutex> scoped_lock(mutexDebugLog);
 			
             // reopen the log file, if requested
             if (fReopenDebugLog) {
@@ -1308,8 +1309,8 @@ bool NewThread(void(*pfn)(void*), void* parg)
 {
     try
     {
-        boost::thread(pfn, parg); // thread detaches when out of scope
-    } catch(boost::thread_resource_error &e) {
+        std::thread(pfn, parg).detach();
+    } catch (const std::exception& e) {
         printf("Error creating thread: %s\n", e.what());
         return false;
     }

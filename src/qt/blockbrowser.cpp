@@ -6,6 +6,8 @@
 #include "txdb.h"
 #include "wallet.h"
 
+#include <sstream>
+
 double GetPoSKernelPS(const CBlockIndex* blockindex);
 double GetDifficulty(const CBlockIndex* blockindex);
 double GetPoWMHashPS(const CBlockIndex* blockindex);
@@ -149,7 +151,7 @@ std::string getOutputs(std::string txid)
             address = CNoDestination();
 			
         double buffer = convertCoins(txout.nValue);
-        std::string amount = boost::to_string(buffer);
+        std::ostringstream oss; oss << buffer; std::string amount = oss.str();
 		str.append(CBitcoinAddress(address).ToString());
         str.append(": ");
         str.append(amount);
@@ -187,7 +189,7 @@ std::string getInputs(std::string txid)
             address = CNoDestination();
 
         double buffer = convertCoins(wtxPrev.vout[vin.prevout.n].nValue);
-        std::string amount = boost::to_string(buffer);
+        std::ostringstream oss; oss << buffer; std::string amount = oss.str();
         str.append(CBitcoinAddress(address).ToString());
         str.append(": ");
         str.append(amount);

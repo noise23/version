@@ -41,11 +41,12 @@
 #endif
 #endif
 
+#include <chrono>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/thread.hpp>
-#include <boost/thread/thread_time.hpp>
 
 /** Maximum size of http request (request line + headers) */
 static const size_t MAX_HEADERS_SIZE = 8192;
@@ -92,8 +93,8 @@ class WorkQueue
 {
 private:
     /** Mutex protects entire object */
-    boost::mutex cs;
-    boost::condition_variable cond;
+    std::mutex cs;
+    std::condition_variable cond;
     std::deque<WorkItem*> queue;
     bool running;
     size_t maxDepth;
@@ -114,7 +115,7 @@ public:
     /** Enqueue a work item */
     bool Enqueue(WorkItem* item)
     {
-        boost::unique_lock<boost::mutex> lock(cs);
+        std::unique_lock<std::mutex> lock(cs);
         if (queue.size() >= maxDepth) {
             return false;
         }
@@ -130,7 +131,7 @@ public:
         while (true) {
             WorkItem* i = 0;
             {
-                boost::unique_lock<boost::mutex> lock(cs);
+                std::unique_lock<std::mutex> lock(cs);
                 while (running && queue.empty())
                     cond.wait(lock);
                 if (!running)
@@ -145,7 +146,7 @@ public:
     /** Interrupt and exit loops */
     void Interrupt()
     {
-        boost::unique_lock<boost::mutex> lock(cs);
+        std::unique_lock<std::mutex> lock(cs);
         running = false;
         cond.notify_all();
     }
@@ -153,7 +154,7 @@ public:
     /** Return current depth of queue */
     size_t Depth()
     {
-        boost::unique_lock<boost::mutex> lock(cs);
+        std::unique_lock<std::mutex> lock(cs);
         return queue.size();
     }
 };
@@ -180,14 +181,14 @@ struct evhttp* eventHTTP = 0;
 static WorkQueue<HTTPClosure>* workQueue = 0;
 //! Handlers for (sub)paths. Read from the event-loop thread, mutated from the
 //! init/shutdown threads via (Un)RegisterHTTPHandler, so guard every access.
-static boost::mutex g_httppathhandlers_mutex;
+static std::mutex g_httppathhandlers_mutex;
 static std::vector<HTTPPathHandler> pathHandlers;
 //! Bound listening sockets. Removing these lets the event loop exit on its own.
 static std::vector<evhttp_bound_socket*> boundSockets;
 //! The event loop dispatch thread
-static boost::thread threadHTTP;
+static std::thread threadHTTP;
 //! The request worker threads
-static boost::thread_group threadHTTPWorkers;
+static std::vector<std::thread> threadHTTPWorkers;
 //! Set when the server is shutting down
 static bool fHTTPStopped = false;
 
@@ -206,8 +207,8 @@ static bool fHTTPStopped = false;
 class HTTPRequestTracker
 {
 private:
-    mutable boost::mutex m_mutex;
-    mutable boost::condition_variable m_cv;
+    mutable std::mutex m_mutex;
+    mutable std::condition_variable m_cv;
     std::map<const evhttp_connection*, size_t> m_tracker;
 
     void RemoveConnectionInternal(std::map<const evhttp_connection*, size_t>::iterator it)
@@ -224,7 +225,7 @@ public:
         const evhttp_connection* conn = evhttp_request_get_connection(req);
         if (!conn)
             return;
-        boost::unique_lock<boost::mutex> lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_mutex);
         ++m_tracker[conn];
     }
     //! A request finished; drop its connection from tracking once its count hits 0.
@@ -233,7 +234,7 @@ public:
         const evhttp_connection* conn = evhttp_request_get_connection(req);
         if (!conn)
             return;
-        boost::unique_lock<boost::mutex> lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_mutex);
         std::map<const evhttp_connection*, size_t>::iterator it = m_tracker.find(conn);
         if (it != m_tracker.end() && it->second > 0) {
             if (--(it->second) == 0)
@@ -245,25 +246,25 @@ public:
     {
         if (!conn)
             return;
-        boost::unique_lock<boost::mutex> lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_mutex);
         std::map<const evhttp_connection*, size_t>::iterator it = m_tracker.find(conn);
         if (it != m_tracker.end())
             RemoveConnectionInternal(it);
     }
     size_t CountActiveConnections() const
     {
-        boost::unique_lock<boost::mutex> lock(m_mutex);
+        std::unique_lock<std::mutex> lock(m_mutex);
         return m_tracker.size();
     }
     //! Block until nothing is in flight, or until the timeout elapses.
     //! Returns true if the tracker drained.
     bool WaitUntilEmpty(int64_t nTimeoutMillis) const
     {
-        boost::unique_lock<boost::mutex> lock(m_mutex);
-        const boost::system_time deadline =
-            boost::get_system_time() + boost::posix_time::milliseconds(nTimeoutMillis);
+        std::unique_lock<std::mutex> lock(m_mutex);
+        const auto deadline =
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(nTimeoutMillis);
         while (!m_tracker.empty()) {
-            if (!m_cv.timed_wait(lock, deadline))
+            if (m_cv.wait_until(lock, deadline) == std::cv_status::timeout)
                 break;
         }
         return m_tracker.empty();
@@ -354,7 +355,7 @@ static void http_request_cb(struct evhttp_request* req, void* arg)
     HTTPRequestHandler handler;
     bool foundHandler = false;
     {
-        boost::unique_lock<boost::mutex> lock(g_httppathhandlers_mutex);
+        std::unique_lock<std::mutex> lock(g_httppathhandlers_mutex);
         std::vector<HTTPPathHandler>::const_iterator i = pathHandlers.begin();
         std::vector<HTTPPathHandler>::const_iterator iend = pathHandlers.end();
         for (; i != iend; ++i) {
@@ -503,9 +504,9 @@ bool StartHTTPServer()
     eventBase = base;
     eventHTTP = http;
 
-    threadHTTP = boost::thread([base, http]{ ThreadHTTP(base, http); });
+    threadHTTP = std::thread([base, http]{ ThreadHTTP(base, http); });
     for (int i = 0; i < rpcThreads; i++)
-        threadHTTPWorkers.create_thread([]{ HTTPWorkQueueRun(workQueue); });
+        threadHTTPWorkers.emplace_back([]{ HTTPWorkQueueRun(workQueue); });
 
     return true;
 }
@@ -535,7 +536,9 @@ void StopHTTPServer()
     if (workQueue) {
         printf("HTTP: waiting for HTTP worker threads to exit\n");
         workQueue->Interrupt();
-        threadHTTPWorkers.join_all();
+        for (std::thread& t : threadHTTPWorkers)
+            t.join();
+        threadHTTPWorkers.clear();
         delete workQueue;
         workQueue = 0;
     }
@@ -730,13 +733,13 @@ HTTPRequest::RequestMethod HTTPRequest::GetRequestMethod()
 void RegisterHTTPHandler(const std::string &prefix, bool exactMatch, const HTTPRequestHandler &handler)
 {
     printf("HTTP: registering handler for %s (exactmatch %d)\n", prefix.c_str(), exactMatch);
-    boost::unique_lock<boost::mutex> lock(g_httppathhandlers_mutex);
+    std::unique_lock<std::mutex> lock(g_httppathhandlers_mutex);
     pathHandlers.push_back(HTTPPathHandler(prefix, exactMatch, handler));
 }
 
 void UnregisterHTTPHandler(const std::string &prefix, bool exactMatch)
 {
-    boost::unique_lock<boost::mutex> lock(g_httppathhandlers_mutex);
+    std::unique_lock<std::mutex> lock(g_httppathhandlers_mutex);
     std::vector<HTTPPathHandler>::iterator i = pathHandlers.begin();
     std::vector<HTTPPathHandler>::iterator iend = pathHandlers.end();
     for (; i != iend; ++i)

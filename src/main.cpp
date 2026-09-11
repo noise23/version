@@ -16,6 +16,7 @@
 #include <boost/filesystem/fstream.hpp>
 
 #include <regex>
+#include <thread>
 
 using namespace std;
 using namespace boost;
@@ -1879,7 +1880,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
 
     if (!fIsInitialDownload && !strCmd.empty())
         // thread runs free
-        boost::thread t(runCommand, regex_replace(strCmd, static_cast<std::regex>("%s"), hashBestChain.GetHex()));
+        std::thread(runCommand, regex_replace(strCmd, static_cast<std::regex>("%s"), hashBestChain.GetHex())).detach();
 
     return true;
 }

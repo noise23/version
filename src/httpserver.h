@@ -9,7 +9,6 @@
 #include <string>
 #include <stdint.h>
 #include <functional>
-#include <boost/thread.hpp>
 
 struct evhttp_request;
 struct event_base;
