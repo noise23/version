@@ -9,6 +9,9 @@
 #include "ui_interface.h"
 static const int64_t nClientStartupTime = GetTime();
 
+#include <boost/bind/bind.hpp>
+#include <boost/bind/placeholders.hpp>
+
 #include <QDateTime>
 #include <QTimer>
 

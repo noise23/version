@@ -21,7 +21,6 @@
 #define printf OutputDebugStringF
 
 using namespace std;
-using namespace boost;
 
 //static inline unsigned short GetDefaultRPCPort()
 //{

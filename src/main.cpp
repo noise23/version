@@ -20,7 +20,6 @@
 #include <thread>
 
 using namespace std;
-using namespace boost;
 
 //
 // Global state

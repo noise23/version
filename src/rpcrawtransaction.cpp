@@ -13,7 +13,6 @@
 #include "wallet.h"
 
 using namespace std;
-using namespace boost;
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out)
 {

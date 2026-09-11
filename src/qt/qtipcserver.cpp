@@ -10,7 +10,6 @@
 
 using namespace boost::interprocess;
 using namespace boost::posix_time;
-using namespace boost;
 using namespace std;
 
 void ipcShutdown()

@@ -17,7 +17,6 @@
 #include <event2/keyvalq_struct.h>
 
 using namespace std;
-using namespace boost;
 
 //
 // Exception thrown on connection error.  This error is used to determine

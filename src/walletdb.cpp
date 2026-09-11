@@ -13,7 +13,6 @@
 #include "util.h"
 
 using namespace std;
-using namespace boost;
 
 static uint64_t nAccountingEntryNumber = 0;
 

@@ -22,7 +22,6 @@
 #endif
 
 using namespace std;
-using namespace boost;
 
 static const int MAX_OUTBOUND_CONNECTIONS = 32;
 

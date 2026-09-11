@@ -21,7 +21,6 @@ LIBPATHS= \
  -L"$(DEPSDIR)/lib"
 
 LIBS= \
- -l boost_chrono-mt-s \
  -l db_cxx \
  -l event \
  -l z
@@ -162,7 +161,7 @@ obj/%.o: %.c $(HEADERS)
 	  rm -f $(@:%.o=%.d)
 
 test_version.exe: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
-	$(CXX) $(xCXXFLAGS) $(xLDFLAGS) -o $@ $(LIBPATHS) $^ -lboost_unit_test_framework-mt-s $(LIBS)
+	$(CXX) $(xCXXFLAGS) $(xLDFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
 
 obj/scrypt-x86.o: scrypt-x86.S
 	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
