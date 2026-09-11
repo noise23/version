@@ -20,7 +20,6 @@
 #include <boost/filesystem/fstream.hpp>
 // #include <boost/filesystem/convenience.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 
 #ifndef WIN32
 #include <signal.h>
@@ -168,7 +167,7 @@ bool AppInit(int argc, char* argv[])
 
         // Command-line RPC
         for (int i = 1; i < argc; i++)
-            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "version:"))
+            if (!IsSwitchChar(argv[i][0]) && !StartsWithCaseInsensitive(argv[i], "version:"))
                 fCommandLine = true;
 
         if (fCommandLine)

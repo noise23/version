@@ -11,14 +11,14 @@
 #include "version.h"
 #include "ui_interface.h"
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <stdexcept>
 
-#include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/algorithm/string.hpp>
 #include <thread>
 #include <mutex>
 #include <stdarg.h>
@@ -388,8 +388,9 @@ void ParseParameters(int argc, const char*const argv[])
             str = str.substr(0, is_index);
         }
 #ifdef WIN32
-        boost::to_lower(str);
-        if (boost::algorithm::starts_with(str, "/"))
+        std::transform(str.begin(), str.end(), str.begin(),
+                       [](unsigned char c) { return ::tolower(c); });
+        if (StartsWith(str, "/"))
             str = "-" + str.substr(1);
 #endif
         if (str[0] != '-')
@@ -862,6 +863,25 @@ bool WildcardMatch(const char* psz, const char* mask)
 bool WildcardMatch(const string& str, const string& mask)
 {
     return WildcardMatch(str.c_str(), mask.c_str());
+}
+
+bool StartsWith(const string& str, const string& prefix)
+{
+    return str.compare(0, prefix.size(), prefix) == 0;
+}
+
+bool EndsWith(const string& str, const string& suffix)
+{
+    return str.size() >= suffix.size() &&
+           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+bool StartsWithCaseInsensitive(const string& str, const string& prefix)
+{
+    if (str.size() < prefix.size())
+        return false;
+    return std::equal(prefix.begin(), prefix.end(), str.begin(),
+                       [](unsigned char a, unsigned char b) { return ::tolower(a) == ::tolower(b); });
 }
 
 static std::string FormatException(std::exception* pex, const char* pszThread)

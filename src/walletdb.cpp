@@ -6,11 +6,12 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include "walletdb.h"
 #include "wallet.h"
+#include "util.h"
 #include <boost/filesystem.hpp>
-#include <boost/algorithm/string.hpp>
 
 using namespace std;
 using namespace boost;
@@ -804,7 +805,12 @@ bool ImportWallet(CWallet *pwallet, const string& strLocation)
               continue;
 
           std::vector<std::string> vstr;
-          boost::split(vstr, line, boost::is_any_of(" "));
+          {
+              std::istringstream iss(line);
+              std::string tok;
+              while (iss >> tok)
+                  vstr.push_back(tok);
+          }
           if (vstr.size() < 2)
               continue;
           CBitcoinSecret vchSecret;
@@ -823,13 +829,13 @@ bool ImportWallet(CWallet *pwallet, const string& strLocation)
           std::string strLabel;
           bool fLabel = true;
           for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
-              if (boost::algorithm::starts_with(vstr[nStr], "#"))
+              if (StartsWith(vstr[nStr], "#"))
                   break;
               if (vstr[nStr] == "change=1")
                   fLabel = false;
               if (vstr[nStr] == "reserve=1")
                   fLabel = false;
-              if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
+              if (StartsWith(vstr[nStr], "label=")) {
                   strLabel = DecodeDumpString(vstr[nStr].substr(6));
                   fLabel = true;
               }

@@ -67,7 +67,7 @@ public:
         if (!lock.owns_lock())
         {
             EnterCritical(pszName, pszFile, nLine, (void*)(lock.mutex()), true);
-            lock.try_lock();
+            (void)lock.try_lock();
             if (!lock.owns_lock())
                 LeaveCritical();
         }

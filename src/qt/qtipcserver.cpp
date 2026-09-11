@@ -2,9 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
 
-#include <boost/algorithm/string.hpp>
 #include <boost/interprocess/ipc/message_queue.hpp>
-#include <boost/tokenizer.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "ui_interface.h"

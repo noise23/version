@@ -13,8 +13,6 @@
 #include <sys/fcntl.h>
 #endif
 
-#include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
-
 using namespace std;
 
 // Settings
@@ -124,7 +122,7 @@ bool LookupHost(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nM
     std::string strHost = str;
     if (str.empty())
         return false;
-    if (boost::algorithm::starts_with(str, "[") && boost::algorithm::ends_with(str, "]"))
+    if (StartsWith(str, "[") && EndsWith(str, "]"))
     {
         strHost = str.substr(1, str.size() - 2);
     }
