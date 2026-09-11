@@ -6,6 +6,7 @@
 #include <map>
 
 #include "allocators.h" /* for SecureString */
+#include "eventsignal.h"
 
 class OptionsModel;
 class AddressTableModel;
@@ -157,6 +158,10 @@ private:
     int cachedNumBlocks;
 
     QTimer *pollTimer;
+
+    SignalConnection connNotifyStatusChanged;
+    SignalConnection connNotifyAddressBookChanged;
+    SignalConnection connNotifyTransactionChanged;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

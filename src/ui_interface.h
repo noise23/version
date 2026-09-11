@@ -5,10 +5,8 @@
 #define BITCOIN_UI_INTERFACE_H
 
 #include <string>
+#include "eventsignal.h"
 #include "util.h" // for int64
-#include <boost/optional.hpp>
-#include <boost/signals2/signal.hpp>
-#include <boost/signals2/last_value.hpp>
 
 class CBasicKeyStore;
 class CWallet;
@@ -69,46 +67,46 @@ public:
   };
 
     /** Show message box. */
-    boost::signals2::signal<void (const std::string& message, const std::string& caption, int style)> ThreadSafeMessageBox;
+    Signal<void (const std::string& message, const std::string& caption, int style)> ThreadSafeMessageBox;
 
    /** Ask the user whether he want to pay a fee or not. */
-    boost::signals2::signal<bool (int64_t nFeeRequired, const std::string& strCaption), boost::signals2::last_value<bool> > ThreadSafeAskFee;
+    Signal<bool (int64_t nFeeRequired, const std::string& strCaption)> ThreadSafeAskFee;
 
     /** Handle an URL passed on the command line. */
-    boost::signals2::signal<void (const std::string& strURI)> ThreadSafeHandleURI;
+    Signal<void (const std::string& strURI)> ThreadSafeHandleURI;
 
     /** Progress message during initialization. */
-    boost::signals2::signal<void (const std::string &message)> InitMessage;
+    Signal<void (const std::string &message)> InitMessage;
 
     /** Initiate client shutdown. */
-    boost::signals2::signal<void ()> QueueShutdown;
+    Signal<void ()> QueueShutdown;
 
     /** Translate a message to the native language of the user. */
-    boost::signals2::signal<std::string (const char* psz)> Translate;
+    Signal<std::string (const char* psz)> Translate;
 
     /** Block chain changed. */
-    boost::signals2::signal<void ()> NotifyBlocksChanged;
+    Signal<void ()> NotifyBlocksChanged;
 
     /** Number of network connections changed. */
-    boost::signals2::signal<void (int newNumConnections)> NotifyNumConnectionsChanged;
+    Signal<void (int newNumConnections)> NotifyNumConnectionsChanged;
 
     /**
      * New, updated or cancelled alert.
      * @note called with lock cs_mapAlerts held.
      */
-    boost::signals2::signal<void (const uint256 &hash, ChangeType status)> NotifyAlertChanged;
+    Signal<void (const uint256 &hash, ChangeType status)> NotifyAlertChanged;
 };
 
 extern CClientUIInterface uiInterface;
 
 /**
- * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
- * If no translation slot is registered, nothing is returned, and simply return the input.
+ * Translation function: Call Translate signal on UI interface.
+ * If no translation slot is registered (or it returns nothing useful), simply return the input.
  */
 inline std::string _(const char* psz)
 {
-    boost::optional<std::string> rv = uiInterface.Translate(psz);
-    return rv ? (*rv) : psz;
+    std::string rv = uiInterface.Translate(psz);
+    return rv.empty() ? psz : rv;
 }
 
 #endif

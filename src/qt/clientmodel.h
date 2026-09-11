@@ -1,6 +1,8 @@
 #ifndef CLIENTMODEL_H
 #define CLIENTMODEL_H
 
+#include "eventsignal.h"
+
 #include <QObject>
 
 class OptionsModel;
@@ -55,6 +57,10 @@ private:
     int numBlocksAtStartup;
 	
 	QTimer *pollTimer;
+
+    SignalConnection connNotifyBlocksChanged;
+    SignalConnection connNotifyNumConnectionsChanged;
+    SignalConnection connNotifyAlertChanged;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

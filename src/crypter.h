@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2012 The Bitcoin Developers
-// Copyright (c) 2013-2024 The Version developers
+// Copyright (c) 2013-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef __CRYPTER_H__
@@ -8,7 +8,7 @@
 #include "keystore.h"
 #include "serialize.h"
 #include "allocators.h" /* for SecureString */
-#include <boost/signals2/signal.hpp>
+#include "eventsignal.h"
 
 const unsigned int WALLET_CRYPTO_KEY_SIZE = 32;
 const unsigned int WALLET_CRYPTO_SALT_SIZE = 8;
@@ -181,7 +181,7 @@ public:
     /* Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.
      */
-    boost::signals2::signal<void (CCryptoKeyStore* wallet)> NotifyStatusChanged;
+    Signal<void (CCryptoKeyStore* wallet)> NotifyStatusChanged;
 };
 
 #endif

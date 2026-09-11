@@ -6,8 +6,6 @@
 USE_UPNP:=0
 USE_IPV6:=1
 
-BOOST_INCLUDE_PATH=/usr/local/include
-BOOST_LIB_PATH=/usr/local/lib
 BDB_INCLUDE_PATH=/usr/local/include/db48
 BDB_LIB_PATH=/usr/local/lib/db48
 
@@ -15,8 +13,8 @@ LINK:=$(CXX)
 
 DEFS=-D__STDC_FORMAT_MACROS
 
-DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(CURDIR)/univalue $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH))
-LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH))
+DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(CURDIR)/univalue $(BDB_INCLUDE_PATH))
+LIBS = $(addprefix -L,$(BDB_LIB_PATH))
 
 LMODE = dynamic
 LMODE2 = dynamic

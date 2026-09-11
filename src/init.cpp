@@ -517,7 +517,6 @@ bool AppInit2()
     printf("Startup time: %s\n", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
     printf("%s\n", DbEnv::version(0, 0, 0)); // BerkeleyDB version
     printf("LevelDB %d.%d\n", leveldb::kMajorVersion, leveldb::kMinorVersion); // LevelDB version
-    printf("Boost v%d.%d.%d\n", BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100);
     printf("Default data directory %s\n", GetDefaultDataDir().string().c_str());
     std::ostringstream strErrors;
 
