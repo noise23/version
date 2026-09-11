@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <assert.h>
-#include <stdint.h>
 #include <string.h>
 #include <vector>
 #include <string>

@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The Bitcoin Core developers
-// Copyright (c) 2024 The Version developers
+// Copyright (c) 2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,9 +14,6 @@
 #include "sync.h"
 #include "ui_interface.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <algorithm>
 #include <deque>
 #include <map>
@@ -43,7 +40,6 @@
 
 #include <chrono>
 #include <condition_variable>
-#include <memory>
 #include <mutex>
 #include <thread>
 

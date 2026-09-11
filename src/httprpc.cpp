@@ -17,7 +17,6 @@
 #include <regex>
 
 #undef printf
-#include <string.h>
 #define printf OutputDebugStringF
 
 using namespace json_spirit;
