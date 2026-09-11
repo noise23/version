@@ -8,7 +8,7 @@
 #include "hash.h"
 #include "txdb.h"
 #include "kernel.h"
-#include <boost/thread.hpp>       // for boost::thread::hardware_concurrency()
+#include <thread>
 
 using namespace std;
 
@@ -613,7 +613,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 
     if (fGenerate)
     {
-        int nProcessors = boost::thread::hardware_concurrency();
+        int nProcessors = std::thread::hardware_concurrency();
         printf("%d processors\n", nProcessors);
         if (nProcessors < 1)
             nProcessors = 1;

@@ -4,10 +4,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <boost/tuple/tuple.hpp>
-
-using namespace std;
-using namespace boost;
+#include <tuple>
 
 #include "script.h"
 #include "keystore.h"
@@ -18,6 +15,9 @@ using namespace boost;
 #include "main.h"
 #include "sync.h"
 #include "util.h"
+
+using namespace std;
+using namespace boost;
 
 bool CheckSig(vector<unsigned char> vchSig, vector<unsigned char> vchPubKey, CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
 
@@ -941,7 +941,7 @@ class CSignatureCache
 {
 private:
      // sigdata_type is (signature hash, signature, public key):
-    typedef boost::tuple<uint256, std::vector<unsigned char>, std::vector<unsigned char> > sigdata_type;
+    typedef std::tuple<uint256, std::vector<unsigned char>, std::vector<unsigned char> > sigdata_type;
     std::set< sigdata_type> setValid;
     CCriticalSection cs_sigcache;
 

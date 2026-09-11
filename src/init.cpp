@@ -61,7 +61,7 @@ void StartShutdown()
 #endif
 }
 
-static boost::scoped_ptr<ECCVerifyHandle> globalVerifyHandle;
+static std::unique_ptr<ECCVerifyHandle> globalVerifyHandle;
 
 void Shutdown(void* parg)
 {

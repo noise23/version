@@ -41,10 +41,9 @@
 #endif
 #endif
 
+#include <memory>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
-#include <boost/bind/bind.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/scoped_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/thread_time.hpp>
 
@@ -78,7 +77,7 @@ public:
         }
     }
 
-    boost::scoped_ptr<HTTPRequest> req;
+    std::unique_ptr<HTTPRequest> req;
 
 private:
     std::string path;
@@ -504,9 +503,9 @@ bool StartHTTPServer()
     eventBase = base;
     eventHTTP = http;
 
-    threadHTTP = boost::thread(boost::bind(&ThreadHTTP, base, http));
+    threadHTTP = boost::thread([base, http]{ ThreadHTTP(base, http); });
     for (int i = 0; i < rpcThreads; i++)
-        threadHTTPWorkers.create_thread(boost::bind(&HTTPWorkQueueRun, workQueue));
+        threadHTTPWorkers.create_thread([]{ HTTPWorkQueueRun(workQueue); });
 
     return true;
 }
@@ -599,7 +598,7 @@ static void httpevent_callback_fn(evutil_socket_t, short, void* data)
         delete self;
 }
 
-HTTPEvent::HTTPEvent(struct event_base* base, bool deleteWhenTriggered, const boost::function<void(void)>& handler):
+HTTPEvent::HTTPEvent(struct event_base* base, bool deleteWhenTriggered, const std::function<void(void)>& handler):
     deleteWhenTriggered(deleteWhenTriggered), handler(handler)
 {
     ev = event_new(base, -1, 0, httpevent_callback_fn, this);
@@ -685,8 +684,9 @@ void HTTPRequest::WriteReply(int nStatus, const std::string& strReply)
     struct evbuffer* evb = evhttp_request_get_output_buffer(req);
     assert(evb);
     evbuffer_add(evb, strReply.data(), strReply.size());
+    struct evhttp_request* reqCopy = req;
     HTTPEvent* ev = new HTTPEvent(eventBase, true,
-                                  boost::bind(http_send_reply, req, nStatus));
+                                  [reqCopy, nStatus]{ http_send_reply(reqCopy, nStatus); });
     ev->trigger(0);
     replySent = true;
     req = 0; // transferred back to main thread
