@@ -65,7 +65,6 @@ LIBPATHS= \
 
 LIBS= \
  -l boost_filesystem-mgw46-mt-s-1_47 \
- -l boost_program_options-mgw46-mt-s-1_47 \
  -l boost_thread-mgw46-mt-s-1_47 \
  -l event \
  -l db_cxx \

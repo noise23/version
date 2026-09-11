@@ -11,19 +11,10 @@
 #include "version.h"
 #include "ui_interface.h"
 
-// Work around clang compilation problem in Boost 1.46:
-// /usr/include/boost/program_options/detail/config_file.hpp:163:17: error: call to function 'to_internal' that is neither visible in the template definition nor found by argument-dependent lookup
-// See also: http://stackoverflow.com/questions/10020179/compilation-fail-in-boost-librairies-program-options
-//           http://clang.debian.net/status.php?version=3.0&key=CANNOT_FIND_FUNCTION
-namespace boost {
-    namespace program_options {
-        std::string to_internal(const std::string&);
-    }
-}
+#include <fstream>
+#include <stdexcept>
 
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
-#include <boost/program_options/detail/config_file.hpp>
-#include <boost/program_options/parsers.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -1020,30 +1011,65 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
+// Trim leading and trailing whitespace (space, tab, CR, LF).
+static string TrimConfig(const string& s)
+{
+    static const char* ws = " \t\r\n";
+    string::size_type b = s.find_first_not_of(ws);
+    if (b == string::npos)
+        return string();
+    return s.substr(b, s.find_last_not_of(ws) - b + 1);
+}
+
 void ReadConfigFile(map<string, string>& mapSettingsRet,
                     map<string, vector<string> >& mapMultiSettingsRet)
 {
-    namespace fs = boost::filesystem;
-    namespace pod = boost::program_options::detail;
-
-    fs::ifstream streamConfig(GetConfigFile());
+    // Minimal INI-style parser matching the behaviour of the
+    // boost::program_options config_file_iterator this used to use:
+    //  - '#' starts a comment through end of line
+    //  - blank lines are ignored
+    //  - "[section]" prefixes following keys as "section.key"
+    //  - "key = value" is split on the first '='; both sides are trimmed
+    //  - any other non-empty line is a syntax error
+    std::ifstream streamConfig(GetConfigFile().string().c_str());
     if (!streamConfig.good())
-        return; // No bitcoin.conf file is OK
+        return; // No version.conf file is OK
 
-    set<string> setOptions;
-    setOptions.insert("*");
-
-    for (pod::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it)
+    string prefix; // current "[section]." prefix, empty if none
+    string line;
+    while (std::getline(streamConfig, line))
     {
-        // Don't overwrite existing settings so command line settings override bitcoin.conf
-        string strKey = string("-") + it->string_key;
+        string::size_type hash = line.find('#');
+        if (hash != string::npos)
+            line.erase(hash);
+        string s = TrimConfig(line);
+        if (s.empty())
+            continue;
+
+        if (s[0] == '[' && s[s.size() - 1] == ']')
+        {
+            prefix = s.substr(1, s.size() - 2);
+            if (!prefix.empty() && prefix[prefix.size() - 1] != '.')
+                prefix += '.';
+            continue;
+        }
+
+        string::size_type eq = s.find('=');
+        if (eq == string::npos)
+            throw std::runtime_error(strprintf("ReadConfigFile: unrecognized line in %s: '%s'",
+                                               GetConfigFile().string().c_str(), s.c_str()));
+
+        string strKey = string("-") + prefix + TrimConfig(s.substr(0, eq));
+        string strValue = TrimConfig(s.substr(eq + 1));
+
+        // Don't overwrite existing settings so command line settings override version.conf
         if (mapSettingsRet.count(strKey) == 0)
         {
-            mapSettingsRet[strKey] = it->value[0];
-            //  interpret nofoo=1 as foo=0 (and nofoo=0 as foo=1) as long as foo not set)
+            mapSettingsRet[strKey] = strValue;
+            // interpret nofoo=1 as foo=0 (and nofoo=0 as foo=1) as long as foo not set
             InterpretNegativeSetting(strKey, mapSettingsRet);
         }
-        mapMultiSettingsRet[strKey].push_back(it->value[0]);
+        mapMultiSettingsRet[strKey].push_back(strValue);
     }
 }
 
