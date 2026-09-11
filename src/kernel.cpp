@@ -5,6 +5,8 @@
 #include "kernel.h"
 #include "txdb.h"
 
+#include <algorithm>
+
 using namespace std;
 
 extern int nStakeMaxAge;

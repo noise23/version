@@ -15,6 +15,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <regex>
 #include <thread>
 

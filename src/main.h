@@ -11,6 +11,7 @@
 #include "net.h"
 #include "script.h"
 
+#include <algorithm>
 #include <iostream>
 #include <list>
 

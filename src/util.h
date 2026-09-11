@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
+#include <algorithm>
 #include <map>
 #include <vector>
 #include <string>
@@ -20,8 +21,6 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/path.hpp>
-#include <boost/date_time/gregorian/gregorian_types.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
 
 #include "netbase.h" // for AddTimeData
 

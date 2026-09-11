@@ -5,6 +5,7 @@
 
 #include "txdb.h"
 
+#include <algorithm>
 #include <map>
 
 #include <boost/version.hpp>

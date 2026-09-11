@@ -14,12 +14,14 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <ctime>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <thread>
 #include <mutex>
 #include <stdarg.h>
@@ -64,7 +66,6 @@
 #endif
 
 using namespace std;
-namespace bt = boost::posix_time;
 
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
@@ -82,25 +83,6 @@ bool fLogTimestamps = false;
 CMedianFilter<int64_t> vTimeOffsets(200,0);
 bool fReopenDebugLog = false;
 bool fStaking = true;
-
-// Extended DecodeDumpTime implementation, see this page for details:
-// http://stackoverflow.com/questions/3786201/parsing-of-date-time-from-string-boost
-const std::locale formats[] = {
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y-%m-%dT%H:%M:%SZ")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y-%m-%d %H:%M:%S")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y/%m/%d %H:%M:%S")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%d.%m.%Y %H:%M:%S")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y-%m-%d"))
-};
-
-const size_t formats_n = sizeof(formats)/sizeof(formats[0]);
-
-std::time_t pt_to_time_t(const bt::ptime& pt)
-{
-    bt::ptime timet_start(boost::gregorian::date(1970,1,1));
-    bt::time_duration diff = pt - timet_start;
-    return diff.ticks()/bt::time_duration::rep_type::ticks_per_second;
-}
 
 LockedPageManager LockedPageManager::instance;
 
@@ -797,19 +779,40 @@ string EncodeDumpTime(int64_t nTime)
     return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
 }
 
+// Extended DecodeDumpTime implementation: accept a few historical formats
+// besides the "%Y-%m-%dT%H:%M:%SZ" that EncodeDumpTime() actually produces,
+// in case a dump file was hand-edited or came from an older version.
 int64_t DecodeDumpTime(const string& s)
 {
-    bt::ptime pt;
+    static const char* formats[] = {
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y/%m/%d %H:%M:%S",
+        "%d.%m.%Y %H:%M:%S",
+        "%Y-%m-%d",
+    };
 
-    for(size_t i=0; i<formats_n; ++i)
+    for (const char* fmt : formats)
     {
+        std::tm tm;
+        memset(&tm, 0, sizeof(tm));
         std::istringstream is(s);
-        is.imbue(formats[i]);
-        is >> pt;
-        if(pt != bt::ptime()) break;
+        is >> std::get_time(&tm, fmt);
+        if (!is.fail())
+        {
+            // tm is interpreted as UTC (dump timestamps are always UTC, per
+            // the trailing 'Z' EncodeDumpTime() writes) - timegm()/_mkgmtime()
+            // convert it to time_t without going through the local timezone,
+            // unlike mktime().
+#ifdef WIN32
+            return _mkgmtime(&tm);
+#else
+            return timegm(&tm);
+#endif
+        }
     }
 
-    return pt_to_time_t(pt);
+    return 0;
 }
 
 string EncodeDumpString(const string &str)

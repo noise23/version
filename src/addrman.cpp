@@ -5,6 +5,8 @@
 #include "addrman.h"
 #include "hash.h"
 
+#include <cmath>
+
 using namespace std;
 
 int CAddrInfo::GetTriedBucket(const std::vector<unsigned char> &nKey) const

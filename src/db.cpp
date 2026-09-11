@@ -8,6 +8,7 @@
 #include "net.h"
 #include "util.h"
 #include "main.h"
+#include <sstream>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 

@@ -9,6 +9,8 @@
 #include "sync.h"
 #include "hash.h"
 
+#include <algorithm>
+
 #ifndef WIN32
 #include <sys/fcntl.h>
 #endif
