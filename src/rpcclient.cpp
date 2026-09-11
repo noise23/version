@@ -18,7 +18,6 @@
 
 using namespace std;
 using namespace boost;
-using namespace json_spirit;
 
 //
 // Exception thrown on connection error.  This error is used to determine
@@ -63,7 +62,7 @@ static void http_request_done(struct evhttp_request *req, void *ctx)
     }
 }
 
-Object CallRPC(const string& strMethod, const Array& params)
+UniValue CallRPC(const string& strMethod, const UniValue& params)
 {
     if (mapArgs["-rpcuser"] == "" && mapArgs["-rpcpassword"] == "")
         throw runtime_error(strprintf(
@@ -131,43 +130,79 @@ Object CallRPC(const string& strMethod, const Array& params)
         throw runtime_error("no response from server");
 
     // Parse reply
-    Value valReply;
-    if (!read_string(response.body, valReply))
+    UniValue valReply;
+    if (!valReply.read(response.body))
         throw runtime_error("couldn't parse reply from server");
-    const Object& reply = valReply.get_obj();
+    const UniValue& reply = valReply.get_obj();
     if (reply.empty())
         throw runtime_error("expected reply to have result, error and id properties");
 
     return reply;
 }
 
+// Marker tags distinguishing UniValue's merged VARR/VOBJ type at the
+// ConvertTo<> call sites below (json_spirit had distinct Array/Object types).
+struct AsArray {};
+struct AsObject {};
+
 template<typename T>
-void ConvertTo(Value& value, bool fAllowNull=false)
+static void CheckConvertedType(const UniValue& value);
+template<> void CheckConvertedType<bool>(const UniValue& value)
 {
-    if (fAllowNull && value.type() == null_type)
+    if (!value.isBool())
+        throw runtime_error("JSON value is not a boolean as expected");
+}
+template<> void CheckConvertedType<int64_t>(const UniValue& value)
+{
+    if (!value.isNum())
+        throw runtime_error("JSON value is not a number as expected");
+}
+template<> void CheckConvertedType<double>(const UniValue& value)
+{
+    if (!value.isNum())
+        throw runtime_error("JSON value is not a number as expected");
+}
+template<> void CheckConvertedType<AsArray>(const UniValue& value)
+{
+    if (!value.isArray())
+        throw runtime_error("JSON value is not an array as expected");
+}
+template<> void CheckConvertedType<AsObject>(const UniValue& value)
+{
+    if (!value.isObject())
+        throw runtime_error("JSON value is not an object as expected");
+}
+
+template<typename T>
+void ConvertTo(UniValue& value, bool fAllowNull=false)
+{
+    if (fAllowNull && value.isNull())
         return;
-    if (value.type() == str_type)
+    if (value.isStr())
     {
         // Reinterpret string as unquoted json value
-        Value value2;
+        UniValue value2;
         string strJSON = value.get_str();
-        if (!read_string(strJSON, value2))
+        if (!value2.read(strJSON))
             throw runtime_error(string("Error parsing JSON:")+strJSON);
-        ConvertTo<T>(value2, fAllowNull);
+        if (!(fAllowNull && value2.isNull()))
+            CheckConvertedType<T>(value2);
         value = value2;
     }
     else
     {
-        value = value.get_value<T>();
+        CheckConvertedType<T>(value);
     }
 }
 
 // Convert strings to command-specific RPC representation
-Array RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams)
+UniValue RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams)
 {
-    Array params;
+    // Held as a plain vector (rather than a UniValue array) while converting
+    // in place, since UniValue's operator[] is const-only.
+    std::vector<UniValue> params;
     for (const std::string &param : strParams)
-        params.push_back(param);
+        params.emplace_back(param);
 
     int n = params.size();
 
@@ -199,30 +234,33 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "listaccounts"           && n > 0) ConvertTo<int64_t>(params[0]);
     if (strMethod == "walletpassphrase"       && n > 1) ConvertTo<int64_t>(params[1]);
     if (strMethod == "walletpassphrase"       && n > 2) ConvertTo<bool>(params[2]);
-    if (strMethod == "getblocktemplate"       && n > 0) ConvertTo<Object>(params[0]);
+    if (strMethod == "getblocktemplate"       && n > 0) ConvertTo<AsObject>(params[0]);
     if (strMethod == "listsinceblock"         && n > 1) ConvertTo<int64_t>(params[1]);
     if (strMethod == "sendalert"              && n > 2) ConvertTo<int64_t>(params[2]);
     if (strMethod == "sendalert"              && n > 3) ConvertTo<int64_t>(params[3]);
     if (strMethod == "sendalert"              && n > 4) ConvertTo<int64_t>(params[4]);
     if (strMethod == "sendalert"              && n > 5) ConvertTo<int64_t>(params[5]);
     if (strMethod == "sendalert"              && n > 6) ConvertTo<int64_t>(params[6]);
-    if (strMethod == "sendmany"               && n > 1) ConvertTo<Object>(params[1]);
+    if (strMethod == "sendmany"               && n > 1) ConvertTo<AsObject>(params[1]);
     if (strMethod == "sendmany"               && n > 2) ConvertTo<int64_t>(params[2]);
     if (strMethod == "reservebalance"          && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "reservebalance"          && n > 1) ConvertTo<double>(params[1]);
     if (strMethod == "addmultisigaddress"      && n > 0) ConvertTo<int64_t>(params[0]);
-    if (strMethod == "addmultisigaddress"     && n > 1) ConvertTo<Array>(params[1]);
+    if (strMethod == "addmultisigaddress"     && n > 1) ConvertTo<AsArray>(params[1]);
     if (strMethod == "listunspent"            && n > 0) ConvertTo<int64_t>(params[0]);
     if (strMethod == "listunspent"            && n > 1) ConvertTo<int64_t>(params[1]);
-    if (strMethod == "listunspent"            && n > 2) ConvertTo<Array>(params[2]);
+    if (strMethod == "listunspent"            && n > 2) ConvertTo<AsArray>(params[2]);
     if (strMethod == "getrawtransaction"      && n > 1) ConvertTo<int64_t>(params[1]);
-    if (strMethod == "createrawtransaction"   && n > 0) ConvertTo<Array>(params[0]);
-    if (strMethod == "createrawtransaction"   && n > 1) ConvertTo<Object>(params[1]);
-    if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<Array>(params[1], true);
-    if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<Array>(params[2], true);
+    if (strMethod == "createrawtransaction"   && n > 0) ConvertTo<AsArray>(params[0]);
+    if (strMethod == "createrawtransaction"   && n > 1) ConvertTo<AsObject>(params[1]);
+    if (strMethod == "signrawtransaction"     && n > 1) ConvertTo<AsArray>(params[1], true);
+    if (strMethod == "signrawtransaction"     && n > 2) ConvertTo<AsArray>(params[2], true);
     if (strMethod == "setstaking"            && n > 0) ConvertTo<bool>(params[0]);
 
-    return params;
+    UniValue ret(UniValue::VARR);
+    for (UniValue& p : params)
+        ret.push_back(std::move(p));
+    return ret;
 }
 
 int CommandLineRPC(int argc, char *argv[])
@@ -245,34 +283,34 @@ int CommandLineRPC(int argc, char *argv[])
 
         // Parameters default to strings
         std::vector<std::string> strParams(&argv[2], &argv[argc]);
-        Array params = RPCConvertValues(strMethod, strParams);
+        UniValue params = RPCConvertValues(strMethod, strParams);
 
         // Execute and handle connection failures with -rpcwait
         const bool fWait = GetBoolArg("-rpcwait", false);
         do {
             try {
-                Object reply = CallRPC(strMethod, params);
+                UniValue reply = CallRPC(strMethod, params);
 
                 // Parse reply
-                const Value& result = find_value(reply, "result");
-                const Value& error  = find_value(reply, "error");
+                const UniValue& result = find_value(reply, "result");
+                const UniValue& error  = find_value(reply, "error");
 
-                if (error.type() != null_type)
+                if (!error.isNull())
                 {
                     // Error
-                    strPrint = "error: " + write_string(error, false);
+                    strPrint = "error: " + error.write();
                     int code = find_value(error.get_obj(), "code").get_int();
                     nRet = abs(code);
                 }
                 else
                 {
                     // Result
-                    if (result.type() == null_type)
+                    if (result.isNull())
                         strPrint = "";
-                    else if (result.type() == str_type)
+                    else if (result.isStr())
                         strPrint = result.get_str();
                     else
-                        strPrint = write_string(result, true);
+                        strPrint = result.write(2);
                 }
                 // Connection succeeded, no need to retry.
                 break;

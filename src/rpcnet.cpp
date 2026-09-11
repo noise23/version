@@ -10,10 +10,9 @@
 #include "db.h"
 #include "walletdb.h"
 
-using namespace json_spirit;
 using namespace std;
 
-Value getconnectioncount(const Array& params, bool fHelp)
+UniValue getconnectioncount(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -24,7 +23,7 @@ Value getconnectioncount(const Array& params, bool fHelp)
     return (int)vNodes.size();
 }
 
-Value ping(const Array& params, bool fHelp)
+UniValue ping(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
        throw runtime_error(
@@ -39,7 +38,7 @@ Value ping(const Array& params, bool fHelp)
         pNode->fPingQueued = true;
     }
 
-    return Value::null;
+    return NullUniValue;
 }
 
 static void CopyNodeStats(std::vector<CNodeStats>& vstats)
@@ -55,7 +54,7 @@ static void CopyNodeStats(std::vector<CNodeStats>& vstats)
     }
 }
 
-Value getpeerinfo(const Array& params, bool fHelp)
+UniValue getpeerinfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -65,47 +64,47 @@ Value getpeerinfo(const Array& params, bool fHelp)
     vector<CNodeStats> vstats;
     CopyNodeStats(vstats);
 
-    Array ret;
+    UniValue ret(UniValue::VARR);
 
     for (const CNodeStats& stats : vstats) {
-        Object obj;
+        UniValue obj(UniValue::VOBJ);
 
-        obj.push_back(Pair("addr", stats.addrName));
-        obj.push_back(Pair("services", strprintf("%08" PRIx64, stats.nServices)));
-        obj.push_back(Pair("lastsend", DateTimeStrFormat(stats.nLastSend)));
-        obj.push_back(Pair("lastrecv", DateTimeStrFormat(stats.nLastRecv)));
-        obj.push_back(Pair("conntime", DateTimeStrFormat(stats.nTimeConnected)));
+        obj.pushKV("addr", stats.addrName);
+        obj.pushKV("services", strprintf("%08" PRIx64, stats.nServices));
+        obj.pushKV("lastsend", DateTimeStrFormat(stats.nLastSend));
+        obj.pushKV("lastrecv", DateTimeStrFormat(stats.nLastRecv));
+        obj.pushKV("conntime", DateTimeStrFormat(stats.nTimeConnected));
         if(stats.nPingTime < (~0U - 1U)) {
-            obj.push_back(Pair("pingtime", strprintf("%u ms", stats.nPingTime)));
+            obj.pushKV("pingtime", strprintf("%u ms", stats.nPingTime));
         } else {
-            obj.push_back(Pair("pingtime", "invalid"));
+            obj.pushKV("pingtime", "invalid");
         }
-        obj.push_back(Pair("pingtime", stats.dPingTime));
+        obj.pushKV("pingtime", stats.dPingTime);
         if (stats.dPingWait > 0.0)
-            obj.push_back(Pair("pingwait", stats.dPingWait));
-        obj.push_back(Pair("version", stats.nVersion));
-        obj.push_back(Pair("subver", stats.strSubVer));
-        obj.push_back(Pair("inbound", stats.fInbound));
-        obj.push_back(Pair("releasetime", (int64_t)stats.nReleaseTime));
-        obj.push_back(Pair("height", stats.nStartingHeight));
-        obj.push_back(Pair("banscore", stats.nMisbehavior));
+            obj.pushKV("pingwait", stats.dPingWait);
+        obj.pushKV("version", stats.nVersion);
+        obj.pushKV("subver", stats.strSubVer);
+        obj.pushKV("inbound", stats.fInbound);
+        obj.pushKV("releasetime", (int64_t)stats.nReleaseTime);
+        obj.pushKV("height", stats.nStartingHeight);
+        obj.pushKV("banscore", stats.nMisbehavior);
         if (stats.fSyncNode)
-            obj.push_back(Pair("syncnode", true));
+            obj.pushKV("syncnode", true);
 
         ret.push_back(obj);
     }
-    
+
     return ret;
 }
 
 extern CCriticalSection cs_mapAlerts;
 extern map<uint256, CAlert> mapAlerts;
 
-// version: send alert.  
+// version: send alert.
 // There is a known deadlock situation with ThreadMessageHandler
 // ThreadMessageHandler: holds cs_vSend and acquiring cs_main in SendMessages()
 // ThreadRPCServer: holds cs_main and acquiring cs_vSend in alert.RelayTo()/PushMessage()/BeginMessage()
-Value sendalert(const Array& params, bool fHelp)
+UniValue sendalert(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 6)
     throw runtime_error(
@@ -136,13 +135,13 @@ Value sendalert(const Array& params, bool fHelp)
     CDataStream sMsg(SER_NETWORK, PROTOCOL_VERSION);
     sMsg << (CUnsignedAlert)alert;
     alert.vchMsg = vector<unsigned char>(sMsg.begin(), sMsg.end());
-    
+
     vector<unsigned char> vchPrivKey = ParseHex(params[1].get_str());
     key.SetPrivKey(CPrivKey(vchPrivKey.begin(), vchPrivKey.end()), false); // returns false on a malformed key (parsed via libsecp256k1, not OpenSSL)
     if (!key.Sign(Hash(alert.vchMsg.begin(), alert.vchMsg.end()), alert.vchSig))
         throw runtime_error(
-            "Unable to sign alert, check private key?\n");  
-    if(!alert.ProcessAlert()) 
+            "Unable to sign alert, check private key?\n");
+    if(!alert.ProcessAlert())
         throw runtime_error(
             "Failed to process alert.\n");
     // Relay alert
@@ -152,14 +151,14 @@ Value sendalert(const Array& params, bool fHelp)
             alert.RelayTo(pnode);
     }
 
-    Object result;
-    result.push_back(Pair("strStatusBar", alert.strStatusBar));
-    result.push_back(Pair("nVersion", alert.nVersion));
-    result.push_back(Pair("nMinVer", alert.nMinVer));
-    result.push_back(Pair("nMaxVer", alert.nMaxVer));
-    result.push_back(Pair("nPriority", alert.nPriority));
-    result.push_back(Pair("nID", alert.nID));
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("strStatusBar", alert.strStatusBar);
+    result.pushKV("nVersion", alert.nVersion);
+    result.pushKV("nMinVer", alert.nMinVer);
+    result.pushKV("nMaxVer", alert.nMaxVer);
+    result.pushKV("nPriority", alert.nPriority);
+    result.pushKV("nID", alert.nID);
     if (alert.nCancel > 0)
-        result.push_back(Pair("nCancel", alert.nCancel));
+        result.pushKV("nCancel", alert.nCancel);
     return result;
 }

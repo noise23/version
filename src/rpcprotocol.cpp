@@ -9,7 +9,6 @@
 #include "util.h"
 
 using namespace std;
-using namespace json_spirit;
 
 //
 // JSON-RPC protocol.  Bitcoin speaks version 1.0 for maximum compatibility,
@@ -18,40 +17,39 @@ using namespace json_spirit;
 //
 // 1.0 spec: http://json-rpc.org/wiki/specification
 // 1.2 spec: http://groups.google.com/group/json-rpc/web/json-rpc-over-http
-// http://www.codeproject.com/KB/recipes/JSON_Spirit.aspx
 //
 
-string JSONRPCRequest(const string& strMethod, const Array& params, const Value& id)
+string JSONRPCRequest(const string& strMethod, const UniValue& params, const UniValue& id)
 {
-    Object request;
-    request.push_back(Pair("method", strMethod));
-    request.push_back(Pair("params", params));
-    request.push_back(Pair("id", id));
-    return write_string(Value(request), false) + "\n";
+    UniValue request(UniValue::VOBJ);
+    request.pushKV("method", strMethod);
+    request.pushKV("params", params);
+    request.pushKV("id", id);
+    return request.write() + "\n";
 }
 
-Object JSONRPCReplyObj(const Value& result, const Value& error, const Value& id)
+UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const UniValue& id)
 {
-    Object reply;
-    if (error.type() != null_type)
-        reply.push_back(Pair("result", Value::null));
+    UniValue reply(UniValue::VOBJ);
+    if (!error.isNull())
+        reply.pushKV("result", NullUniValue);
     else
-        reply.push_back(Pair("result", result));
-    reply.push_back(Pair("error", error));
-    reply.push_back(Pair("id", id));
+        reply.pushKV("result", result);
+    reply.pushKV("error", error);
+    reply.pushKV("id", id);
     return reply;
 }
 
-string JSONRPCReply(const Value& result, const Value& error, const Value& id)
+string JSONRPCReply(const UniValue& result, const UniValue& error, const UniValue& id)
 {
-    Object reply = JSONRPCReplyObj(result, error, id);
-    return write_string(Value(reply), false) + "\n";
+    UniValue reply = JSONRPCReplyObj(result, error, id);
+    return reply.write() + "\n";
 }
 
-Object JSONRPCError(int code, const string& message)
+UniValue JSONRPCError(int code, const string& message)
 {
-    Object error;
-    error.push_back(Pair("code", code));
-    error.push_back(Pair("message", message));
+    UniValue error(UniValue::VOBJ);
+    error.pushKV("code", code);
+    error.pushKV("message", message);
     return error;
 }

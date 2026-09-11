@@ -7,10 +7,9 @@
 #include "main.h"
 #include "rpcserver.h"
 
-using namespace json_spirit;
 using namespace std;
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 extern enum Checkpoints::CPMode CheckpointsMode;
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -102,7 +101,7 @@ double GetPoSKernelPS(const CBlockIndex* blockindex)
 }
 
 // version: get network Gh/s estimate
-Value getnetworkghps(const Array& params, bool fHelp)
+UniValue getnetworkghps(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -126,43 +125,43 @@ Value getnetworkghps(const Array& params, bool fHelp)
         }
         pindex = pindex->pnext;
     }
-    double dNetworkGhps = GetDifficulty() * 4.294967296 / nTargetSpacingWork; 
+    double dNetworkGhps = GetDifficulty() * 4.294967296 / nTargetSpacingWork;
     return dNetworkGhps;
 }
 
-Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPrintTransactionDetail)
+UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPrintTransactionDetail)
 {
-    Object result;
-    result.push_back(Pair("hash", block.GetHash().GetHex()));
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("hash", block.GetHash().GetHex());
     CMerkleTx txGen(block.vtx[0]);
     txGen.SetMerkleBranch(&block);
-    result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
-    result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
-    result.push_back(Pair("height", blockindex->nHeight));
-    result.push_back(Pair("version", block.nVersion));
-    result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
-    result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
-    result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
-    result.push_back(Pair("nonce", (boost::uint64_t)block.nNonce));
-    result.push_back(Pair("bits", HexBits(block.nBits)));
-    result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
+    result.pushKV("confirmations", (int)txGen.GetDepthInMainChain());
+    result.pushKV("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION));
+    result.pushKV("height", blockindex->nHeight);
+    result.pushKV("version", block.nVersion);
+    result.pushKV("merkleroot", block.hashMerkleRoot.GetHex());
+    result.pushKV("mint", ValueFromAmount(blockindex->nMint));
+    result.pushKV("time", (int64_t)block.GetBlockTime());
+    result.pushKV("nonce", (uint64_t)block.nNonce);
+    result.pushKV("bits", HexBits(block.nBits));
+    result.pushKV("difficulty", GetDifficulty(blockindex));
     if (blockindex->pprev)
-        result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
+        result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
     if (blockindex->pnext)
-        result.push_back(Pair("nextblockhash", blockindex->pnext->GetBlockHash().GetHex()));
-    result.push_back(Pair("flags", strprintf("%s%s", blockindex->IsProofOfStake()? "proof-of-stake" : "proof-of-work", blockindex->GeneratedStakeModifier()? " stake-modifier": "")));
-    result.push_back(Pair("proofhash", blockindex->IsProofOfStake()? blockindex->hashProofOfStake.GetHex() : blockindex->GetBlockHash().GetHex()));
-    result.push_back(Pair("entropybit", (int)blockindex->GetStakeEntropyBit()));
-    result.push_back(Pair("modifier", strprintf("%016" PRIx64, blockindex->nStakeModifier)));
-    result.push_back(Pair("modifierchecksum", strprintf("%08x", blockindex->nStakeModifierChecksum)));
-    Array txinfo;
+        result.pushKV("nextblockhash", blockindex->pnext->GetBlockHash().GetHex());
+    result.pushKV("flags", strprintf("%s%s", blockindex->IsProofOfStake()? "proof-of-stake" : "proof-of-work", blockindex->GeneratedStakeModifier()? " stake-modifier": ""));
+    result.pushKV("proofhash", blockindex->IsProofOfStake()? blockindex->hashProofOfStake.GetHex() : blockindex->GetBlockHash().GetHex());
+    result.pushKV("entropybit", (int)blockindex->GetStakeEntropyBit());
+    result.pushKV("modifier", strprintf("%016" PRIx64, blockindex->nStakeModifier));
+    result.pushKV("modifierchecksum", strprintf("%08x", blockindex->nStakeModifierChecksum));
+    UniValue txinfo(UniValue::VARR);
     for (const CTransaction& tx : block.vtx)
     {
         if (fPrintTransactionDetail)
         {
-            Object entry;
+            UniValue entry(UniValue::VOBJ);
 
-            entry.push_back(Pair("txid", tx.GetHash().GetHex()));
+            entry.pushKV("txid", tx.GetHash().GetHex());
             TxToJSON(tx, 0, entry);
 
             txinfo.push_back(entry);
@@ -170,12 +169,12 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         else
             txinfo.push_back(tx.GetHash().GetHex());
     }
-    result.push_back(Pair("tx", txinfo));
-    result.push_back(Pair("signature", HexStr(block.vchBlockSig.begin(), block.vchBlockSig.end())));
+    result.pushKV("tx", txinfo);
+    result.pushKV("signature", HexStr(block.vchBlockSig.begin(), block.vchBlockSig.end()));
     return result;
 }
 
-Value getblockcount(const Array& params, bool fHelp)
+UniValue getblockcount(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -185,21 +184,21 @@ Value getblockcount(const Array& params, bool fHelp)
     return nBestHeight;
 }
 
-Value getdifficulty(const Array& params, bool fHelp)
+UniValue getdifficulty(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getdifficulty\n"
             "Returns the difficulty as a multiple of the minimum difficulty.");
 
-    Object obj;
-    obj.push_back(Pair("proof-of-work",        GetDifficulty()));
-    obj.push_back(Pair("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    obj.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("proof-of-work",        GetDifficulty());
+    obj.pushKV("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true)));
+    obj.pushKV("search-interval",      (int)nLastCoinStakeSearchInterval);
     return obj;
 }
 
-Value settxfee(const Array& params, bool fHelp)
+UniValue settxfee(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 1 || AmountFromValue(params[0]) < MIN_TX_FEE)
         throw runtime_error(
@@ -212,7 +211,7 @@ Value settxfee(const Array& params, bool fHelp)
     return true;
 }
 
-Value getrawmempool(const Array& params, bool fHelp)
+UniValue getrawmempool(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -222,14 +221,14 @@ Value getrawmempool(const Array& params, bool fHelp)
     vector<uint256> vtxid;
     mempool.queryHashes(vtxid);
 
-    Array a;
+    UniValue a(UniValue::VARR);
     for (const uint256& hash : vtxid)
         a.push_back(hash.ToString());
 
     return a;
 }
 
-Value getblockhash(const Array& params, bool fHelp)
+UniValue getblockhash(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -244,7 +243,7 @@ Value getblockhash(const Array& params, bool fHelp)
     return pblockindex->phashBlock->GetHex();
 }
 
-Value getblock(const Array& params, bool fHelp)
+UniValue getblock(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -265,7 +264,7 @@ Value getblock(const Array& params, bool fHelp)
     return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
 }
 
-Value getblockbynumber(const Array& params, bool fHelp)
+UniValue getblockbynumber(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -291,32 +290,32 @@ Value getblockbynumber(const Array& params, bool fHelp)
 }
 
 // version: get information of sync-checkpoint
-Value getcheckpoint(const Array& params, bool fHelp)
+UniValue getcheckpoint(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getcheckpoint\n"
             "Show info of synchronized checkpoint.\n");
 
-    Object result;
+    UniValue result(UniValue::VOBJ);
     CBlockIndex* pindexCheckpoint;
-    
-    result.push_back(Pair("synccheckpoint", Checkpoints::hashSyncCheckpoint.ToString().c_str()));
-    pindexCheckpoint = mapBlockIndex[Checkpoints::hashSyncCheckpoint];        
-    result.push_back(Pair("height", pindexCheckpoint->nHeight));
-    result.push_back(Pair("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str()));
-    // Check that the block satisfies synchronized checkpoint 
-    if (CheckpointsMode == Checkpoints::STRICT) 
-        result.push_back(Pair("policy", "strict")); 
- 
-    if (CheckpointsMode == Checkpoints::ADVISORY) 
-        result.push_back(Pair("policy", "advisory")); 
- 
-    if (CheckpointsMode == Checkpoints::PERMISSIVE) 
-        result.push_back(Pair("policy", "permissive")); 
-		
+
+    result.pushKV("synccheckpoint", Checkpoints::hashSyncCheckpoint.ToString().c_str());
+    pindexCheckpoint = mapBlockIndex[Checkpoints::hashSyncCheckpoint];
+    result.pushKV("height", pindexCheckpoint->nHeight);
+    result.pushKV("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str());
+    // Check that the block satisfies synchronized checkpoint
+    if (CheckpointsMode == Checkpoints::STRICT)
+        result.pushKV("policy", "strict");
+
+    if (CheckpointsMode == Checkpoints::ADVISORY)
+        result.pushKV("policy", "advisory");
+
+    if (CheckpointsMode == Checkpoints::PERMISSIVE)
+        result.pushKV("policy", "permissive");
+
     if (mapArgs.count("-checkpointkey"))
-        result.push_back(Pair("checkpointmaster", true));
+        result.pushKV("checkpointmaster", true);
 
     return result;
 }

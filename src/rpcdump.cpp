@@ -10,7 +10,6 @@
 
 #define printf OutputDebugStringF
 
-using namespace json_spirit;
 using namespace std;
 
 class CTxDump
@@ -31,7 +30,7 @@ public:
     }
 };
 
-Value importprivkey(const Array& params, bool fHelp)
+UniValue importprivkey(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -68,10 +67,10 @@ Value importprivkey(const Array& params, bool fHelp)
         pwalletMain->ReacceptWalletTransactions();
     }
 
-    return Value::null;
+    return NullUniValue;
 }
 
-Value importwallet(const Array& params, bool fHelp)
+UniValue importwallet(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -87,10 +86,10 @@ Value importwallet(const Array& params, bool fHelp)
     if(!ImportWallet(pwalletMain,params[0].get_str().c_str()))
        throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
 
-    return Value::null;
+    return NullUniValue;
 }
 
-Value dumpprivkey(const Array& params, bool fHelp)
+UniValue dumpprivkey(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -114,7 +113,7 @@ Value dumpprivkey(const Array& params, bool fHelp)
     return CBitcoinSecret(vchSecret).ToString();
 }
 
-Value dumpwallet(const Array& params, bool fHelp)
+UniValue dumpwallet(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -130,5 +129,5 @@ Value dumpwallet(const Array& params, bool fHelp)
     if(!DumpWallet(pwalletMain, params[0].get_str().c_str() ))
       throw JSONRPCError(RPC_WALLET_ERROR, "Error dumping wallet keys to file");
 
-    return Value::null;
+    return NullUniValue;
 }

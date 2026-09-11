@@ -13,6 +13,7 @@ DEPSDIR=/opt/local
 INCLUDEPATHS= \
  -I"$(CURDIR)" \
  -I"$(CURDIR)"/obj \
+ -I"$(CURDIR)"/univalue \
  -I"$(DEPSDIR)/include" \
  -I"$(DEPSDIR)/include/db48"
 
@@ -29,20 +30,18 @@ ifdef STATIC
 # Build STATIC if you are redistributing the versiond binary
 LIBS += \
  $(DEPSDIR)/lib/db48/libdb_cxx-4.8.a \
- $(DEPSDIR)/lib/libboost_thread-mt.a \
  $(DEPSDIR)/lib/libevent.a \
  $(DEPSDIR)/lib/libevent_pthreads.a \
  -lz
 else
 LIBS += \
  -ldb_cxx-4.8 \
- -lboost_thread-mt \
  -levent \
  -levent_pthreads \
  -lz
 endif
 
-DEFS=-DMAC_OSX -DMSG_NOSIGNAL=0 -DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS
+DEFS=-DMAC_OSX -DMSG_NOSIGNAL=0 -D__STDC_FORMAT_MACROS
 
 ifdef RELEASE
 CFLAGS = -mmacosx-version-min=10.5 -O3 -std=c++17
@@ -105,7 +104,11 @@ OBJS= \
     obj/crypto/hmac_sha256.o \
     obj/crypto/sha512.o \
     obj/crypto/ripemd160.o \
-    obj/crypto/sha1.o
+    obj/crypto/sha1.o \
+    obj/univalue/univalue.o \
+    obj/univalue/univalue_get.o \
+    obj/univalue/univalue_read.o \
+    obj/univalue/univalue_write.o
 
 ifdef USE_UPNP
 	DEFS += -DUSE_UPNP=$(USE_UPNP)

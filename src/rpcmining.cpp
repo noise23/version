@@ -11,10 +11,9 @@
 #include "miner.h"
 #include "rpcserver.h"
 
-using namespace json_spirit;
 using namespace std;
 
-Value getgenerate(const Array& params, bool fHelp)
+UniValue getgenerate(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -24,7 +23,7 @@ Value getgenerate(const Array& params, bool fHelp)
     return GetBoolArg("-gen");
 }
 
-Value setgenerate(const Array& params, bool fHelp)
+UniValue setgenerate(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -47,10 +46,10 @@ Value setgenerate(const Array& params, bool fHelp)
 
     assert(pwalletMain != NULL);
     GenerateBitcoins(fGenerate, pwalletMain);
-    return Value::null;
+    return NullUniValue;
 }
 
-Value gethashespersec(const Array& params, bool fHelp)
+UniValue gethashespersec(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
@@ -62,31 +61,31 @@ Value gethashespersec(const Array& params, bool fHelp)
     return (int64_t)dHashesPerSec;
 }
 
-Value getmininginfo(const Array& params, bool fHelp)
+UniValue getmininginfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getmininginfo\n"
             "Returns an object containing mining-related information.");
 
-    Object obj;
-    obj.push_back(Pair("blocks",            (int)nBestHeight));
-    obj.push_back(Pair("currentblocksize",  (uint64_t)nLastBlockSize));
-    obj.push_back(Pair("currentblocktx",    (uint64_t)nLastBlockTx));
-    obj.push_back(Pair("PoW difficulty",    (double)GetDifficulty()));
-    obj.push_back(Pair("PoS difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    obj.push_back(Pair("errors",            GetWarnings("statusbar")));
-    obj.push_back(Pair("netmhashps",        GetPoWMHashPS()));
-    obj.push_back(Pair("netstakeweight",    GetPoSKernelPS()));
-    obj.push_back(Pair("generate",          getgenerate(params, false)));
-    obj.push_back(Pair("genproclimit",      (int)GetArg("-genproclimit", -1)));
-    obj.push_back(Pair("hashespersec",      gethashespersec(params, false)));
-    obj.push_back(Pair("pooledtx",          (uint64_t)mempool.size()));
-    obj.push_back(Pair("testnet",           fTestNet));
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("blocks",            (int)nBestHeight);
+    obj.pushKV("currentblocksize",  (uint64_t)nLastBlockSize);
+    obj.pushKV("currentblocktx",    (uint64_t)nLastBlockTx);
+    obj.pushKV("PoW difficulty",    (double)GetDifficulty());
+    obj.pushKV("PoS difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true)));
+    obj.pushKV("errors",            GetWarnings("statusbar"));
+    obj.pushKV("netmhashps",        GetPoWMHashPS());
+    obj.pushKV("netstakeweight",    GetPoSKernelPS());
+    obj.pushKV("generate",          getgenerate(params, false));
+    obj.pushKV("genproclimit",      (int)GetArg("-genproclimit", -1));
+    obj.pushKV("hashespersec",      gethashespersec(params, false));
+    obj.pushKV("pooledtx",          (uint64_t)mempool.size());
+    obj.pushKV("testnet",           fTestNet);
     return obj;
 }
 
-Value getblocktemplate(const Array& params, bool fHelp)
+UniValue getblocktemplate(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
@@ -111,11 +110,11 @@ Value getblocktemplate(const Array& params, bool fHelp)
     std::string strMode = "template";
     if (params.size() > 0)
     {
-        const Object& oparam = params[0].get_obj();
-        const Value& modeval = find_value(oparam, "mode");
-        if (modeval.type() == str_type)
+        const UniValue& oparam = params[0].get_obj();
+        const UniValue& modeval = find_value(oparam, "mode");
+        if (modeval.isStr())
             strMode = modeval.get_str();
-        else if (modeval.type() == null_type)
+        else if (modeval.isNull())
         {
             /* Do nothing */
         }
@@ -172,7 +171,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     pblock->UpdateTime(pindexPrev);
     pblock->nNonce = 0;
 
-    Array transactions;
+    UniValue transactions(UniValue::VARR);
     map<uint256, int64_t> setTxIndex;
     int i = 0;
     CTxDB txdb("r");
@@ -184,44 +183,44 @@ Value getblocktemplate(const Array& params, bool fHelp)
         if (tx.IsCoinBase() || tx.IsCoinStake())
             continue;
 
-        Object entry;
+        UniValue entry(UniValue::VOBJ);
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << tx;
-        entry.push_back(Pair("data", HexStr(ssTx.begin(), ssTx.end())));
+        entry.pushKV("data", HexStr(ssTx.begin(), ssTx.end()));
 
-        entry.push_back(Pair("hash", txHash.GetHex()));
+        entry.pushKV("hash", txHash.GetHex());
 
         MapPrevTx mapInputs;
         map<uint256, CTxIndex> mapUnused;
         bool fInvalid = false;
         if (tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid))
         {
-            entry.push_back(Pair("fee", (int64_t)(tx.GetValueIn(mapInputs) - tx.GetValueOut())));
+            entry.pushKV("fee", (int64_t)(tx.GetValueIn(mapInputs) - tx.GetValueOut()));
 
-            Array deps;
+            UniValue deps(UniValue::VARR);
             for (MapPrevTx::value_type& inp : mapInputs)
             {
                 if (setTxIndex.count(inp.first))
                     deps.push_back(setTxIndex[inp.first]);
             }
-            entry.push_back(Pair("depends", deps));
+            entry.pushKV("depends", deps);
 
             int64_t nSigOps = tx.GetLegacySigOpCount();
             nSigOps += tx.GetP2SHSigOpCount(mapInputs);
-            entry.push_back(Pair("sigops", nSigOps));
+            entry.pushKV("sigops", nSigOps);
         }
 
         transactions.push_back(entry);
     }
 
-    Object aux;
-    aux.push_back(Pair("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
+    UniValue aux(UniValue::VOBJ);
+    aux.pushKV("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end()));
 
     uint256 hashTarget;
     hashTarget.SetCompact(pblock->nBits);
 
-    static Array aMutable;
+    static UniValue aMutable(UniValue::VARR);
     if (aMutable.empty())
     {
         aMutable.push_back("time");
@@ -229,26 +228,26 @@ Value getblocktemplate(const Array& params, bool fHelp)
         aMutable.push_back("prevblock");
     }
 
-    Object result;
-    result.push_back(Pair("version", pblock->nVersion));
-    result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
-    result.push_back(Pair("transactions", transactions));
-    result.push_back(Pair("coinbaseaux", aux));
-    result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
-    result.push_back(Pair("target", hashTarget.GetHex()));
-    result.push_back(Pair("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1));
-    result.push_back(Pair("mutable", aMutable));
-    result.push_back(Pair("noncerange", "00000000ffffffff"));
-    result.push_back(Pair("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS));
-    result.push_back(Pair("sizelimit", (int64_t)MAX_BLOCK_SIZE));
-    result.push_back(Pair("curtime", (int64_t)pblock->nTime));
-    result.push_back(Pair("bits", HexBits(pblock->nBits)));
-    result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("version", pblock->nVersion);
+    result.pushKV("previousblockhash", pblock->hashPrevBlock.GetHex());
+    result.pushKV("transactions", transactions);
+    result.pushKV("coinbaseaux", aux);
+    result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue);
+    result.pushKV("target", hashTarget.GetHex());
+    result.pushKV("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1);
+    result.pushKV("mutable", aMutable);
+    result.pushKV("noncerange", "00000000ffffffff");
+    result.pushKV("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS);
+    result.pushKV("sizelimit", (int64_t)MAX_BLOCK_SIZE);
+    result.pushKV("curtime", (int64_t)pblock->nTime);
+    result.pushKV("bits", HexBits(pblock->nBits));
+    result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
 
     return result;
 }
 
-Value submitblock(const Array& params, bool fHelp)
+UniValue submitblock(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -274,10 +273,10 @@ Value submitblock(const Array& params, bool fHelp)
     if (!fAccepted)
         return "rejected";
 
-    return Value::null;
+    return NullUniValue;
 }
 
-Value getstaking(const Array& params, bool fHelp) {
+UniValue getstaking(const UniValue& params, bool fHelp) {
 
     if(fHelp || params.size() != 0) throw runtime_error(
       "getstaking\n"
@@ -286,7 +285,7 @@ Value getstaking(const Array& params, bool fHelp) {
     return fStaking;
 }
 
-Value setstaking(const Array& params, bool fHelp) {
+UniValue setstaking(const UniValue& params, bool fHelp) {
 
     if(fHelp || params.size() != 1) throw runtime_error(
       "setstaking <staking>\n"
@@ -295,6 +294,6 @@ Value setstaking(const Array& params, bool fHelp) {
     /* The flag triggers the stake miner */
     if(params.size() > 0) fStaking = params[0].get_bool();
 
-//    return Value::null;
+//    return NullUniValue;
     return fStaking;
 }

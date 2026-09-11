@@ -1,11 +1,11 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
-VERSION = 4.2.0
+VERSION = 4.3.0
 QT += core gui network
-INCLUDEPATH += src src/json src/qt
+INCLUDEPATH += src src/univalue src/qt
 QT += network
-DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
+DEFINES += QT_GUI
 CONFIG += no_include_pwd
 CONFIG += thread
 CONFIG += static
@@ -161,7 +161,7 @@ QMAKE_CLEAN += $$PWD/src/leveldb/out-static/libleveldb.a; cd $$PWD/src/leveldb ;
 QMAKE_CXXFLAGS_WARN_ON = -fdiagnostics-show-option -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector
 
 # Input
-DEPENDPATH += src src/json src/qt
+DEPENDPATH += src src/univalue src/qt
 HEADERS += src/qt/bitcoingui.h \
     src/qt/transactiontablemodel.h \
     src/qt/addresstablemodel.h \
@@ -198,15 +198,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/script.h \
     src/init.h \
     src/mruset.h \
-    src/json/json_spirit_writer_template.h \
-    src/json/json_spirit_writer.h \
-    src/json/json_spirit_value.h \
-    src/json/json_spirit_utils.h \
-    src/json/json_spirit_stream_reader.h \
-    src/json/json_spirit_reader_template.h \
-    src/json/json_spirit_reader.h \
-    src/json/json_spirit_error_position.h \
-    src/json/json_spirit.h \
+    src/univalue/univalue.h \
     src/qt/clientmodel.h \
     src/qt/guiutil.h \
     src/qt/transactionrecord.h \
@@ -283,9 +275,10 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/txdb.cpp \
     src/db.cpp \
     src/walletdb.cpp \
-    src/json/json_spirit_writer.cpp \
-    src/json/json_spirit_value.cpp \
-    src/json/json_spirit_reader.cpp \
+    src/univalue/univalue.cpp \
+    src/univalue/univalue_get.cpp \
+    src/univalue/univalue_read.cpp \
+    src/univalue/univalue_write.cpp \
     src/qt/clientmodel.cpp \
     src/qt/guiutil.cpp \
     src/qt/transactionrecord.cpp \
@@ -467,7 +460,6 @@ LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LI
 LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
 # note: -lgdi32 must come after any lib that pulls Win32 GDI symbols (see #681)
 win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lbcrypt
-LIBS += -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
 LIBS += -levent
 !win32:LIBS += -levent_pthreads
 win32:LIBS += -levent_core

@@ -13,6 +13,7 @@ USE_IPV6:=1
 INCLUDEPATHS= \
  -I"$(CURDIR)" \
  -I"$(CURDIR)"/obj \
+ -I"$(CURDIR)"/univalue \
  -I"$(DEPSDIR)/include" \
  -I"$(DEPSDIR)"
 
@@ -20,13 +21,12 @@ LIBPATHS= \
  -L"$(DEPSDIR)/lib"
 
 LIBS= \
- -l boost_thread_win32-mt-s \
  -l boost_chrono-mt-s \
  -l db_cxx \
  -l event \
  -l z
 
-DEFS=-D_MT -DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -D__USE_MINGW_ANSI_STDIO -D__STDC_FORMAT_MACROS
+DEFS=-D_MT -DWIN32 -D_WINDOWS -D__USE_MINGW_ANSI_STDIO -D__STDC_FORMAT_MACROS
 DEBUGFLAGS=-g
 xCXXFLAGS=-O2 -w -std=c++17 -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS) $(CXXFLAGS)
 xLDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -static-libgcc -static-libstdc++ $(LDFLAGS)
@@ -96,7 +96,11 @@ OBJS= \
     obj/crypto/hmac_sha256.o \
     obj/crypto/sha512.o \
     obj/crypto/ripemd160.o \
-    obj/crypto/sha1.o
+    obj/crypto/sha1.o \
+    obj/univalue/univalue.o \
+    obj/univalue/univalue_get.o \
+    obj/univalue/univalue_read.o \
+    obj/univalue/univalue_write.o
 
 all: versiond.exe
 

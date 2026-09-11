@@ -57,19 +57,19 @@ USE_IPV6:=1
 
 INCLUDEPATHS= \
  -I"C:\boost-1.47.0-mgw" \
- -I"C:\db-4.8.30.NC-mgw\build_unix"
+ -I"C:\db-4.8.30.NC-mgw\build_unix" \
+ -I"univalue"
 
 LIBPATHS= \
  -L"C:\boost-1.47.0-mgw\stage\lib" \
  -L"C:\db-4.8.30.NC-mgw\build_unix"
 
 LIBS= \
- -l boost_thread-mgw46-mt-s-1_47 \
  -l event \
  -l db_cxx \
 
 
-DEFS=-DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -D__NO_SYSTEM_INCLUDES -D__USE_MINGW_ANSI_STDIO -D__STDC_FORMAT_MACROS
+DEFS=-DWIN32 -D_WINDOWS -D__NO_SYSTEM_INCLUDES -D__USE_MINGW_ANSI_STDIO -D__STDC_FORMAT_MACROS
 DEBUGFLAGS=-g
 CFLAGS=-mthreads -O2 -w -std=c++17 -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 
@@ -134,7 +134,11 @@ OBJS= \
     obj/crypto/hmac_sha256.o \
     obj/crypto/sha512.o \
     obj/crypto/ripemd160.o \
-    obj/crypto/sha1.o
+    obj/crypto/sha1.o \
+    obj/univalue/univalue.o \
+    obj/univalue/univalue_get.o \
+    obj/univalue/univalue_read.o \
+    obj/univalue/univalue_write.o
 
 
 all: versiond.exe

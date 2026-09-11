@@ -11,9 +11,7 @@
 #include <map>
 #include <string>
 
-#include "json/json_spirit_reader_template.h"
-#include "json/json_spirit_utils.h"
-#include "json/json_spirit_writer_template.h"
+#include <univalue.h>
 
 // HTTP status codes
 enum HTTPStatusCode
@@ -64,9 +62,9 @@ enum RPCErrorCode
     RPC_WALLET_ALREADY_UNLOCKED     = -17, // Wallet is already unlocked
 };
 
-std::string JSONRPCRequest(const std::string& strMethod, const json_spirit::Array& params, const json_spirit::Value& id);
-json_spirit::Object JSONRPCReplyObj(const json_spirit::Value& result, const json_spirit::Value& error, const json_spirit::Value& id);
-std::string JSONRPCReply(const json_spirit::Value& result, const json_spirit::Value& error, const json_spirit::Value& id);
-json_spirit::Object JSONRPCError(int code, const std::string& message);
+std::string JSONRPCRequest(const std::string& strMethod, const UniValue& params, const UniValue& id);
+UniValue JSONRPCReplyObj(const UniValue& result, const UniValue& error, const UniValue& id);
+std::string JSONRPCReply(const UniValue& result, const UniValue& error, const UniValue& id);
+UniValue JSONRPCError(int code, const std::string& message);
 
 #endif

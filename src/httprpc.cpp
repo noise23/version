@@ -19,8 +19,6 @@
 #undef printf
 #define printf OutputDebugStringF
 
-using namespace json_spirit;
-
 /* Pre-base64-encoded authentication token */
 static std::string strRPCUserColonPass;
 
@@ -35,7 +33,7 @@ static bool TimingResistantEqual(const std::string& a, const std::string& b)
     return accumulator == 0;
 }
 
-static void JSONErrorReply(HTTPRequest* req, const Object& objError, const Value& id)
+static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const UniValue& id)
 {
     // Send error reply from json-rpc error object
     int nStatus = HTTP_INTERNAL_SERVER_ERROR;
@@ -46,7 +44,7 @@ static void JSONErrorReply(HTTPRequest* req, const Object& objError, const Value
     else if (code == RPC_METHOD_NOT_FOUND)
         nStatus = HTTP_NOT_FOUND;
 
-    std::string strReply = JSONRPCReply(Value::null, Value(objError), id);
+    std::string strReply = JSONRPCReply(NullUniValue, objError, id);
 
     req->WriteHeader("Content-Type", "application/json");
     req->WriteReply(nStatus, strReply);
@@ -94,29 +92,29 @@ static void HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
     JSONRequest jreq;
     try {
         // Parse request
-        Value valRequest;
-        if (!read_string(req->ReadBody(), valRequest))
+        UniValue valRequest;
+        if (!valRequest.read(req->ReadBody()))
             throw JSONRPCError(RPC_PARSE_ERROR, "Parse error");
 
         std::string strReply;
         // singleton request
-        if (valRequest.type() == obj_type) {
+        if (valRequest.isObject()) {
             jreq.parse(valRequest);
 
-            Value result = tableRPC.execute(jreq.strMethod, jreq.params);
+            UniValue result = tableRPC.execute(jreq.strMethod, jreq.params);
 
             // Send reply
-            strReply = JSONRPCReply(result, Value::null, jreq.id);
+            strReply = JSONRPCReply(result, NullUniValue, jreq.id);
 
         // array of requests
-        } else if (valRequest.type() == array_type)
+        } else if (valRequest.isArray())
             strReply = JSONRPCExecBatch(valRequest.get_array());
         else
             throw JSONRPCError(RPC_PARSE_ERROR, "Top-level object parse error");
 
         req->WriteHeader("Content-Type", "application/json");
         req->WriteReply(HTTP_OK, strReply);
-    } catch (Object& objError) {
+    } catch (UniValue& objError) {
         JSONErrorReply(req, objError, jreq.id);
         return;
     } catch (std::exception& e) {
