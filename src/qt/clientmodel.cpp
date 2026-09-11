@@ -9,9 +9,6 @@
 #include "ui_interface.h"
 static const int64_t nClientStartupTime = GetTime();
 
-#include <boost/bind/bind.hpp>
-#include <boost/bind/placeholders.hpp>
-
 #include <QDateTime>
 #include <QTimer>
 
@@ -179,9 +176,9 @@ static void NotifyAlertChanged(ClientModel *clientmodel, const uint256 &hash, Ch
 void ClientModel::subscribeToCoreSignals()
 {
     // Connect signals to client
-    connNotifyBlocksChanged = uiInterface.NotifyBlocksChanged.connect(boost::bind(NotifyBlocksChanged, this));
-    connNotifyNumConnectionsChanged = uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, boost::placeholders::_1));
-    connNotifyAlertChanged = uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this, boost::placeholders::_1, boost::placeholders::_2));
+    connNotifyBlocksChanged = uiInterface.NotifyBlocksChanged.connect([this]() { NotifyBlocksChanged(this); });
+    connNotifyNumConnectionsChanged = uiInterface.NotifyNumConnectionsChanged.connect([this](int newNumConnections) { NotifyNumConnectionsChanged(this, newNumConnections); });
+    connNotifyAlertChanged = uiInterface.NotifyAlertChanged.connect([this](const uint256 &hash, ChangeType status) { NotifyAlertChanged(this, hash, status); });
 }
 
 void ClientModel::unsubscribeFromCoreSignals()

@@ -9,9 +9,6 @@
 #include "walletdb.h" // for BackupWallet
 #include "base58.h"
 
-#include <boost/bind/bind.hpp>
-#include <boost/bind/placeholders.hpp>
-
 #include <QSet>
 #include <QTimer>
 
@@ -376,9 +373,9 @@ static void NotifyTransactionChanged(WalletModel *walletmodel, CWallet *wallet, 
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
-    connNotifyStatusChanged = wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, boost::placeholders::_1));
-    connNotifyAddressBookChanged = wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3, boost::placeholders::_4, boost::placeholders::_5));
-    connNotifyTransactionChanged = wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
+    connNotifyStatusChanged = wallet->NotifyStatusChanged.connect([this](CCryptoKeyStore *pwallet) { NotifyKeyStoreStatusChanged(this, pwallet); });
+    connNotifyAddressBookChanged = wallet->NotifyAddressBookChanged.connect([this](CWallet *pwallet, const CTxDestination &address, const std::string &label, bool isMine, ChangeType status) { NotifyAddressBookChanged(this, pwallet, address, label, isMine, status); });
+    connNotifyTransactionChanged = wallet->NotifyTransactionChanged.connect([this](CWallet *pwallet, const uint256 &hash, ChangeType status) { NotifyTransactionChanged(this, pwallet, hash, status); });
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
