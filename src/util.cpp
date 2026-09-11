@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <fstream>
 #include <stdexcept>
 
@@ -49,6 +50,7 @@
 #endif
 #include <io.h> /* for _commit */
 #include "shlobj.h"
+#include <windows.h> /* for CreateFileA/LockFileEx, TryLockDataDirectory() */
 #endif
 
 #ifdef HAVE_SYS_PRCTL_H
@@ -57,6 +59,8 @@
 
 #ifndef WIN32
 #include <execinfo.h>
+#include <fcntl.h>   /* for open()/fcntl(), TryLockDataDirectory() */
+#include <unistd.h>  /* for close() */
 #endif
 
 using namespace std;
@@ -1124,6 +1128,49 @@ bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest)
  int rc = std::rename(src.string().c_str(), dest.string().c_str());
  return (rc == 0);
 #endif /* WIN32 */
+}
+
+bool TryLockDataDirectory(const std::string& pathLockFile)
+{
+#ifdef WIN32
+    // Kept open (and thus locked) for the lifetime of the process; there is
+    // no matching CloseHandle - the OS releases the lock when the process
+    // exits, same as the previous boost::interprocess::file_lock behaviour.
+    static HANDLE hFile = INVALID_HANDLE_VALUE;
+    hFile = CreateFileA(pathLockFile.c_str(), GENERIC_READ | GENERIC_WRITE,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS,
+                         FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE)
+        return false;
+    OVERLAPPED overlapped;
+    memset(&overlapped, 0, sizeof(overlapped));
+    if (!LockFileEx(hFile, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0,
+                     MAXDWORD, MAXDWORD, &overlapped)) {
+        CloseHandle(hFile);
+        hFile = INVALID_HANDLE_VALUE;
+        return false;
+    }
+    return true;
+#else
+    // Same story as above: fd deliberately kept open (never closed) so the
+    // advisory lock is held until the process exits.
+    static int fd = -1;
+    fd = open(pathLockFile.c_str(), O_RDWR | O_CREAT, 0644);
+    if (fd < 0)
+        return false;
+    struct flock fl;
+    memset(&fl, 0, sizeof(fl));
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 0;
+    fl.l_len = 0; // lock the whole file
+    if (fcntl(fd, F_SETLK, &fl) == -1) {
+        close(fd);
+        fd = -1;
+        return false;
+    }
+    return true;
+#endif
 }
 
 void FileCommit(FILE *fileout)

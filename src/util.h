@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2012 The Version developers
+// Copyright (c) 2014-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef BITCOIN_UTIL_H
@@ -178,6 +178,12 @@ bool StartsWithCaseInsensitive(const std::string& str, const std::string& prefix
 void FileCommit(FILE *fileout);
 int GetFilesize(FILE* file);
 bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
+/** Try to take an exclusive, non-blocking advisory lock on the given file
+ *  (created if it doesn't exist). Used to make sure only one instance of the
+ *  daemon is using a data directory at a time. The lock is tied to a file
+ *  handle kept open for the lifetime of the process and is released
+ *  automatically on exit (clean or otherwise) - there is no explicit unlock. */
+bool TryLockDataDirectory(const std::string& pathLockFile);
 boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
 boost::filesystem::path GetConfigFile();

@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2013-2024 The Version developers
+// Copyright (c) 2013-2026 The Version developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,10 +19,10 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 // #include <boost/filesystem/convenience.hpp>
-#include <boost/interprocess/sync/file_lock.hpp>
 
 #ifndef WIN32
 #include <signal.h>
+#include <sys/stat.h> // for umask()
 #endif
 
 using namespace std;
@@ -488,10 +488,7 @@ bool AppInit2()
 
     // Make sure only a single Version process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
-    FILE* file = fopen(pathLockFile.string().c_str(), "a"); // empty lock file; created if it doesn't exist.
-    if (file) fclose(file);
-    static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
-    if (!lock.try_lock())
+    if (!TryLockDataDirectory(pathLockFile.string()))
         return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  Version is probably already running."), strDataDir.c_str()));
 
 #if !defined(WIN32) && !defined(QT_GUI)
