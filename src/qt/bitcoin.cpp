@@ -13,6 +13,8 @@
 #include "qtipcserver.h"
 #include "util.h"
 
+#include <filesystem>
+
 #include <QApplication>
 #include <QMessageBox>
 #if QT_VERSION < 0x050000
@@ -154,7 +156,7 @@ int main(int argc, char *argv[])
     ParseParameters(argc, argv);
 
     // ... then bitcoin.conf:
-    if (!boost::filesystem::is_directory(GetDataDir(false)))
+    if (!std::filesystem::is_directory(GetDataDir(false)))
     {
         fprintf(stderr, "Error: Specified directory does not exist\n");
         return 1;

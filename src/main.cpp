@@ -12,11 +12,10 @@
 #include "init.h"
 #include "ui_interface.h"
 #include "kernel.h"
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <regex>
 #include <thread>
 
@@ -2460,7 +2459,7 @@ bool CBlock::CheckBlockSignature() const
 
 bool CheckDiskSpace(uint64_t nAdditionalBytes)
 {
-    uint64_t nFreeBytesAvailable = boost::filesystem::space(GetDataDir()).available;
+    uint64_t nFreeBytesAvailable = std::filesystem::space(GetDataDir()).available;
 
     // Check for 15MB because database could create another 10MB log file at any time
     if (nFreeBytesAvailable < (uint64_t)15000000 + nAdditionalBytes)
@@ -2476,7 +2475,7 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
     return true;
 }
 
-static boost::filesystem::path BlockFilePath(unsigned int nFile)
+static std::filesystem::path BlockFilePath(unsigned int nFile)
 {
     string strBlockFn = strprintf("blk%05u.dat", nFile);
     return GetDataDir() / "blocks" / strBlockFn;

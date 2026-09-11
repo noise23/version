@@ -16,9 +16,7 @@
 #include "ui_interface.h"
 #include "checkpoints.h"
 #include "key.h"
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
-// #include <boost/filesystem/convenience.hpp>
+#include <filesystem>
 
 #ifndef WIN32
 #include <signal.h>
@@ -93,7 +91,7 @@ void Shutdown(void* parg)
         StopNode();
         if (pwalletMain)
             bitdb.Flush(true);
-        boost::filesystem::remove(GetPidFile());
+        std::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
             if (pwalletMain)
         delete pwalletMain;
@@ -142,7 +140,7 @@ bool AppInit(int argc, char* argv[])
         //
         // If Qt is used, parameters/version.conf are parsed in qt/bitcoin.cpp's main()
         ParseParameters(argc, argv);
-        if (!boost::filesystem::is_directory(GetDataDir(false)))
+        if (!std::filesystem::is_directory(GetDataDir(false)))
         {
             fprintf(stderr, "Error: Specified directory does not exist\n");
             Shutdown(NULL);
@@ -483,11 +481,11 @@ bool AppInit2()
     std::string strWalletFileName = GetArg("-wallet", "wallet.dat");
 
     // strWalletFileName must be a plain filename without a directory
-    if (strWalletFileName != boost::filesystem::path(strWalletFileName).stem().string() + boost::filesystem::path(strWalletFileName).extension().string())
+    if (strWalletFileName != std::filesystem::path(strWalletFileName).stem().string() + std::filesystem::path(strWalletFileName).extension().string())
         return InitError(strprintf(_("%s is not a valid wallet name. Please use a plain filename without a path.\nWallets reside in data directory %s."), strWalletFileName.c_str(), strDataDir.c_str()));
 
     // Make sure only a single Version process is using the data directory.
-    boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
+    std::filesystem::path pathLockFile = GetDataDir() / ".lock";
     if (!TryLockDataDirectory(pathLockFile.string()))
         return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  Version is probably already running."), strDataDir.c_str()));
 
@@ -537,12 +535,12 @@ bool AppInit2()
         if (!bitdb.Open(GetDataDir()))
         {
             // try moving the database env out of the way
-            boost::filesystem::path pathDatabase = GetDataDir() / "database";
-            boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%" PRId64 ".bak", GetTime());
+            std::filesystem::path pathDatabase = GetDataDir() / "database";
+            std::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%" PRId64 ".bak", GetTime());
             try {
-                boost::filesystem::rename(pathDatabase, pathDatabaseBak);
+                std::filesystem::rename(pathDatabase, pathDatabaseBak);
                 printf("Moved old %s to %s. Retrying.\n", pathDatabase.string().c_str(), pathDatabaseBak.string().c_str());
-            } catch(boost::filesystem::filesystem_error &error) {
+            } catch(std::filesystem::filesystem_error &error) {
                  // failure is ok (well, not really, but it's not worse than what we started with)
             }
 
@@ -561,7 +559,7 @@ bool AppInit2()
                 return false;
         }
 
-        if (boost::filesystem::exists(GetDataDir() / strWalletFileName))
+        if (std::filesystem::exists(GetDataDir() / strWalletFileName))
         {
             CDBEnv::VerifyResult r = bitdb.Verify(strWalletFileName, CWalletDB::Recover);
             if (r == CDBEnv::RECOVER_OK)
@@ -854,13 +852,13 @@ bool AppInit2()
                 exit(0);
             }
 
-    boost::filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
-    if (boost::filesystem::exists(pathBootstrap)) {
+    std::filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
+    if (std::filesystem::exists(pathBootstrap)) {
         uiInterface.InitMessage(_("Importing bootstrap blockchain data file."));
 
         FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
         if (file) {
-            boost::filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
+            std::filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
             LoadExternalBlockFile(file);
             RenameOver(pathBootstrap, pathBootstrapOld);
         }

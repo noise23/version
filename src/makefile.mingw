@@ -64,7 +64,6 @@ LIBPATHS= \
  -L"C:\db-4.8.30.NC-mgw\build_unix"
 
 LIBS= \
- -l boost_filesystem-mgw46-mt-s-1_47 \
  -l boost_thread-mgw46-mt-s-1_47 \
  -l event \
  -l db_cxx \
@@ -72,7 +71,7 @@ LIBS= \
 
 DEFS=-DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE -D__NO_SYSTEM_INCLUDES -D__USE_MINGW_ANSI_STDIO -D__STDC_FORMAT_MACROS
 DEBUGFLAGS=-g
-CFLAGS=-mthreads -O2 -w -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
+CFLAGS=-mthreads -O2 -w -std=c++17 -Wno-invalid-offsetof -Wformat $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 

@@ -29,7 +29,6 @@ ifdef STATIC
 # Build STATIC if you are redistributing the versiond binary
 LIBS += \
  $(DEPSDIR)/lib/db48/libdb_cxx-4.8.a \
- $(DEPSDIR)/lib/libboost_filesystem-mt.a \
  $(DEPSDIR)/lib/libboost_thread-mt.a \
  $(DEPSDIR)/lib/libevent.a \
  $(DEPSDIR)/lib/libevent_pthreads.a \
@@ -37,7 +36,6 @@ LIBS += \
 else
 LIBS += \
  -ldb_cxx-4.8 \
- -lboost_filesystem-mt \
  -lboost_thread-mt \
  -levent \
  -levent_pthreads \
@@ -47,7 +45,7 @@ endif
 DEFS=-DMAC_OSX -DMSG_NOSIGNAL=0 -DBOOST_SPIRIT_THREADSAFE -D__STDC_FORMAT_MACROS
 
 ifdef RELEASE
-CFLAGS = -mmacosx-version-min=10.5 -O3
+CFLAGS = -mmacosx-version-min=10.5 -O3 -std=c++17
 # Compile for maximum compatibility and smallest size.
 # This requires that dependencies are compiled
 # the same way.
@@ -57,7 +55,7 @@ else
 CFLAGS += -arch i386
 endif
 else
-CFLAGS = -g
+CFLAGS = -g -std=c++17
 endif
 
 # ppc doesn't work because we don't support big-endian

@@ -19,8 +19,7 @@
 #include <string>
 #include <inttypes.h>
 
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/path.hpp>
+#include <filesystem>
 
 #include "netbase.h" // for AddTimeData
 
@@ -176,23 +175,23 @@ bool EndsWith(const std::string& str, const std::string& suffix);
 bool StartsWithCaseInsensitive(const std::string& str, const std::string& prefix);
 void FileCommit(FILE *fileout);
 int GetFilesize(FILE* file);
-bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
+bool RenameOver(std::filesystem::path src, std::filesystem::path dest);
 /** Try to take an exclusive, non-blocking advisory lock on the given file
  *  (created if it doesn't exist). Used to make sure only one instance of the
  *  daemon is using a data directory at a time. The lock is tied to a file
  *  handle kept open for the lifetime of the process and is released
  *  automatically on exit (clean or otherwise) - there is no explicit unlock. */
 bool TryLockDataDirectory(const std::string& pathLockFile);
-boost::filesystem::path GetDefaultDataDir();
-const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
-boost::filesystem::path GetConfigFile();
-boost::filesystem::path GetPidFile();
+std::filesystem::path GetDefaultDataDir();
+const std::filesystem::path &GetDataDir(bool fNetSpecific = true);
+std::filesystem::path GetConfigFile();
+std::filesystem::path GetPidFile();
 #ifndef WIN32
-void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
+void CreatePidFile(const std::filesystem::path &path, pid_t pid);
 #endif
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
 #ifdef WIN32
-boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
+std::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
 void ShrinkDebugFile();
 int64_t GetTime();

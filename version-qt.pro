@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
-VERSION = 4.1.1
+VERSION = 4.2.0
 QT += core gui network
 INCLUDEPATH += src src/json src/qt
 QT += network
@@ -9,6 +9,7 @@ DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
 CONFIG += no_include_pwd
 CONFIG += thread
 CONFIG += static
+CONFIG += c++17
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 # for boost 1.37, add -mt to the boost libraries
@@ -466,7 +467,7 @@ LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LI
 LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
 # note: -lgdi32 must come after any lib that pulls Win32 GDI symbols (see #681)
 win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lbcrypt
-LIBS += -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
+LIBS += -lboost_thread$$BOOST_THREAD_LIB_SUFFIX
 LIBS += -levent
 !win32:LIBS += -levent_pthreads
 win32:LIBS += -levent_core
