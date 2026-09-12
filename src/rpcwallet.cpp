@@ -78,7 +78,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
     }
     else {
         obj.pushKV("balance",          ValueFromAmount(pwalletMain->GetBalance()));
-        obj.pushKV("newmint",          ValueFromAmount(pwalletMain->GetNewMint()));
+//        obj.pushKV("newmint",          ValueFromAmount(pwalletMain->GetNewMint()));
         obj.pushKV("stake",            ValueFromAmount(pwalletMain->GetStake()));
     }
 //    obj.pushKV("PoW difficulty",       (double)GetDifficulty());
