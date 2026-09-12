@@ -25,8 +25,6 @@
 #include <QSplashScreen>
 #include <QLibraryInfo>
 
-#include <boost/interprocess/ipc/message_queue.hpp>
-
 #if defined(BITCOIN_NEED_QT_PLUGINS) && !defined(_BITCOIN_QT_PLUGINS_INCLUDED)
 #define _BITCOIN_QT_PLUGINS_INCLUDED
 #define __INSURE__
@@ -128,17 +126,10 @@ int main(int argc, char *argv[])
     {
         if (StartsWithCaseInsensitive(argv[i], "version:"))
         {
-            const char *strURI = argv[i];
-            try {
-                boost::interprocess::message_queue mq(boost::interprocess::open_only, BITCOINURI_QUEUE_NAME);
-                if(mq.try_send(strURI, strlen(strURI), 0))
-                    exit(0);
-                else
-                    break;
-            }
-            catch (boost::interprocess::interprocess_exception &ex) {
+            if (IpcSendUri(argv[i]))
+                exit(0);
+            else
                 break;
-            }
         }
     }
 #endif
@@ -276,13 +267,7 @@ int main(int argc, char *argv[])
                 {
                     if (StartsWithCaseInsensitive(argv[i], "version:"))
                     {
-                        const char *strURI = argv[i];
-                        try {
-                            boost::interprocess::message_queue mq(boost::interprocess::open_only, BITCOINURI_QUEUE_NAME);
-                            mq.try_send(strURI, strlen(strURI), 0);
-                        }
-                        catch (boost::interprocess::interprocess_exception &ex) {
-                        }
+                        IpcSendUri(argv[i]);
                     }
                 }
 #endif

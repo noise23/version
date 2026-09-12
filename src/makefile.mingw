@@ -23,18 +23,6 @@
 #   Then
 #     make
 #
-# - Build Boost C++ library version: 1.47.0
-#   download from http://www.boost.org/users/download/
-#   Extract to c:\boost-1.47.0-mgw
-#   Install Boost.Build:
-#     cd tools\build\v2
-#     bootstrap.bat
-#     b2 install --prefix=BOOST_BUILD_INSTALL_DIR
-#   Add BOOST_BUILD_INSTALL_DIR to your PATH system environment variable
-#   Build boost library in MSDOS:
-#     cd c:\boost-1.47.0-mgw
-#     bjam toolset=gcc --build-type=complete stage
-#
 # - Build Miniupnp library version: 1.6
 #   download from http://miniupnp.free.fr/files/
 #   file name is miniupnpc-1.6.20120509.tar.gz
@@ -56,12 +44,10 @@ USE_UPNP:=0
 USE_IPV6:=1
 
 INCLUDEPATHS= \
- -I"C:\boost-1.47.0-mgw" \
  -I"C:\db-4.8.30.NC-mgw\build_unix" \
  -I"univalue"
 
 LIBPATHS= \
- -L"C:\boost-1.47.0-mgw\stage\lib" \
  -L"C:\db-4.8.30.NC-mgw\build_unix"
 
 LIBS= \

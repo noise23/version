@@ -15,8 +15,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 # or when linking against a specific BerkelyDB version: BDB_LIB_SUFFIX=-4.8
 
 # Dependency library locations can be customized with:
-#    BOOST_INCLUDE_PATH, BOOST_LIB_PATH, BDB_INCLUDE_PATH,
-#    BDB_LIB_PATH respectively
+#    BDB_INCLUDE_PATH, BDB_LIB_PATH respectively
 
 OBJECTS_DIR = build
 MOC_DIR = build
@@ -401,14 +400,6 @@ isEmpty(BDB_INCLUDE_PATH) {
     macx:BDB_INCLUDE_PATH = /opt/local/include/db48
 }
 
-isEmpty(BOOST_LIB_PATH) {
-    macx:BOOST_LIB_PATH = /opt/local/lib
-}
-
-isEmpty(BOOST_INCLUDE_PATH) {
-    macx:BOOST_INCLUDE_PATH = /opt/local/include
-}
-
 win32:DEFINES += WIN32
 win32:RC_FILE = src/qt/res/bitcoin-qt.rc
 
@@ -441,8 +432,8 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+INCLUDEPATH += $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
+LIBS += $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
 LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
 # note: -lgdi32 must come after any lib that pulls Win32 GDI symbols (see #681)
 win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lbcrypt
