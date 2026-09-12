@@ -530,46 +530,68 @@ bool AppInit2()
     if (!fDisableWallet) {
         uiInterface.InitMessage(_("Verifying wallet..."));
 
-        if (!bitdb.Open(GetDataDir()))
-        {
-            // try moving the database env out of the way
-            std::filesystem::path pathDatabase = GetDataDir() / "database";
-            std::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%" PRId64 ".bak", GetTime());
-            try {
-                std::filesystem::rename(pathDatabase, pathDatabaseBak);
-                printf("Moved old %s to %s. Retrying.\n", pathDatabase.string().c_str(), pathDatabaseBak.string().c_str());
-            } catch(std::filesystem::filesystem_error &error) {
-                 // failure is ok (well, not really, but it's not worse than what we started with)
-            }
+        std::filesystem::path pathWalletFile = GetDataDir() / strWalletFileName;
+        WalletDBFormat walletFormat = DetectWalletDBFormat(pathWalletFile);
 
-            // try again
-            if (!bitdb.Open(GetDataDir())) {
-                // if it still fails, it probably means we can't even create the database env
-                string msg = strprintf(_("Error initializing wallet database environment %s!"), strDataDir.c_str());
-                return InitError(msg);
-            }
-        }
-
-        if (GetBoolArg("-salvagewallet"))
+        if (walletFormat == WalletDBFormat::BDB)
         {
-            // Recover readable keypairs:
-            if (!CWalletDB::Recover(bitdb, strWalletFileName, true))
-                return false;
-        }
-
-        if (std::filesystem::exists(GetDataDir() / strWalletFileName))
-        {
-            CDBEnv::VerifyResult r = bitdb.Verify(strWalletFileName, CWalletDB::Recover);
-            if (r == CDBEnv::RECOVER_OK)
+            if (!bitdb.Open(GetDataDir()))
             {
-                string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
-                                         " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"
-                                         " your balance or transactions are incorrect you should"
-                                         " restore from a backup."), strDataDir.c_str());
-                uiInterface.ThreadSafeMessageBox(msg, _("Version"), CClientUIInterface::MSG_WARNING);
+                // try moving the database env out of the way
+                std::filesystem::path pathDatabase = GetDataDir() / "database";
+                std::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%" PRId64 ".bak", GetTime());
+                try {
+                    std::filesystem::rename(pathDatabase, pathDatabaseBak);
+                    printf("Moved old %s to %s. Retrying.\n", pathDatabase.string().c_str(), pathDatabaseBak.string().c_str());
+                } catch(std::filesystem::filesystem_error &error) {
+                     // failure is ok (well, not really, but it's not worse than what we started with)
+                }
+
+                // try again
+                if (!bitdb.Open(GetDataDir())) {
+                    // if it still fails, it probably means we can't even create the database env
+                    string msg = strprintf(_("Error initializing wallet database environment %s!"), strDataDir.c_str());
+                    return InitError(msg);
+                }
             }
-            if (r == CDBEnv::RECOVER_FAIL)
-                return InitError(_("wallet.dat corrupt, salvage failed"));
+
+            if (GetBoolArg("-salvagewallet"))
+            {
+                // Recover readable keypairs:
+                if (!CWalletDB::Recover(bitdb, strWalletFileName, true))
+                    return false;
+            }
+
+            if (std::filesystem::exists(pathWalletFile))
+            {
+                CDBEnv::VerifyResult r = bitdb.Verify(strWalletFileName, CWalletDB::Recover);
+                if (r == CDBEnv::RECOVER_OK)
+                {
+                    string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
+                                             " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"
+                                             " your balance or transactions are incorrect you should"
+                                             " restore from a backup."), strDataDir.c_str());
+                    uiInterface.ThreadSafeMessageBox(msg, _("Version"), CClientUIInterface::MSG_WARNING);
+                }
+                if (r == CDBEnv::RECOVER_FAIL)
+                    return InitError(_("wallet.dat corrupt, salvage failed"));
+            }
+
+            if (GetBoolArg("-migratewallet"))
+            {
+                uiInterface.InitMessage(_("Migrating wallet to SQLite..."));
+                std::string strMigrateError;
+                if (!CDB::MigrateBDBToSQLite(strWalletFileName, strMigrateError))
+                    return InitError(strprintf(_("Wallet migration to SQLite failed: %s"), strMigrateError.c_str()));
+                printf("Wallet migrated to SQLite successfully.\n");
+            }
+        }
+        else
+        {
+            if (GetBoolArg("-salvagewallet"))
+                printf("-salvagewallet has no effect: %s is not a Berkeley DB wallet\n", strWalletFileName.c_str());
+            if (GetBoolArg("-migratewallet"))
+                printf("-migratewallet has no effect: %s is already SQLite format\n", strWalletFileName.c_str());
         }
 
         // Split threshold
@@ -688,7 +710,10 @@ bool AppInit2()
     // ********************************************************* Step 7: load blockchain
 
     // TODO: Check if needed, because in step 5 we do the same
-    if (!bitdb.Open(GetDataDir()))
+    // (only relevant for BDB-format wallets -- a SQLite-only setup has no
+    // reason to stand up the Berkeley DB environment at all)
+    if (!fDisableWallet && DetectWalletDBFormat(GetDataDir() / strWalletFileName) == WalletDBFormat::BDB &&
+        !bitdb.Open(GetDataDir()))
     {
         string msg = strprintf(_("Error initializing database environment %s!"
                                  " To recover, BACKUP THAT DIRECTORY, then remove"
@@ -757,6 +782,7 @@ bool AppInit2()
     } else {
         uiInterface.InitMessage(_("Loading wallet..."));
         printf("Loading wallet...\n");
+        printf("Wallet db: %s\n", DetectWalletDBFormat(GetDataDir() / strWalletFileName) == WalletDBFormat::SQLITE ? "SQLITE" : "BDB");
 
         nStart = GetTimeMillis();
         bool fFirstRun = true;

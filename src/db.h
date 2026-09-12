@@ -7,6 +7,7 @@
 #define BITCOIN_DB_H
 
 #include "main.h"
+#include "cleanse.h"
 
 #include <filesystem>
 #include <map>
@@ -14,6 +15,7 @@
 #include <vector>
 
 #include <db_cxx.h>
+#include <sqlite3/sqlite3.h>
 
 class CAddress;
 class CAddrMan;
@@ -32,6 +34,20 @@ void ThreadFlushWalletDB(void* parg);
 bool BackupWallet(const CWallet& wallet, const std::string& strDest);
 bool DumpWallet(CWallet* pwallet, const std::string& strDest);
 bool ImportWallet(CWallet* pwallet, const std::string& strLocation);
+
+/** On-disk wallet database format. Newly created wallets are always SQLITE;
+ * BDB is kept only so wallets created by older versions of this client keep
+ * working (read and write) without requiring a migration. */
+enum class WalletDBFormat
+{
+    BDB,
+    SQLITE,
+};
+
+/** Sniff a wallet file's on-disk format by peeking at its header, without
+ * opening it through either backend. Files that don't exist yet are reported
+ * as SQLITE, since that's what a brand-new wallet will be created as. */
+WalletDBFormat DetectWalletDBFormat(const std::filesystem::path& pathFile);
 
 class CDBEnv
 {
@@ -92,14 +108,40 @@ public:
 
 extern CDBEnv bitdb;
 
-/** RAII class that provides access to a Berkeley database */
+/** Opaque cursor over a wallet database's key/value pairs, wrapping either a
+ * Berkeley DB cursor or a SQLite prepared statement depending on which
+ * backend the CDB that created it is using. */
+class CDBCursor
+{
+    friend class CDB;
+    Dbc* pdbc;
+    sqlite3_stmt* pstmt;
+public:
+    CDBCursor() : pdbc(NULL), pstmt(NULL) {}
+    ~CDBCursor() { close(); }
+    void close()
+    {
+        if (pdbc) { pdbc->close(); pdbc = NULL; }
+        if (pstmt) { sqlite3_finalize(pstmt); pstmt = NULL; }
+    }
+};
+
+/** RAII class that provides access to a wallet database, backed by either
+ * Berkeley DB (legacy wallets) or SQLite (new wallets). */
 class CDB
 {
 protected:
-    Db* pdb;
+    WalletDBFormat format;
     std::string strFile;
-    DbTxn *activeTxn;
     bool fReadOnly;
+
+    // Berkeley DB backend
+    Db* pdb;
+    DbTxn *activeTxn;
+
+    // SQLite backend
+    sqlite3* psqlite;
+    bool fSqliteTxnActive;
 
     explicit CDB(const char* pszFile, const char* pszMode="r+");
     ~CDB() { Close(); }
@@ -109,192 +151,110 @@ private:
     CDB(const CDB&);
     void operator=(const CDB&);
 
+    // Byte-level primitives; Read/Write/Erase/Exists below do the
+    // CDataStream (de)serialization and call down into these.
+    bool ReadRaw(const std::vector<unsigned char>& vchKey, std::vector<unsigned char>& vchValue);
+    bool WriteRaw(const std::vector<unsigned char>& vchKey, const std::vector<unsigned char>& vchValue, bool fOverwrite);
+    bool EraseRaw(const std::vector<unsigned char>& vchKey);
+    bool ExistsRaw(const std::vector<unsigned char>& vchKey);
+
 protected:
     template<typename K, typename T>
     bool Read(const K& key, T& value)
     {
-        if (!pdb)
+        if (!pdb && !psqlite)
             return false;
 
-        // Key
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
-        Dbt datKey(&ssKey[0], ssKey.size());
+        std::vector<unsigned char> vchKey(ssKey.begin(), ssKey.end());
 
-        // Read
-        Dbt datValue;
-        datValue.set_flags(DB_DBT_MALLOC);
-        int ret = pdb->get(activeTxn, &datKey, &datValue, 0);
-        memset(datKey.get_data(), 0, datKey.get_size());
-        if (datValue.get_data() == NULL)
+        std::vector<unsigned char> vchValue;
+        if (!ReadRaw(vchKey, vchValue))
+            return false;
+        if (vchValue.empty())
             return false;
 
         // Unserialize value
+        bool fOk = true;
         try {
-            CDataStream ssValue((char*)datValue.get_data(), (char*)datValue.get_data() + datValue.get_size(), SER_DISK, CLIENT_VERSION);
+            CDataStream ssValue(vchValue, SER_DISK, CLIENT_VERSION);
             ssValue >> value;
         }
         catch (std::exception &e) {
-            return false;
+            fOk = false;
         }
 
-        // Clear and free memory
-        memset(datValue.get_data(), 0, datValue.get_size());
-        free(datValue.get_data());
-        return (ret == 0);
+        // vchValue may hold sensitive data (e.g. a private key); ssValue made
+        // its own copy into a self-scrubbing buffer, so it's safe to wipe this one.
+        memory_cleanse(vchValue.data(), vchValue.size());
+        return fOk;
     }
 
     template<typename K, typename T>
     bool Write(const K& key, const T& value, bool fOverwrite=true)
     {
-        if (!pdb)
+        if (!pdb && !psqlite)
             return false;
         if (fReadOnly)
             assert(!"Write called on database in read-only mode");
 
-        // Key
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
-        Dbt datKey(&ssKey[0], ssKey.size());
+        std::vector<unsigned char> vchKey(ssKey.begin(), ssKey.end());
 
-        // Value
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         ssValue.reserve(10000);
         ssValue << value;
-        Dbt datValue(&ssValue[0], ssValue.size());
+        std::vector<unsigned char> vchValue(ssValue.begin(), ssValue.end());
 
-        // Write
-        int ret = pdb->put(activeTxn, &datKey, &datValue, (fOverwrite ? 0 : DB_NOOVERWRITE));
+        bool fOk = WriteRaw(vchKey, vchValue, fOverwrite);
 
-        // Clear memory in case it was a private key
-        memset(datKey.get_data(), 0, datKey.get_size());
-        memset(datValue.get_data(), 0, datValue.get_size());
-        return (ret == 0);
+        // vchValue may hold sensitive data (e.g. a private key); ssValue is
+        // its own, self-scrubbing copy, so it's safe to wipe this one now.
+        memory_cleanse(vchValue.data(), vchValue.size());
+        return fOk;
     }
 
     template<typename K>
     bool Erase(const K& key)
     {
-        if (!pdb)
+        if (!pdb && !psqlite)
             return false;
         if (fReadOnly)
             assert(!"Erase called on database in read-only mode");
 
-        // Key
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
-        Dbt datKey(&ssKey[0], ssKey.size());
+        std::vector<unsigned char> vchKey(ssKey.begin(), ssKey.end());
 
-        // Erase
-        int ret = pdb->del(activeTxn, &datKey, 0);
-
-        // Clear memory
-        memset(datKey.get_data(), 0, datKey.get_size());
-        return (ret == 0 || ret == DB_NOTFOUND);
+        return EraseRaw(vchKey);
     }
 
     template<typename K>
     bool Exists(const K& key)
     {
-        if (!pdb)
+        if (!pdb && !psqlite)
             return false;
 
-        // Key
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
-        Dbt datKey(&ssKey[0], ssKey.size());
+        std::vector<unsigned char> vchKey(ssKey.begin(), ssKey.end());
 
-        // Exists
-        int ret = pdb->exists(activeTxn, &datKey, 0);
-
-        // Clear memory
-        memset(datKey.get_data(), 0, datKey.get_size());
-        return (ret == 0);
+        return ExistsRaw(vchKey);
     }
 
-    Dbc* GetCursor()
-    {
-        if (!pdb)
-            return NULL;
-        Dbc* pcursor = NULL;
-        int ret = pdb->cursor(NULL, &pcursor, 0);
-        if (ret != 0)
-            return NULL;
-        return pcursor;
-    }
-
-    int ReadAtCursor(Dbc* pcursor, CDataStream& ssKey, CDataStream& ssValue, unsigned int fFlags=DB_NEXT)
-    {
-        // Read at cursor
-        Dbt datKey;
-        if (fFlags == DB_SET || fFlags == DB_SET_RANGE || fFlags == DB_GET_BOTH || fFlags == DB_GET_BOTH_RANGE)
-        {
-            datKey.set_data(&ssKey[0]);
-            datKey.set_size(ssKey.size());
-        }
-        Dbt datValue;
-        if (fFlags == DB_GET_BOTH || fFlags == DB_GET_BOTH_RANGE)
-        {
-            datValue.set_data(&ssValue[0]);
-            datValue.set_size(ssValue.size());
-        }
-        datKey.set_flags(DB_DBT_MALLOC);
-        datValue.set_flags(DB_DBT_MALLOC);
-        int ret = pcursor->get(&datKey, &datValue, fFlags);
-        if (ret != 0)
-            return ret;
-        else if (datKey.get_data() == NULL || datValue.get_data() == NULL)
-            return 99999;
-
-        // Convert to streams
-        ssKey.SetType(SER_DISK);
-        ssKey.clear();
-        ssKey.write((char*)datKey.get_data(), datKey.get_size());
-        ssValue.SetType(SER_DISK);
-        ssValue.clear();
-        ssValue.write((char*)datValue.get_data(), datValue.get_size());
-
-        // Clear and free memory
-        memset(datKey.get_data(), 0, datKey.get_size());
-        memset(datValue.get_data(), 0, datValue.get_size());
-        free(datKey.get_data());
-        free(datValue.get_data());
-        return 0;
-    }
+    CDBCursor* GetCursor();
+    int ReadAtCursor(CDBCursor* pcursor, CDataStream& ssKey, CDataStream& ssValue, unsigned int fFlags=DB_NEXT);
 
 public:
-    bool TxnBegin()
-    {
-        if (!pdb || activeTxn)
-            return false;
-        DbTxn* ptxn = bitdb.TxnBegin();
-        if (!ptxn)
-            return false;
-        activeTxn = ptxn;
-        return true;
-    }
-
-    bool TxnCommit()
-    {
-        if (!pdb || !activeTxn)
-            return false;
-        int ret = activeTxn->commit(0);
-        activeTxn = NULL;
-        return (ret == 0);
-    }
-
-    bool TxnAbort()
-    {
-        if (!pdb || !activeTxn)
-            return false;
-        int ret = activeTxn->abort();
-        activeTxn = NULL;
-        return (ret == 0);
-    }
+    bool TxnBegin();
+    bool TxnCommit();
+    bool TxnAbort();
 
     bool ReadVersion(int& nVersion)
     {
@@ -308,6 +268,11 @@ public:
     }
 
     bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
+
+    /** One-way migration of an existing BDB-format wallet file to SQLite.
+     * The original file is preserved alongside the new one under a .bdb.bak
+     * name. Requires the BDB environment (bitdb) to already be open. */
+    bool static MigrateBDBToSQLite(const std::string& strWalletFile, std::string& strError);
 };
 
 /** Access to the (IP) address database (peers.dat) */

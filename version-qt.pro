@@ -1,11 +1,13 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
-VERSION = 4.4.0
+VERSION = 4.6.0
 QT += core gui network
 INCLUDEPATH += src src/univalue src/qt
 QT += network
 DEFINES += QT_GUI
+DEFINES += SQLITE_THREADSAFE=1 SQLITE_OMIT_LOAD_EXTENSION
+QMAKE_CFLAGS += -Wno-discarded-qualifiers
 CONFIG += no_include_pwd
 CONFIG += thread
 CONFIG += static
@@ -194,6 +196,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/init.h \
     src/mruset.h \
     src/univalue/univalue.h \
+    src/sqlite3/sqlite3.h \
     src/qt/clientmodel.h \
     src/qt/guiutil.h \
     src/qt/transactionrecord.h \
@@ -274,6 +277,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/univalue/univalue_get.cpp \
     src/univalue/univalue_read.cpp \
     src/univalue/univalue_write.cpp \
+    src/sqlite3/sqlite3.c \
     src/qt/clientmodel.cpp \
     src/qt/guiutil.cpp \
     src/qt/transactionrecord.cpp \

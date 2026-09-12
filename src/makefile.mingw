@@ -124,7 +124,8 @@ OBJS= \
     obj/univalue/univalue.o \
     obj/univalue/univalue_get.o \
     obj/univalue/univalue_read.o \
-    obj/univalue/univalue_write.o
+    obj/univalue/univalue_write.o \
+    obj/sqlite3/sqlite3.o
 
 
 all: versiond.exe
@@ -157,6 +158,9 @@ obj/txdb.o: leveldb/out-static/libleveldb.a
 
 obj/%.o: %.cpp $(HEADERS)
 	g++ -c $(CFLAGS) -o $@ $<
+
+obj/%.o: %.c $(HEADERS)
+	g++ -c $(CFLAGS) -fpermissive -DSQLITE_THREADSAFE=1 -DSQLITE_OMIT_LOAD_EXTENSION -Wno-discarded-qualifiers -o $@ $<
 
 versiond.exe: $(OBJS:obj/%=obj/%)
 	g++ $(CFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)

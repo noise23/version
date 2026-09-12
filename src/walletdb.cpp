@@ -71,7 +71,7 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
 {
     bool fAllAccounts = (strAccount == "*");
 
-    Dbc* pcursor = GetCursor();
+    CDBCursor* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListAccountCreditDebit() : cannot create DB cursor");
     unsigned int fFlags = DB_SET_RANGE;
@@ -88,7 +88,7 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
             break;
         else if (ret != 0)
         {
-            pcursor->close();
+            delete pcursor;
             throw runtime_error("CWalletDB::ListAccountCreditDebit() : error scanning DB");
         }
 
@@ -107,7 +107,7 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
         entries.push_back(acentry);
     }
 
-    pcursor->close();
+    delete pcursor;
 }
 
 DBErrors
@@ -453,7 +453,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
         }
 
         // Get cursor
-        Dbc* pcursor = GetCursor();
+        CDBCursor* pcursor = GetCursor();
         if (!pcursor)
         {
             printf("Error getting wallet database cursor\n");
@@ -494,7 +494,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             if (!strErr.empty())
                 printf("%s\n", strErr.c_str());
         }
-        pcursor->close();
+        delete pcursor;
     }
 
     catch (...)
@@ -602,16 +602,22 @@ bool BackupWallet(const CWallet& wallet, const string& strDest)
 {
     if (!wallet.fFileBacked)
         return false;
+
+    bool fBdbFile = (DetectWalletDBFormat(GetDataDir() / wallet.strWalletFile) == WalletDBFormat::BDB);
+
     while (!fShutdown)
     {
         {
             LOCK(bitdb.cs_db);
-            if (!bitdb.mapFileUseCount.count(wallet.strWalletFile) || bitdb.mapFileUseCount[wallet.strWalletFile] == 0)
+            if (!fBdbFile || !bitdb.mapFileUseCount.count(wallet.strWalletFile) || bitdb.mapFileUseCount[wallet.strWalletFile] == 0)
             {
-                // Flush log data to the dat file
-                bitdb.CloseDb(wallet.strWalletFile);
-                bitdb.CheckpointLSN(wallet.strWalletFile);
-                bitdb.mapFileUseCount.erase(wallet.strWalletFile);
+                if (fBdbFile)
+                {
+                    // Flush log data to the dat file
+                    bitdb.CloseDb(wallet.strWalletFile);
+                    bitdb.CheckpointLSN(wallet.strWalletFile);
+                    bitdb.mapFileUseCount.erase(wallet.strWalletFile);
+                }
 
                 // Copy wallet.dat
                 std::filesystem::path pathSrc = GetDataDir() / wallet.strWalletFile;

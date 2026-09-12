@@ -140,7 +140,8 @@ OBJS= \
     obj/univalue/univalue.o \
     obj/univalue/univalue_get.o \
     obj/univalue/univalue_read.o \
-    obj/univalue/univalue_write.o
+    obj/univalue/univalue_write.o \
+    obj/sqlite3/sqlite3.o
 
 all: versiond
 
@@ -180,6 +181,14 @@ DEFS += -DHAVE_BUILD_INFO
 
 obj/%.o: %.cpp
 	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
+SQLITE_CFLAGS = -DSQLITE_THREADSAFE=1 -DSQLITE_OMIT_LOAD_EXTENSION -Wno-discarded-qualifiers
+obj/sqlite3/sqlite3.o: sqlite3/sqlite3.c
+	$(CC) -c -O2 $(SQLITE_CFLAGS) -I$(CURDIR)/sqlite3 -MMD -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
