@@ -72,10 +72,10 @@ UniValue getmininginfo(const UniValue& params, bool fHelp)
     obj.pushKV("blocks",            (int)nBestHeight);
     obj.pushKV("currentblocksize",  (uint64_t)nLastBlockSize);
     obj.pushKV("currentblocktx",    (uint64_t)nLastBlockTx);
-    obj.pushKV("PoW difficulty",    (double)GetDifficulty());
+//    obj.pushKV("PoW difficulty",    (double)GetDifficulty());
     obj.pushKV("PoS difficulty",    GetDifficulty(GetLastBlockIndex(pindexBest, true)));
     obj.pushKV("errors",            GetWarnings("statusbar"));
-    obj.pushKV("netmhashps",        GetPoWMHashPS());
+//    obj.pushKV("netmhashps",        GetPoWMHashPS());
     obj.pushKV("netstakeweight",    GetPoSKernelPS());
     obj.pushKV("generate",          getgenerate(params, false));
     obj.pushKV("genproclimit",      (int)GetArg("-genproclimit", -1));

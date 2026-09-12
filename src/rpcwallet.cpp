@@ -81,7 +81,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
         obj.pushKV("newmint",          ValueFromAmount(pwalletMain->GetNewMint()));
         obj.pushKV("stake",            ValueFromAmount(pwalletMain->GetStake()));
     }
-    obj.pushKV("PoW difficulty",       (double)GetDifficulty());
+//    obj.pushKV("PoW difficulty",       (double)GetDifficulty());
     obj.pushKV("PoS difficulty",       GetDifficulty(GetLastBlockIndex(pindexBest, true)));
     obj.pushKV("moneysupply",          ValueFromAmount(pindexBest->nMoneySupply));
 //    obj.pushKV("testnet",          fTestNet);
