@@ -285,6 +285,7 @@ std::string HelpMessage()
         "  -debug                 " + _("Output extra debugging information") + "\n" +
         "  -logtimestamps         " + _("Prepend debug output with timestamp") + "\n" +
         "  -printtoconsole        " + _("Send trace/debug info to console instead of debug.log file") + "\n" +
+        "  -printtodebuglog       " + _("Sebd trace/debug info to debug.log file") + "\n" +
         "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n" +
         "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n" +
         "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 9908)") + "\n" +
@@ -438,6 +439,7 @@ bool AppInit2()
     fServer = true;
 #endif
     fPrintToConsole = GetBoolArg("-printtoconsole");
+    fPrintToDebugLog = GetBoolArg("-printtodebuglog");
     fLogTimestamps = GetBoolArg("-logtimestamps");
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
 
