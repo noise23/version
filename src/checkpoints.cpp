@@ -22,7 +22,7 @@ namespace Checkpoints
     //
     static MapCheckpoints mapCheckpoints =
     {
-        { 0, hashGenesisBlockOfficial },                                                             // 2014-02-23 06:19:40 UTC
+        { 0, hashGenesisBlockOfficial },                                                            // 2014-02-23 06:19:40 UTC
         { 4400, uint256("0x0000000000002377ed0b0a87552763c39272a0d555745215cee2b87463830106") },    // 2014-03-02 04:51:41 UTC
         { 10000, uint256("0x0000000000005037e26c990a0178f490b04ca3b67a311e647f541ec3d65372a2") },   // 2014-03-03 09:57:52 UTC
         { 13001, uint256("0x00000000000038c996dce2e58c99f048012f5ff44b683fd6b949f53e4bd47f1b") },   // 2014-03-04 04:46:33 UTC
@@ -51,7 +51,10 @@ namespace Checkpoints
         { 3311403, uint256("0x7fe5df3fa792e46189a163074e8e23891f36397a848b88e308fad440636be930") }, // 2021-09-18 00:17:20 UTC
         { 3766623, uint256("0xc91180d83b0cd6978e61927def0e6f4865b7e4593bc09b68db31deeeac698776") }, // 2022-10-31 19:32:26 UTC
         { 4166623, uint256("0x520a7a4720c5ce2f786a65599ee2cd2ff4578e7dcd16f8ceef4c4ec053aaf3b2") }, // 2023-07-22 17:29:09 UTC
-        { 4608623, uint256("0xee6f9654de33603e4925d19f70afda01930441b8732927ebc3cc5726a8decbea") }  // 2024-09-26 21:58:18 UTC
+        { 4608623, uint256("0xee6f9654de33603e4925d19f70afda01930441b8732927ebc3cc5726a8decbea") }, // 2024-09-26 21:58:18 UTC
+        { 4800001, uint256("0x08f9efc4a707e1cba7a726bef5036675133a339f07b18587742e6633bafb393a") }, // 2025-04-15 17:09:17 UTC
+        { 5000001, uint256("0xf2e7f3920e95690a00731d9e8a091191f1e76c19c412cbcd5dbb01afcddd828e") }, // 2025-11-11 22:28:18 UTC
+        { 5210001, uint256("0xb6260e71a916c4332e2a86c382a48cbebeb8189b9d0bda4cf3c135e4cbf6354d") }  // 2026-09-13 14:02:35 UTC
     };
 
     static MapCheckpoints mapCheckpointsTestnet =
