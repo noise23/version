@@ -3,6 +3,12 @@ TARGET = version-qt
 macx:TARGET = "Version-Qt"
 # std::filesystem (used by the wallet DB format detection) needs macOS 10.15+.
 macx:QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.15
+# leveldb/secp256k1 are built via their own Makefiles with CC/CXX pointed
+# directly at the toolchain binary (bypassing the /usr/bin/clang xcrun shim
+# that normally injects the SDK path), so the SDK isysroot has to be passed
+# explicitly or <string> and friends aren't found.
+macx:QMAKE_CXXFLAGS += -isysroot $$system(xcrun --show-sdk-path)
+macx:QMAKE_CFLAGS += -isysroot $$system(xcrun --show-sdk-path)
 VERSION = 5.0.0
 QT += core gui network
 INCLUDEPATH += src src/univalue src/qt
@@ -128,7 +134,7 @@ QMAKE_CLEAN += $$PWD/src/leveldb/out-static/libleveldb.a; cd $$PWD/src/leveldb ;
     INCLUDEPATH += src/secp256k1/include
     LIBS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
-    gensecp256k1.commands = cd $$PWD/src/secp256k1 && chmod 755 * && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
+    gensecp256k1.commands = cd $$PWD/src/secp256k1 && (test -f .libs/libsecp256k1.a || (chmod 755 * && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental)) && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
     gensecp256k1.target = $$PWD/src/secp256k1/.libs/libsecp256k1.a
     gensecp256k1.depends = FORCE
     PRE_TARGETDEPS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
@@ -138,7 +144,7 @@ QMAKE_CLEAN += $$PWD/src/leveldb/out-static/libleveldb.a; cd $$PWD/src/leveldb ;
 } else {
     INCLUDEPATH += src/secp256k1/include
     LIBS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
-    gensecp256k1.commands = cd $$PWD/src/secp256k1 && chmod 755 * && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
+    gensecp256k1.commands = cd $$PWD/src/secp256k1 && (test -f .libs/libsecp256k1.a || (chmod 755 * && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental)) && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"
     gensecp256k1.target = $$PWD/src/secp256k1/.libs/libsecp256k1.a
     gensecp256k1.depends = FORCE
     PRE_TARGETDEPS += $$PWD/src/secp256k1/.libs/libsecp256k1.a

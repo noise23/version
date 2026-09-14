@@ -35,6 +35,20 @@ jobs:
             pkg-config
             git
 
+      - name: Build secp256k1
+        run: |
+          cd src/secp256k1
+          chmod 755 *
+          ./autogen.sh
+          ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no \
+            --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental
+          mingw32-make -j$(nproc)
+
+      - name: Build LevelDB
+        run: |
+          cd src/leveldb
+          TARGET_OS=NATIVE_WINDOWS make out-static/libleveldb.a out-static/libmemenv.a
+
       - name: qmake
         run: qmake-qt5 version-qt.pro
 
