@@ -1,0 +1,120 @@
+name: Build desktop binaries
+
+# Manual trigger only for now, while this workflow is being stabilized.
+# Run it from the Actions tab, or: gh workflow run build-desktop.yml
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 (MinGW64 Qt5 toolchain)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-qt5
+            mingw-w64-x86_64-db
+            mingw-w64-x86_64-libevent
+            mingw-w64-x86_64-miniupnpc
+            mingw-w64-x86_64-make
+            make
+            autoconf
+            automake
+            libtool
+            pkg-config
+            git
+
+      - name: Build secp256k1
+        run: |
+          cd src/secp256k1
+          chmod 755 *
+          ./autogen.sh
+          ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no \
+            --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental
+          mingw32-make -j$(nproc)
+
+      - name: Build LevelDB
+        run: |
+          cd src/leveldb
+          TARGET_OS=NATIVE_WINDOWS make out-static/libleveldb.a out-static/libmemenv.a
+
+      - name: qmake
+        run: qmake version-qt.pro
+
+      - name: Build
+        run: mingw32-make -j$(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          EXE=$(find . -maxdepth 2 -iname "version-qt.exe" | head -n1)
+          if [ -z "$EXE" ]; then echo "version-qt.exe not found"; find . -iname "*.exe"; exit 1; fi
+          cp "$EXE" dist/
+          windeployqt.exe --release dist/version-qt.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-qt-windows
+          path: dist/
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install qt@5 berkeley-db libevent miniupnpc automake autoconf libtool pkg-config
+
+      - name: Build secp256k1
+        run: |
+          cd src/secp256k1
+          chmod 755 *
+          ./autogen.sh
+          ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no \
+            --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Build LevelDB
+        run: |
+          cd src/leveldb
+          make out-static/libleveldb.a out-static/libmemenv.a
+
+      - name: qmake
+        run: |
+          export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          qmake version-qt.pro \
+            "BDB_INCLUDE_PATH=$(brew --prefix berkeley-db)/include" \
+            "BDB_LIB_PATH=$(brew --prefix berkeley-db)/lib" \
+            "MINIUPNPC_INCLUDE_PATH=$(brew --prefix miniupnpc)/include" \
+            "MINIUPNPC_LIB_PATH=$(brew --prefix miniupnpc)/lib"
+
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+
+      - name: Package
+        run: |
+          export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          mkdir -p dist
+          APP=$(find . -maxdepth 2 -iname "*.app" | head -n1)
+          if [ -z "$APP" ]; then echo ".app bundle not found"; find . -maxdepth 2; exit 1; fi
+          cp -R "$APP" dist/
+          macdeployqt "dist/$(basename "$APP")" -dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-qt-macos
+          path: dist/
