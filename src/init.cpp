@@ -17,6 +17,7 @@
 #include "checkpoints.h"
 #include "key.h"
 #include <filesystem>
+#include <sstream>
 
 #ifndef WIN32
 #include <signal.h>

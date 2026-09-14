@@ -8,12 +8,22 @@
 #include <cstring>
 #include <string>
 
+#ifndef WIN32
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#endif
 
 using namespace std;
+
+#ifdef WIN32
+// TODO: implement version: URI handling on Windows. The AF_UNIX socket
+// scheme below is POSIX-only.
+bool IpcSendUri(const char* strURI) { return false; }
+void ipcShutdown() {}
+void ipcInit() {}
+#else
 
 // A single, fixed-name Unix domain datagram socket used to hand "version:" URI
 // command-line args from a second launch off to the already-running instance,
@@ -92,10 +102,6 @@ void ipcInit()
     // TODO: implement bitcoin: URI handling the Mac Way
     return;
 #endif
-#ifdef WIN32
-    // TODO: implement version: URI handling on Windows
-    return;
-#endif
 
     struct sockaddr_un addr;
     if (!IpcBuildAddr(addr))
@@ -118,3 +124,4 @@ void ipcInit()
     if (!NewThread(ipcThread, (void*)(intptr_t)fd))
         ::close(fd);
 }
+#endif // WIN32
