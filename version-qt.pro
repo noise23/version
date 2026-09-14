@@ -78,9 +78,9 @@ contains(USE_UPNP, -) {
         USE_UPNP=1
     }
     DEFINES += USE_UPNP=$$USE_UPNP STATICLIB
+    win32:DEFINES += MINIUPNP_STATICLIB
     INCLUDEPATH += $$MINIUPNPC_INCLUDE_PATH
     LIBS += $$join(MINIUPNPC_LIB_PATH,,-L,) -lminiupnpc
-    win32:LIBS += -liphlpapi
 }
 
 # use: qmake "USE_DBUS=1"
@@ -447,11 +447,15 @@ macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 INCLUDEPATH += $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH $$LIBEVENT_INCLUDE_PATH
 LIBS += $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,) $$join(LIBEVENT_LIB_PATH,,-L,)
 LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
-# note: -lgdi32 must come after any lib that pulls Win32 GDI symbols (see #681)
-win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lbcrypt
 LIBS += -levent
 !win32:LIBS += -levent_pthreads
 win32:LIBS += -levent_core
+# note: -lgdi32 must come after any lib that pulls Win32 GDI symbols (see #681).
+# These also have to come after miniupnpc/leveldb/libevent above: MinGW's ld
+# resolves a symbol only against libraries listed later on the link line, and
+# those libraries all pull in Winsock/iphlpapi symbols (WSASend, getsockname,
+# if_nametoindex, ...).
+win32:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32 -lbcrypt -liphlpapi
 
 contains(RELEASE, 1) {
     !win32:!macx {
