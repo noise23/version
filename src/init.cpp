@@ -440,7 +440,7 @@ bool AppInit2()
     fServer = true;
 #endif
     fPrintToConsole = GetBoolArg("-printtoconsole");
-    fPrintToDebugLog = GetBoolArg("-printtodebuglog");
+    fPrintToDebugLog = GetBoolArg("-printtodebuglog", true);
     fLogTimestamps = GetBoolArg("-logtimestamps");
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
 
