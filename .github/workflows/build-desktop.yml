@@ -22,7 +22,7 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-qt5
+            mingw-w64-x86_64-qt5-static
             mingw-w64-x86_64-db
             mingw-w64-x86_64-libevent
             mingw-w64-x86_64-miniupnpc
@@ -50,22 +50,25 @@ jobs:
           TARGET_OS=NATIVE_WINDOWS make out-static/libleveldb.a out-static/libmemenv.a
 
       - name: qmake
-        run: qmake-qt5 version-qt.pro "QMAKE_LRELEASE=lrelease-qt5"
+        run: |
+          export PATH="/mingw64/qt5-static/bin:$PATH"
+          qmake version-qt.pro "QMAKE_LRELEASE=/mingw64/qt5-static/bin/lrelease.exe"
 
       - name: Build
-        run: mingw32-make -j$(nproc)
+        run: |
+          export PATH="/mingw64/qt5-static/bin:$PATH"
+          mingw32-make -j$(nproc)
 
       - name: Package
         run: |
+          # Statically linked (Qt5, BDB, libevent, miniupnpc, secp256k1,
+          # leveldb all built/linked static) -- a single self-contained .exe,
+          # no DLLs or windeployqt needed.
           mkdir -p dist
           EXE=$(find . -maxdepth 2 -iname "version-qt.exe" | head -n1)
           if [ -z "$EXE" ]; then echo "version-qt.exe not found"; find . -iname "*.exe"; exit 1; fi
           cp "$EXE" dist/
-          # MSYS2's Qt5 is built against desktop OpenGL only (no ANGLE), so
-          # windeployqt's search for libEGL.dll/libGLESv2.dll always comes up
-          # empty and it exits non-zero even though deployment itself
-          # succeeded; --no-angle skips that check.
-          windeployqt-qt5.exe --release --no-angle dist/version-qt.exe
+          ldd dist/version-qt.exe || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
