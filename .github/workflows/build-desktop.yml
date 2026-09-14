@@ -50,7 +50,7 @@ jobs:
           TARGET_OS=NATIVE_WINDOWS make out-static/libleveldb.a out-static/libmemenv.a
 
       - name: qmake
-        run: qmake-qt5 version-qt.pro
+        run: qmake-qt5 version-qt.pro "QMAKE_LRELEASE=lrelease-qt5"
 
       - name: Build
         run: mingw32-make -j$(nproc)
@@ -86,7 +86,9 @@ jobs:
             "BDB_INCLUDE_PATH=$(brew --prefix berkeley-db)/include" \
             "BDB_LIB_PATH=$(brew --prefix berkeley-db)/lib" \
             "MINIUPNPC_INCLUDE_PATH=$(brew --prefix miniupnpc)/include" \
-            "MINIUPNPC_LIB_PATH=$(brew --prefix miniupnpc)/lib"
+            "MINIUPNPC_LIB_PATH=$(brew --prefix miniupnpc)/lib" \
+            "LIBEVENT_INCLUDE_PATH=$(brew --prefix libevent)/include" \
+            "LIBEVENT_LIB_PATH=$(brew --prefix libevent)/lib"
 
       - name: Build
         run: make -j$(sysctl -n hw.ncpu)
