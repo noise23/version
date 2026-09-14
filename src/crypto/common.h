@@ -32,7 +32,23 @@ void static inline WriteBE64(unsigned char *ptr, uint64_t x) {
     ptr[4] = x >> 24; ptr[5] = x >> 16; ptr[6] = x >> 8; ptr[7] = x;
 }
 #else
-#  include <endian.h>
+#  if defined(__APPLE__)
+#    include <libkern/OSByteOrder.h>
+#    define htobe16(x) OSSwapHostToBigInt16(x)
+#    define htole16(x) OSSwapHostToLittleInt16(x)
+#    define be16toh(x) OSSwapBigToHostInt16(x)
+#    define le16toh(x) OSSwapLittleToHostInt16(x)
+#    define htobe32(x) OSSwapHostToBigInt32(x)
+#    define htole32(x) OSSwapHostToLittleInt32(x)
+#    define be32toh(x) OSSwapBigToHostInt32(x)
+#    define le32toh(x) OSSwapLittleToHostInt32(x)
+#    define htobe64(x) OSSwapHostToBigInt64(x)
+#    define htole64(x) OSSwapHostToLittleInt64(x)
+#    define be64toh(x) OSSwapBigToHostInt64(x)
+#    define le64toh(x) OSSwapLittleToHostInt64(x)
+#  else
+#    include <endian.h>
+#  endif
 uint32_t static inline ReadLE32(const unsigned char *ptr) { return le32toh(*((uint32_t*)ptr)); }
 uint64_t static inline ReadLE64(const unsigned char *ptr) { return le64toh(*((uint64_t*)ptr)); }
 void static inline WriteLE32(unsigned char *ptr, uint32_t x) { *((uint32_t*)ptr) = htole32(x); }
