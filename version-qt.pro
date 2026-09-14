@@ -142,6 +142,9 @@ QMAKE_CLEAN += $$PWD/src/leveldb/out-static/libleveldb.a; cd $$PWD/src/leveldb ;
     # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
     QMAKE_CLEAN += $$PWD/src/secp256k1/.libs/libsecp256k1.a; cd $$PWD/src/secp256k1; $(MAKE) clean
 } else {
+    # secp256k1.h defaults to __declspec(dllimport) on Windows unless told
+    # this is a static build, which mismatches our statically-built .a.
+    DEFINES += SECP256K1_STATIC
     INCLUDEPATH += src/secp256k1/include
     LIBS += $$PWD/src/secp256k1/.libs/libsecp256k1.a
     gensecp256k1.commands = cd $$PWD/src/secp256k1 && (test -f .libs/libsecp256k1.a || (chmod 755 * && ./autogen.sh && ./configure --disable-shared --with-pic --enable-benchmark=no --enable-tests=no --enable-exhaustive-tests=no --enable-module-recovery --enable-module-schnorrsig --enable-experimental)) && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\"

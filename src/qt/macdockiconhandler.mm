@@ -1,6 +1,7 @@
 
 #include "macdockiconhandler.h"
 
+#include <QtGui/QImage>
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QWidget>
 
@@ -44,10 +45,36 @@ extern void qt_mac_set_dock_menu(QMenu*);
 
 @end
 
+// QPixmap::toMacCGImageRef() and QtMacExtras' QtMac::toCGImageRef() are both
+// gone (the former removed with Qt4, the latter deprecated then dropped by
+// Qt 5.14+), so convert via raw ARGB32 image data instead. The QImage is
+// heap-allocated and freed once CoreGraphics is done with its backing data.
+static void ReleaseQImageData(void *info, const void *data, size_t size)
+{
+    Q_UNUSED(data);
+    Q_UNUSED(size);
+    delete static_cast<QImage *>(info);
+}
+
+static CGImageRef QImageToCGImage(const QImage &image)
+{
+    QImage *img = new QImage(image.convertToFormat(QImage::Format_ARGB32));
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGDataProviderRef provider = CGDataProviderCreateWithData(
+        img, img->constBits(), img->sizeInBytes(), ReleaseQImageData);
+    CGImageRef cgImage = CGImageCreate(
+        img->width(), img->height(), 8, 32, img->bytesPerLine(), colorSpace,
+        kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst,
+        provider, NULL, false, kCGRenderingIntentDefault);
+    CGDataProviderRelease(provider);
+    CGColorSpaceRelease(colorSpace);
+    return cgImage;
+}
+
 MacDockIconHandler::MacDockIconHandler() : QObject()
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    this->m_dockIconClickEventHandler = [[DockIconClickEventHandler alloc] initWithDockIconHandler:this];
+    this->m_dockIconClickEventHandler = (objc_object *)[[DockIconClickEventHandler alloc] initWithDockIconHandler:this];
 
     this->m_dummyWidget = new QWidget();
     this->m_dockMenu = new QMenu(this->m_dummyWidget);
@@ -75,7 +102,7 @@ void MacDockIconHandler::setIcon(const QIcon &icon)
     else {
         QSize size = icon.actualSize(QSize(128, 128));
         QPixmap pixmap = icon.pixmap(size);
-        CGImageRef cgImage = pixmap.toMacCGImageRef();
+        CGImageRef cgImage = QImageToCGImage(pixmap.toImage());
         image = [[NSImage alloc] initWithCGImage:cgImage size:NSZeroSize];
         CFRelease(cgImage);
     }
