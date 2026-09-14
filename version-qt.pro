@@ -452,7 +452,13 @@ macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH $$LIBEVENT_INCLUDE_PATH
 LIBS += $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,) $$join(LIBEVENT_LIB_PATH,,-L,)
-LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
+!win32:LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
+# MSYS2's unsuffixed -ldb_cxx resolves to the dynamic import stub even under
+# a global -static, so name the actual static archive explicitly. libstdc++/
+# libwinpthread/libgcc_s likewise still end up dynamically linked despite
+# -static/-static-libgcc/-static-libstdc++ (a known MinGW gotcha) -- force
+# all of these static with an explicit -Wl,-Bstatic/-Bdynamic bracket.
+win32:LIBS += -Wl,-Bstatic -ldb_cxx-6.2 -lstdc++ -lpthread -lgcc -Wl,-Bdynamic
 LIBS += -levent
 !win32:LIBS += -levent_pthreads
 win32:LIBS += -levent_core
