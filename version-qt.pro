@@ -1,6 +1,8 @@
 TEMPLATE = app
 TARGET = version-qt
 macx:TARGET = "Version-Qt"
+# std::filesystem (used by the wallet DB format detection) needs macOS 10.15+.
+macx:QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.15
 VERSION = 5.0.0
 QT += core gui network
 INCLUDEPATH += src src/univalue src/qt

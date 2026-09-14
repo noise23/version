@@ -49,7 +49,7 @@ jobs:
           TARGET_OS=NATIVE_WINDOWS make out-static/libleveldb.a out-static/libmemenv.a
 
       - name: qmake
-        run: qmake version-qt.pro
+        run: qmake-qt5 version-qt.pro
 
       - name: Build
         run: mingw32-make -j$(nproc)
@@ -60,7 +60,7 @@ jobs:
           EXE=$(find . -maxdepth 2 -iname "version-qt.exe" | head -n1)
           if [ -z "$EXE" ]; then echo "version-qt.exe not found"; find . -iname "*.exe"; exit 1; fi
           cp "$EXE" dist/
-          windeployqt.exe --release dist/version-qt.exe
+          windeployqt-qt5.exe --release dist/version-qt.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

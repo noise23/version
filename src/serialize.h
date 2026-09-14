@@ -922,7 +922,12 @@ public:
             vch.insert(it, first, last);
     }
 
-    void insert(iterator it, std::vector<char>::const_iterator first, std::vector<char>::const_iterator last)
+    // Templated so it doesn't collide with the const_iterator overload above on
+    // standard library implementations (e.g. libc++) where CSerializeData's
+    // const_iterator and std::vector<char>::const_iterator are the same type.
+    template<typename PlainVectorCharConstIterator,
+             typename std::enable_if<!std::is_same<PlainVectorCharConstIterator, const_iterator>::value, int>::type = 0>
+    void insert(iterator it, PlainVectorCharConstIterator first, PlainVectorCharConstIterator last)
     {
         assert(last - first >= 0);
         if (it == vch.begin() + nReadPos && (unsigned int)(last - first) <= nReadPos)
