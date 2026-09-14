@@ -449,16 +449,26 @@ macx:QMAKE_LFLAGS_THREAD += -pthread
 macx:QMAKE_CXXFLAGS_THREAD += -pthread
 macx:QMAKE_INFO_PLIST = share/qt/Info.plist
 
+# On win32, qmake's static Qt module linkage gets spliced into the middle of
+# our own LIBS entries (verified by inspecting the actual link line), so a
+# -Wl,-Bstatic/-Bdynamic bracket around any one of our own LIBS additions
+# only covers whatever happens to land next to it -- e.g. it left libevent
+# dynamically linked even though it's right next to db_cxx in this file.
+# Forcing -Bstatic globally via LFLAGS (processed before any -l flag at all)
+# avoids the ordering problem entirely: it also covers Qt5's own libs,
+# libevent, and even gcc's own implicit libstdc++/libgcc_s/libwinpthread.
+# Windows' own system import libraries (user32.a, gdi32.a, ...) are
+# unaffected -- MinGW packages those with a plain .a extension too, so
+# -Bstatic still finds them fine.
+win32:QMAKE_LFLAGS += -Wl,-Bstatic
+
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH $$LIBEVENT_INCLUDE_PATH
 LIBS += $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,) $$join(LIBEVENT_LIB_PATH,,-L,)
 !win32:LIBS += -ldb_cxx$$BDB_LIB_SUFFIX
 # MSYS2's unsuffixed -ldb_cxx resolves to the dynamic import stub even under
-# a global -static, so name the actual static archive explicitly. libstdc++/
-# libwinpthread/libgcc_s likewise still end up dynamically linked despite
-# -static/-static-libgcc/-static-libstdc++ (a known MinGW gotcha) -- force
-# all of these static with an explicit -Wl,-Bstatic/-Bdynamic bracket.
-win32:LIBS += -Wl,-Bstatic -ldb_cxx-6.2 -lstdc++ -lpthread -lgcc -Wl,-Bdynamic
+# a global -static, so name the actual static archive explicitly.
+win32:LIBS += -ldb_cxx-6.2
 LIBS += -levent
 !win32:LIBS += -levent_pthreads
 win32:LIBS += -levent_core
