@@ -48,9 +48,7 @@ private:
     enum Mode {
         None,        /**< Ignore informational notifications, and show a modal pop-up dialog for Critical notifications. */
         Freedesktop, /**< Use DBus org.freedesktop.Notifications */
-        QSystemTray, /**< Use QSystemTray::showMessage */
-        Growl12,        /**< Use the Growl 1.2 notification system (Mac only) */
-        Growl13        /**< Use the Growl 1.3 notification system (Mac only) */
+        QSystemTray  /**< Use QSystemTray::showMessage */
     };
     QString programName;
     Mode mode;
@@ -61,9 +59,6 @@ private:
     void notifyDBus(Class cls, const QString &title, const QString &text, const QIcon &icon, int millisTimeout);
 #endif
     void notifySystray(Class cls, const QString &title, const QString &text, const QIcon &icon, int millisTimeout);
-#ifdef Q_OS_MAC
-    void notifyGrowl(Class cls, const QString &title, const QString &text, const QIcon &icon);
-#endif
 };
 
 #endif // NOTIFICATOR_H
