@@ -61,7 +61,19 @@ jobs:
           EXE=$(find . -maxdepth 2 -iname "version-qt.exe" | head -n1)
           if [ -z "$EXE" ]; then echo "version-qt.exe not found"; find . -iname "*.exe"; exit 1; fi
           cp "$EXE" dist/
-          windeployqt-qt5.exe --release dist/version-qt.exe
+          # windeployqt occasionally fails transiently on GitHub's Windows
+          # runners (e.g. a freshly-written DLL still locked by antivirus
+          # scanning), so give it a couple of retries.
+          ok=0
+          for i in 1 2 3; do
+            if windeployqt-qt5.exe --release dist/version-qt.exe; then
+              ok=1
+              break
+            fi
+            echo "windeployqt attempt $i failed, retrying..."
+            sleep 5
+          done
+          [ "$ok" = 1 ] || exit 1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

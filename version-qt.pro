@@ -403,12 +403,15 @@ OTHER_FILES += README.md \
     src/qt/test/*.cpp \
     src/qt/test/*.h
 
-isEmpty(BDB_LIB_PATH) {
-    macx:BDB_LIB_PATH = /opt/local/lib/db48
+# The -4.8 suffix matches MacPorts' db48 port; only default to it when
+# BDB_LIB_PATH hasn't been overridden either (e.g. to point at Homebrew's
+# berkeley-db, which ships unsuffixed libdb_cxx.dylib).
+isEmpty(BDB_LIB_SUFFIX):isEmpty(BDB_LIB_PATH) {
+    macx:BDB_LIB_SUFFIX = -4.8
 }
 
-isEmpty(BDB_LIB_SUFFIX) {
-    macx:BDB_LIB_SUFFIX = -4.8
+isEmpty(BDB_LIB_PATH) {
+    macx:BDB_LIB_PATH = /opt/local/lib/db48
 }
 
 isEmpty(BDB_INCLUDE_PATH) {
